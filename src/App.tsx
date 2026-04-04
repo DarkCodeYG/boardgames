@@ -10,12 +10,16 @@ import WitnessesHome from './games/witnesses/pages/HomePage';
 import WitnessesOnlineGame from './games/witnesses/pages/OnlineGamePage';
 import WitnessesPlayerPage from './games/witnesses/pages/PlayerPage';
 import type { SpecialRole } from './games/witnesses/lib/types';
+import FakeartHome from './games/fakeart/pages/HomePage';
+import FakeartGame from './games/fakeart/pages/GamePage';
+import FakeartPlayer from './games/fakeart/pages/PlayerPage';
 
 type Page =
   | 'home'
   | 'codenames-home' | 'codenames-game' | 'spymaster'
   | 'spyfall-home' | 'spyfall-game' | 'spyfall-player'
-  | 'witnesses-home' | 'witnesses-game' | 'witnesses-player';
+  | 'witnesses-home' | 'witnesses-game' | 'witnesses-player'
+  | 'fakeart-home' | 'fakeart-game' | 'fakeart-player';
 
 function App() {
   const [page, setPage] = useState<Page>('home');
@@ -30,6 +34,8 @@ function App() {
       setPage('spyfall-player');
     } else if (game === 'witnesses-online' && params.get('room')) {
       setPage('witnesses-player');
+    } else if (game === 'fakeart' && params.get('room')) {
+      setPage('fakeart-player');
     } else if (params.get('seed')) {
       setPage('spymaster');
     }
@@ -42,12 +48,14 @@ function App() {
       return <SpyfallPlayerCard />;
     case 'witnesses-player':
       return <WitnessesPlayerPage />;
+    case 'fakeart-player':
+      return <FakeartPlayer />;
     case 'codenames-game':
-      return <CodenamesGame onGoHome={() => setPage('codenames-home')} />;
+      return <CodenamesGame onGoHome={() => setPage('home')} />;
     case 'codenames-home':
       return <CodenamesHome onStartGame={() => setPage('codenames-game')} onBack={() => setPage('home')} />;
     case 'spyfall-game':
-      return <SpyfallGame onGoHome={() => setPage('spyfall-home')} />;
+      return <SpyfallGame onGoHome={() => setPage('home')} />;
     case 'spyfall-home':
       return <SpyfallHome onStartGame={() => setPage('spyfall-game')} onBack={() => setPage('home')} />;
     case 'witnesses-game':
@@ -59,12 +67,17 @@ function App() {
           onBack={() => setPage('home')}
         />
       );
+    case 'fakeart-game':
+      return <FakeartGame onGoHome={() => setPage('home')} />;
+    case 'fakeart-home':
+      return <FakeartHome onStartGame={() => setPage('fakeart-game')} onBack={() => setPage('home')} />;
     default:
       return (
         <Home onSelectGame={(id) => {
           if (id === 'codenames') setPage('codenames-home');
           if (id === 'spyfall') setPage('spyfall-home');
           if (id === 'witnesses') setPage('witnesses-home');
+          if (id === 'fakeart') setPage('fakeart-home');
         }} />
       );
   }
