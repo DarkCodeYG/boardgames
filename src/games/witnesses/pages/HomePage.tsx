@@ -36,9 +36,11 @@ export default function HomePage({ onStart, onBack }: Props) {
     <div className="min-h-dvh bg-gradient-to-b from-stone-100 to-stone-200 p-6">
       <div className="max-w-md mx-auto">
         {onBack && (
-          <button onClick={() => { sfxClick(); onBack?.(); }} className="mb-4 text-stone-500 hover:text-stone-700 font-bold text-sm">
-            {wt(lang, 'back')}
-          </button>
+          <div className="text-center mb-4">
+            <button onClick={() => { sfxClick(); onBack?.(); }} className="text-stone-500 hover:text-stone-700 font-bold text-sm">
+              {wt(lang, 'back')}
+            </button>
+          </div>
         )}
 
         <h1 className="text-4xl font-black text-stone-800 text-center mb-1">{wt(lang, 'title')}</h1>

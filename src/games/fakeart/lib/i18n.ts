@@ -100,6 +100,7 @@ export const I18N = {
     hideFromOthers: '👆 화면을 보여주지 마세요!',
     confirmBtn: '확인했어요',
     minPlayersHint: (n: number) => `최소 4명 필요 (현재 ${n}명)`,
+    connectionError: '연결에 실패했습니다. 다시 시도해 주세요.',
   },
   en: {
     title: 'Fake Painter',
@@ -202,6 +203,7 @@ export const I18N = {
     hideFromOthers: '👆 Don\'t show your screen!',
     confirmBtn: 'Got it',
     minPlayersHint: (n: number) => `Minimum 4 players required (current: ${n})`,
+    connectionError: 'Connection failed. Please try again.',
   },
   zh: {
     title: '假画家',
@@ -304,6 +306,7 @@ export const I18N = {
     hideFromOthers: '👆 请勿让他人看到屏幕！',
     confirmBtn: '已确认',
     minPlayersHint: (n: number) => `至少需要4名玩家（当前：${n}人）`,
+    connectionError: '连接失败，请重试。',
   },
 } as const;
 

@@ -3,7 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useGameStore } from '../../codenames/store/game-store';
 import { useFakeartStore } from '../store/game-store';
 import { I18N } from '../lib/i18n';
-import { resolveGame, getAccused } from '../lib/game-engine';
+import { resolveGame, getAccused, generateSeed } from '../lib/game-engine';
 import {
   subscribeFakeartRoom,
   updateFakeartRoom,
@@ -74,7 +74,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       handleNextTurn();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timer]);
+  }, [timer, roomState?.phase]);
 
   useEffect(() => {
     if (roomState?.phase === 'drawing') {
@@ -86,9 +86,12 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomState?.phase, roomState?.currentDrawerIndex]);
 
-  // 투표 완료 자동 처리
+  // 투표 완료 자동 처리 (phase 변경 시 ref 초기화 포함)
   useEffect(() => {
-    if (!roomState || roomState.phase !== 'voting') return;
+    if (!roomState || roomState.phase !== 'voting') {
+      processedVotesRef.current = false;
+      return;
+    }
     const voteCount = Object.keys(roomState.votes || {}).length;
     if (voteCount < roomState.playerCount) return;
     if (processedVotesRef.current) return;
@@ -109,13 +112,6 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       setWinner(roomCode, 'fake').catch(console.error);
     }
   }, [roomState, fakeIndex, roomCode]);
-
-  // phase 변경 시 processedVotesRef 초기화
-  useEffect(() => {
-    if (roomState?.phase !== 'voting') {
-      processedVotesRef.current = false;
-    }
-  }, [roomState?.phase]);
 
   const handleStartDrawing = async () => {
     if (!roomState) return;
@@ -159,6 +155,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     sfxClick();
     await updateFakeartRoom(roomCode, {
       phase: 'lobby',
+      seed: generateSeed(),
       currentDrawerIndex: 0,
       votes: {},
       fakeGuess: '',
@@ -375,6 +372,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   // ===== VOTING =====
   if (roomState.phase === 'voting') {
     const voteUrl = `${window.location.origin}${window.location.pathname}?game=fakeart&room=${roomCode}&lang=${lang}`;
+    const votedSet = new Set(Object.keys(roomState.votes || {}).map(Number));
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
         <div className="text-center max-w-md w-full">
@@ -391,7 +389,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
                 <span
                   key={i}
                   className={`px-3 py-1 rounded-full text-sm font-bold ${
-                    Object.keys(roomState.votes || {}).map(Number).includes(i)
+                    votedSet.has(i)
                       ? 'bg-green-200 text-green-800'
                       : 'bg-stone-100 text-stone-500'
                   }`}

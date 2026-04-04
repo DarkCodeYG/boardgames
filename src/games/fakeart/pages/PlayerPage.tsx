@@ -29,6 +29,7 @@ export default function PlayerPage() {
   const [hasGuessed, setHasGuessed] = useState(false);
   const [guessInput, setGuessInput] = useState('');
   const resultSoundPlayedRef = useRef(false);
+  const roleSoundPlayedRef = useRef(false);
 
   // Firebase 구독
   useEffect(() => {
@@ -36,19 +37,11 @@ export default function PlayerPage() {
     return subscribeFakeartRoom(roomCode, setRoomState);
   }, [roomCode]);
 
-  // localStorage 자동 재접속
+  // localStorage 이름 자동 채우기 (직접 입장 스킵 없음)
   useEffect(() => {
     if (!roomCode) return;
     const saved = localStorage.getItem(`fakeart_name_${roomCode}`);
-    if (!saved) return;
-    joinFakeartRoom(roomCode, saved).then((result) => {
-      if ('error' in result) return;
-      setMyName(saved);
-      setNameInput(saved);
-      setPlayerIndex(result.index);
-      setView('waiting');
-    }).catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (saved) setNameInput(saved);
   }, [roomCode]);
 
   // phase 변화 감지 → view 전환
@@ -97,7 +90,6 @@ export default function PlayerPage() {
   const isFake = playerIndex >= 0 && playerIndex === fakeIndex;
 
   // 역할 공개 효과음
-  const roleSoundPlayedRef = useRef(false);
   useEffect(() => {
     if (view === 'role' && !roleSoundPlayedRef.current) {
       roleSoundPlayedRef.current = true;
@@ -160,7 +152,7 @@ export default function PlayerPage() {
         setView('waiting');
       }
     } catch {
-      setJoinError('연결에 실패했습니다. 다시 시도해 주세요.');
+      setJoinError(txt.connectionError);
       setJoining(false);
     }
   };
