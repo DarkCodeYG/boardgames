@@ -51,7 +51,7 @@ function App() {
     case 'spyfall-home':
       return <SpyfallHome onStartGame={() => setPage('spyfall-game')} onBack={() => setPage('home')} />;
     case 'witnesses-game':
-      return <WitnessesOnlineGame onGoHome={() => setPage('witnesses-home')} enabledRoles={witnessRoles} playerCount={witnessPlayerCount} />;
+      return <WitnessesOnlineGame onGoHome={() => setPage('home')} enabledRoles={witnessRoles} playerCount={witnessPlayerCount} />;
     case 'witnesses-home':
       return (
         <WitnessesHome
