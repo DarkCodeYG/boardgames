@@ -7,19 +7,19 @@ import SpyfallHome from './games/spyfall/pages/HomePage';
 import SpyfallGame from './games/spyfall/pages/GamePage';
 import SpyfallPlayerCard from './games/spyfall/components/PlayerCard';
 import WitnessesHome from './games/witnesses/pages/HomePage';
-import WitnessesGame from './games/witnesses/pages/GamePage';
 import WitnessesOnlineGame from './games/witnesses/pages/OnlineGamePage';
 import WitnessesPlayerPage from './games/witnesses/pages/PlayerPage';
+import type { SpecialRole } from './games/witnesses/lib/types';
 
 type Page =
   | 'home'
   | 'codenames-home' | 'codenames-game' | 'spymaster'
   | 'spyfall-home' | 'spyfall-game' | 'spyfall-player'
-  | 'witnesses-home' | 'witnesses-game' | 'witnesses-online' | 'witnesses-player-online';
+  | 'witnesses-home' | 'witnesses-game' | 'witnesses-player';
 
 function App() {
   const [page, setPage] = useState<Page>('home');
-  const [witnessRoles, setWitnessRoles] = useState<(string | null)[]>([]);
+  const [witnessRoles, setWitnessRoles] = useState<SpecialRole[]>([]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -27,10 +27,8 @@ function App() {
 
     if (game === 'spyfall' && params.get('seed')) {
       setPage('spyfall-player');
-    } else if (game === 'witnesses' && params.get('seed')) {
-      setPage('witnesses-game'); // 오프라인 QR
     } else if (game === 'witnesses-online' && params.get('room')) {
-      setPage('witnesses-player-online'); // 온라인 플레이어
+      setPage('witnesses-player');
     } else if (params.get('seed')) {
       setPage('spymaster');
     }
@@ -41,7 +39,7 @@ function App() {
       return <SpymasterKeyPage />;
     case 'spyfall-player':
       return <SpyfallPlayerCard />;
-    case 'witnesses-player-online':
+    case 'witnesses-player':
       return <WitnessesPlayerPage />;
     case 'codenames-game':
       return <CodenamesGame onGoHome={() => setPage('codenames-home')} />;
@@ -52,14 +50,11 @@ function App() {
     case 'spyfall-home':
       return <SpyfallHome onStartGame={() => setPage('spyfall-game')} onBack={() => setPage('home')} />;
     case 'witnesses-game':
-      return <WitnessesGame onGoHome={() => setPage('witnesses-home')} />;
-    case 'witnesses-online':
-      return <WitnessesOnlineGame onGoHome={() => setPage('witnesses-home')} enabledRoles={witnessRoles as any} />;
+      return <WitnessesOnlineGame onGoHome={() => setPage('witnesses-home')} enabledRoles={witnessRoles} />;
     case 'witnesses-home':
       return (
         <WitnessesHome
-          onStartGame={() => setPage('witnesses-game')}
-          onStartOnline={(roles) => { setWitnessRoles(roles); setPage('witnesses-online'); }}
+          onStart={(roles) => { setWitnessRoles(roles); setPage('witnesses-game'); }}
           onBack={() => setPage('home')}
         />
       );
