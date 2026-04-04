@@ -150,6 +150,17 @@ export default function SpyfallPlayerPage() {
 
   const txt = TEXTS[lang];
 
+  // 이름 배너 (join 제외 모든 화면 상단 고정)
+  const NameBanner = () => {
+    if (!name || step === 'join') return null;
+    return (
+      <div className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-b border-stone-200 py-2 px-4 flex items-center justify-center gap-2 z-50">
+        <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
+        <span className="font-bold text-stone-800 text-sm">{name}</span>
+      </div>
+    );
+  };
+
   const handleJoin = async () => {
     if (!name.trim() || !roomCode) return;
     setJoining(true);
@@ -235,9 +246,9 @@ export default function SpyfallPlayerPage() {
       : [];
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-b from-stone-100 to-stone-200 p-6">
+        <NameBanner />
         <div className="bg-white rounded-2xl p-6 max-w-xs w-full shadow-lg text-center">
           <div className="text-4xl mb-3">⏳</div>
-          <p className="text-stone-800 font-bold text-lg mb-1">{name}</p>
           <p className="text-stone-400 text-sm mb-5">{txt.waiting}</p>
           <div className="text-left">
             <p className="text-xs font-bold text-stone-400 uppercase mb-2">
@@ -282,6 +293,7 @@ export default function SpyfallPlayerPage() {
     if (myRole.isSpy) {
       return (
         <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
+          <NameBanner />
           <div className="bg-white rounded-2xl p-8 text-center max-w-xs w-full shadow-lg">
             <div className="text-8xl mb-4">🕵️</div>
             <div className="flex items-center justify-center gap-2 mb-2">
@@ -296,6 +308,7 @@ export default function SpyfallPlayerPage() {
 
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
+        <NameBanner />
         <div className="bg-white rounded-2xl p-8 text-center max-w-xs w-full shadow-lg">
           <div className="text-8xl mb-4">📍</div>
           <div className="flex items-center justify-center gap-2 mb-1">

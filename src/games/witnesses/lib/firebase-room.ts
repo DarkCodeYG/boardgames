@@ -107,6 +107,20 @@ export async function deleteRoom(code: string): Promise<void> {
   await remove(roomRef(code));
 }
 
+/** 같은 방/플레이어 유지, 게임 상태만 초기화 (다시 하기용) */
+export async function resetRoomForNewGame(code: string): Promise<void> {
+  const snap = await get(roomRef(code));
+  if (!snap.exists()) return;
+  const current = snap.val() as Record<string, unknown>;
+  await set(roomRef(code), {
+    phase: 'lobby',
+    enabledRoles: current.enabledRoles ?? [],
+    maxPlayers: current.maxPlayers ?? 12,
+    players: current.players ?? {},
+    createdAt: current.createdAt ?? Date.now(),
+  });
+}
+
 /** 1시간 이상 된 오래된 방 정리 (백그라운드) */
 export async function cleanupOldRooms(): Promise<void> {
   const roomsRef = ref(db, 'rooms');

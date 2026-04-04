@@ -36,11 +36,32 @@ export default function PlayerPage() {
     return subscribeFakeartRoom(roomCode, setRoomState);
   }, [roomCode]);
 
+  // localStorage 자동 재접속
+  useEffect(() => {
+    if (!roomCode) return;
+    const saved = localStorage.getItem(`fakeart_name_${roomCode}`);
+    if (!saved) return;
+    joinFakeartRoom(roomCode, saved).then((result) => {
+      if ('error' in result) return;
+      setMyName(saved);
+      setNameInput(saved);
+      setPlayerIndex(result.index);
+      setView('waiting');
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomCode]);
+
   // phase 변화 감지 → view 전환
   useEffect(() => {
     if (!roomState || view === 'join') return;
     const phase = roomState.phase;
-    if ((phase === 'roles' || phase === 'drawing') && view === 'waiting') {
+    if (phase === 'lobby') {
+      setView('waiting');
+      roleSoundPlayedRef.current = false;
+      resultSoundPlayedRef.current = false;
+      setHasVoted(false);
+      setHasGuessed(false);
+    } else if ((phase === 'roles' || phase === 'drawing') && view === 'waiting') {
       setView('role');
     } else if (phase === 'drawing' && view === 'roleConfirmed') {
       setView('drawing');
@@ -92,6 +113,17 @@ export default function PlayerPage() {
     }
   }, [view, roomState]);
 
+  // 이름 배너 (join 제외 모든 화면 상단 고정)
+  const NameBanner = () => {
+    if (!myName || view === 'join') return null;
+    return (
+      <div className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-b border-stone-200 py-2 px-4 flex items-center justify-center gap-2 z-50">
+        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+        <span className="font-bold text-stone-800 text-sm">{myName}</span>
+      </div>
+    );
+  };
+
   const handleJoin = async () => {
     if (!nameInput.trim() || joining) return;
     setJoining(true);
@@ -112,6 +144,7 @@ export default function PlayerPage() {
       }
       setMyName(nameInput.trim());
       setPlayerIndex(result.index);
+      localStorage.setItem(`fakeart_name_${roomCode}`, nameInput.trim());
       const currentPhase = roomState?.phase ?? 'lobby';
       if (currentPhase === 'lobby') {
         setView('waiting');
@@ -205,9 +238,9 @@ export default function PlayerPage() {
   if (view === 'waiting') {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6 text-center">
+        <NameBanner />
         <div className="text-6xl mb-4">⏳</div>
         <h2 className="text-2xl font-black text-stone-800 mb-2">{txt.waitingForHost}</h2>
-        <p className="text-stone-500">{myName}</p>
         <p className="text-stone-400 text-sm mt-2">
           {Object.keys(roomState?.players ?? {}).length}{txt.playersJoined}
         </p>
@@ -227,18 +260,19 @@ export default function PlayerPage() {
 
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
+        <NameBanner />
         <div className="rounded-2xl p-8 max-w-xs w-full text-center shadow-xl bg-white">
           {/* 역할 배지 */}
           <div className="flex justify-center mb-3">
             {isFake ? (
               <span className="inline-flex items-center gap-1.5 bg-purple-100 text-purple-700 text-xs font-black px-3 py-1 rounded-full">
                 <span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />
-                가짜 화가
+                {txt.fakeArtist}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 text-xs font-black px-3 py-1 rounded-full">
                 <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-                진짜 화가
+                {txt.realArtist}
               </span>
             )}
           </div>
@@ -288,6 +322,7 @@ export default function PlayerPage() {
   if (view === 'roleConfirmed') {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6 text-center">
+        <NameBanner />
         <div className="text-5xl mb-4">✅</div>
         <h2 className="text-2xl font-black text-stone-800 mb-2">{txt.roleConfirmedTitle}</h2>
         <p className="text-stone-500">{txt.waitingDrawStart}</p>
@@ -302,6 +337,7 @@ export default function PlayerPage() {
 
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
+        <NameBanner />
         <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-lg">
           {isMyTurn ? (
             <>
@@ -345,7 +381,7 @@ export default function PlayerPage() {
                 {isFake ? (
                   <div className="text-center">
                     <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 text-xs font-black px-2 py-0.5 rounded-full mb-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block" /> 가짜 화가
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block" /> {txt.fakeArtist}
                     </span>
                     <p className="text-stone-500 text-sm">{topic.category[lang]}</p>
                     <p className="text-stone-400 text-xs mt-1">{txt.fakeNoWord}</p>
@@ -370,6 +406,7 @@ export default function PlayerPage() {
 
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
+        <NameBanner />
         <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-lg">
           <div className="text-4xl mb-3">🗳️</div>
           <h2 className="text-xl font-black text-stone-800 mb-2">{txt.voting}</h2>
@@ -404,6 +441,7 @@ export default function PlayerPage() {
     if (isFake) {
       return (
         <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
+          <NameBanner />
           <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-lg">
             <div className="text-4xl mb-3">🎭</div>
             <h2 className="text-xl font-black text-stone-800 mb-2">{txt.guessYourWord}</h2>
@@ -441,6 +479,7 @@ export default function PlayerPage() {
     } else {
       return (
         <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
+          <NameBanner />
           <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-lg">
             <div className="text-4xl mb-3">⏳</div>
             <h2 className="text-lg font-bold text-stone-700">{txt.guessing}</h2>
@@ -461,6 +500,7 @@ export default function PlayerPage() {
           isFakeWin ? 'bg-purple-600' : 'bg-amber-500'
         }`}
       >
+        <NameBanner />
         <div className="text-center max-w-xs w-full">
           <div className="text-6xl mb-3">{isFakeWin ? '🎭' : '🔍'}</div>
           <h1 className="text-3xl font-black text-white mb-2">
@@ -496,11 +536,17 @@ export default function PlayerPage() {
           </div>
 
           <button
-            onClick={() => { window.location.href = '/'; }}
+            onClick={() => {
+              roleSoundPlayedRef.current = false;
+              resultSoundPlayedRef.current = false;
+              setHasVoted(false);
+              setHasGuessed(false);
+              setView('waiting');
+            }}
             className="w-full bg-white text-stone-800 font-black py-3 rounded-2xl
                        hover:bg-stone-100 active:scale-95 transition-all"
           >
-            {txt.goHome}
+            {txt.playAgain}
           </button>
         </div>
       </div>

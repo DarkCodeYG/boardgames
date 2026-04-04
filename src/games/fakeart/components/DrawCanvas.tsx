@@ -3,9 +3,10 @@ import { sfxClick } from '../../../lib/sound';
 
 interface DrawCanvasProps {
   disabled?: boolean;
+  undoLabel?: string;
 }
 
-export default function DrawCanvas({ disabled = false }: DrawCanvasProps) {
+export default function DrawCanvas({ disabled = false, undoLabel = 'Undo' }: DrawCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
@@ -137,7 +138,7 @@ export default function DrawCanvas({ disabled = false }: DrawCanvasProps) {
                      text-stone-700 font-bold px-3 py-1.5 rounded-lg shadow text-sm
                      hover:bg-stone-100 active:scale-95 transition-all"
         >
-          ↩ 실행취소
+          ↩ {undoLabel}
         </button>
       )}
     </div>

@@ -332,7 +332,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
         {/* 캔버스 영역 */}
         <div className="flex-1 min-h-0 rounded-2xl overflow-hidden shadow-xl border-2 border-stone-300">
-          <DrawCanvas disabled={false} />
+          <DrawCanvas disabled={false} undoLabel={txt.undo} />
         </div>
 
         {/* 그리기 순서 표시 */}

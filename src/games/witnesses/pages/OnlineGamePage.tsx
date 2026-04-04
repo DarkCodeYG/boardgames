@@ -2,7 +2,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useGameStore } from '../../codenames/store/game-store';
 import { wt, TEXTS } from '../lib/i18n';
-import { createRoom, setGameState, subscribeRoom, submitAction, deleteRoom, cleanupOldRooms } from '../lib/firebase-room';
+import { createRoom, setGameState, subscribeRoom, submitAction, deleteRoom, resetRoomForNewGame, cleanupOldRooms } from '../lib/firebase-room';
 import { startGame as startGameEngine, getPlayerInfo, proceedAfterVote, nextRound, assassinate } from '../lib/game-engine';
 import { createGame, addPlayer } from '../lib/game-engine';
 import type { GameState, SpecialRole } from '../lib/types';
@@ -417,7 +417,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
         </button>
       )}
       <button
-        onClick={() => { if (confirm(wt(lang, 'confirmRestart'))) { if (roomCode) deleteRoom(roomCode).catch(() => {}); onGoHome(); } }}
+        onClick={() => { if (confirm(wt(lang, 'confirmRestart'))) { if (roomCode) resetRoomForNewGame(roomCode).catch(() => {}); setHostPhase('lobby'); } }}
         className="bg-white rounded-xl px-3 py-2 shadow-lg opacity-80 hover:opacity-100 transition-opacity text-stone-500 hover:text-red-500 text-xs font-bold"
       >
         🔄 {wt(lang, 'playAgain')}
