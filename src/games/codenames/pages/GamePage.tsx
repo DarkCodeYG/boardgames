@@ -15,6 +15,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   const { game, lang, pack, newGame, start, selectCard, passTurn } = useGameStore();
   const [showQR, setShowQR] = useState(false);
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+  const [showGoHomeConfirm, setShowGoHomeConfirm] = useState(false);
 
   if (!game) return (
     <div className="min-h-dvh flex items-center justify-center bg-stone-100">
@@ -96,6 +97,13 @@ export default function GamePage({ onGoHome }: GamePageProps) {
               >
                 {t(lang, 'newGameBtn')}
               </button>
+              <button
+                onClick={() => { sfxModalOpen(); setShowGoHomeConfirm(true); }}
+                className="bg-stone-200 text-stone-700 px-3 py-2 rounded-lg font-bold
+                           hover:bg-stone-300 transition-colors text-sm"
+              >
+                🏠
+              </button>
             </div>
 
             {showQR && (
@@ -119,6 +127,32 @@ export default function GamePage({ onGoHome }: GamePageProps) {
           />
           <GameOverModal game={game} lang={lang} onNewGame={handleRestart} onGoHome={onGoHome} />
         </>
+      )}
+
+      {/* 홈 이동 확인 다이얼로그 */}
+      {showGoHomeConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl">
+            <h3 className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'goHomeTitle')}</h3>
+            <p className="text-stone-500 mb-5">{t(lang, 'goHomeMsg')}</p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => { sfxModalClose(); setShowGoHomeConfirm(false); }}
+                className="bg-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-bold
+                           hover:bg-stone-300 transition-colors"
+              >
+                {t(lang, 'cancel')}
+              </button>
+              <button
+                onClick={() => { sfxClick(); onGoHome(); }}
+                className="bg-stone-800 text-white px-5 py-2.5 rounded-xl font-bold
+                           hover:bg-stone-700 transition-colors"
+              >
+                {t(lang, 'goHome')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 재시작 확인 다이얼로그 */}

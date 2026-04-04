@@ -58,7 +58,7 @@ boardgames/
 - **방식:** 순수 오프라인, 시드 기반
 - **아이패드:** 플레이어별 QR코드 배분 → 타이머
 - **폰:** QR 스캔 → "플레이어 N, 본인이 맞습니까?" 확인 → 장소+역할 or 스파이 표시
-- **장소팩:** Standard 18개 / JW 16개, 한/영/중 지원
+- **장소팩:** Standard 50개 / JW 50개, 한/영/중 지원
 - **핵심:** `resolveGame()` 하나로 시드→장소→스파이→역할 결정 (createGame과 getPlayerRole 일관성 보장)
 
 ### 중국의 증인들 (Witnesses of China)

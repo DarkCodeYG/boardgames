@@ -377,9 +377,14 @@ export default function PlayerPage() {
       name: (room.players as Record<string, { name: string }>)[pid].name,
     }));
 
+    const remaining = requiredSize - selectedTeam.size;
     const toggleMember = (gameId: string) => {
       const next = new Set(selectedTeam);
-      if (next.has(gameId)) next.delete(gameId); else next.add(gameId);
+      if (next.has(gameId)) {
+        next.delete(gameId);
+      } else if (selectedTeam.size < requiredSize) {
+        next.add(gameId);
+      }
       setSelectedTeam(next);
     };
 
@@ -393,29 +398,56 @@ export default function PlayerPage() {
     return (
       <div className="min-h-dvh bg-stone-100 flex flex-col p-4 pt-14">
         <NameBanner /><RoleOverlay />
-        <h2 className="text-lg font-bold text-stone-800 text-center mb-1">{wt(lang, 'teamBuild')}</h2>
-        <p className="text-stone-500 text-sm text-center mb-4">{wt(lang, 'required')}: {requiredSize}명</p>
 
-        <div className="grid grid-cols-2 gap-2 max-w-sm mx-auto mb-4">
-          {allGamePlayers.map(p => (
-            <button
-              key={p.gameId}
-              onClick={() => { sfxToggle(); toggleMember(p.gameId); }}
-              className={`p-3 rounded-xl font-bold text-sm transition-all
-                ${selectedTeam.has(p.gameId) ? 'bg-amber-400 text-stone-800 scale-105' : 'bg-white text-stone-600 shadow-sm'}`}
-            >
-              {p.name}
-            </button>
-          ))}
+        <div className="bg-white rounded-2xl shadow-xl border border-stone-200 p-5 max-w-lg w-full mx-auto">
+          {/* 헤더 */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-black text-stone-800">{wt(lang, 'teamBuild')}</h2>
+            <div className="flex gap-2 text-sm">
+              <span className="bg-stone-100 rounded-full px-3 py-1 font-bold text-stone-700">
+                {selectedTeam.size}/{requiredSize}
+              </span>
+              {remaining > 0 && (
+                <span className="bg-amber-100 text-amber-700 rounded-full px-3 py-1 font-bold">
+                  {remaining}명 더
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* 2열 플레이어 그리드 */}
+          <div className="grid grid-cols-2 gap-2">
+            {allGamePlayers.map(p => (
+              <button
+                key={p.gameId}
+                onClick={() => { sfxToggle(); toggleMember(p.gameId); }}
+                className={`flex items-center justify-between px-4 py-3.5 rounded-xl border transition-all duration-150 shadow-sm text-left
+                  ${selectedTeam.has(p.gameId)
+                    ? 'bg-amber-400 border-amber-500 text-stone-900 shadow-md scale-[1.02]'
+                    : 'bg-white border-stone-200 text-stone-700 hover:border-amber-300 hover:bg-amber-50'}`}
+              >
+                <div>
+                  <p className="text-sm font-bold leading-tight">{p.name}</p>
+                  {p.gameId === myGameId && (
+                    <p className="text-[10px] text-stone-500 mt-0.5">{wt(lang, 'you')}</p>
+                  )}
+                </div>
+                {selectedTeam.has(p.gameId) && (
+                  <span className="text-base ml-2">✅</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* 확정 버튼 */}
+          <button
+            onClick={() => { sfxCorrect(); handleConfirm(); }}
+            disabled={selectedTeam.size !== requiredSize}
+            className="mt-4 w-full bg-stone-900 text-white py-3.5 rounded-xl font-bold text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-stone-800 active:scale-95"
+          >
+            {wt(lang, 'confirm')} ({selectedTeam.size}/{requiredSize})
+          </button>
         </div>
-
-        <button
-          onClick={() => { sfxCorrect(); handleConfirm(); }}
-          disabled={selectedTeam.size !== requiredSize}
-          className="w-full max-w-sm mx-auto bg-stone-800 text-white py-3 rounded-xl font-bold disabled:opacity-40"
-        >
-          {wt(lang, 'confirm')} ({selectedTeam.size}/{requiredSize})
-        </button>
       </div>
     );
   }

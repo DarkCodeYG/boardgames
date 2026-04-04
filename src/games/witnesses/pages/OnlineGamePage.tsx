@@ -407,11 +407,25 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
   // ===== 재접속 QR + 다시하기 (하단 고정) =====
   const ReconnectQR = () => (
     <div className="fixed bottom-4 right-4 flex items-end gap-2">
+      {hostPhase === 'role-reveal' && (
+        <button
+          onClick={() => { sfxClick(); handleProceedToMap(); }}
+          className="bg-white rounded-xl px-3 py-2 shadow-lg opacity-80 hover:opacity-100 transition-opacity text-stone-500 hover:text-amber-500 text-xs font-bold"
+        >
+          ⏭ 스킵
+        </button>
+      )}
       <button
         onClick={() => { if (confirm(wt(lang, 'confirmRestart'))) { if (roomCode) deleteRoom(roomCode).catch(() => {}); onGoHome(); } }}
         className="bg-white rounded-xl px-3 py-2 shadow-lg opacity-80 hover:opacity-100 transition-opacity text-stone-500 hover:text-red-500 text-xs font-bold"
       >
         🔄 {wt(lang, 'playAgain')}
+      </button>
+      <button
+        onClick={() => { if (confirm('홈 화면으로 이동할까요?')) { if (roomCode) deleteRoom(roomCode).catch(() => {}); onGoHome(); } }}
+        className="bg-white rounded-xl px-3 py-2 shadow-lg opacity-80 hover:opacity-100 transition-opacity text-stone-500 hover:text-blue-500 text-xs font-bold"
+      >
+        🏠 홈
       </button>
       <div className="bg-white rounded-xl p-2 shadow-lg opacity-80 hover:opacity-100 transition-opacity">
         <QRCodeSVG value={joinUrl} size={80} />
@@ -420,23 +434,162 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
     </div>
   );
 
-  // ===== 구역 맵 컴포넌트 =====
-  const MissionMap = () => (
-    <div className="flex justify-center gap-3 mb-6">
-      {(game?.missions || []).map((m, i) => (
-        <div
-          key={i}
-          className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl font-black shadow-md transition-all
-            ${m.result === 'success' ? 'bg-blue-500 text-white' :
-              m.result === 'fail' ? 'bg-red-500 text-white' :
-              i === game?.currentRound ? 'bg-amber-400 text-stone-800 scale-110' :
-              'bg-stone-200 text-stone-400'}`}
-        >
-          {i + 1}
+  // ===== 구역 맵 컴포넌트 (파워그리드 스타일 중국 지도) =====
+  const MissionMap = () => {
+    if (!game) return null;
+    const { missions, currentRound } = game;
+
+    const getNodeStyle = (i: number) => {
+      const m = missions[i];
+      if (m.result === 'success') return { fill: '#3b82f6', ring: '#1d4ed8', text: '#ffffff' };
+      if (m.result === 'fail')    return { fill: '#ef4444', ring: '#b91c1c', text: '#ffffff' };
+      if (i === currentRound)     return { fill: '#f59e0b', ring: '#b45309', text: '#1c1917' };
+      return { fill: '#e7e5e4', ring: '#a8a29e', text: '#78716c' };
+    };
+
+    // 구역 위치 (viewBox 400×240 기준 — 중국 지도 상 대략적 지역)
+    const zones = [
+      { x: 88,  y: 70  },  // 1: 서북 (신장·내몽골)
+      { x: 295, y: 52  },  // 2: 동북 (만주·베이징)
+      { x: 198, y: 130 },  // 3: 중원 (허난·후베이)
+      { x: 108, y: 192 },  // 4: 서남 (윈난·쓰촨)
+      { x: 282, y: 182 },  // 5: 동남 (광둥·푸젠)
+    ];
+
+    const roads: [number, number][] = [
+      [0, 1], [0, 2], [1, 2], [2, 3], [2, 4], [3, 4],
+    ];
+
+    return (
+      <div className="mb-6 w-full max-w-lg mx-auto px-2">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <span className="text-lg">📍</span>
+          <span className="text-xs font-semibold text-stone-400 uppercase tracking-widest">현재 봉사구역</span>
+          <span className="bg-amber-400 text-stone-800 text-sm font-black px-3 py-0.5 rounded-full shadow-sm">{currentRound + 1}번</span>
         </div>
-      ))}
-    </div>
-  );
+        <div className="rounded-xl overflow-hidden drop-shadow-md">
+          <svg viewBox="0 0 400 240" className="w-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="wSeaBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#dbeafe" />
+                <stop offset="100%" stopColor="#bfdbfe" />
+              </linearGradient>
+              <linearGradient id="wLandFill" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#d4e6b5" />
+                <stop offset="100%" stopColor="#c2d99f" />
+              </linearGradient>
+              <filter id="wGlow" x="-60%" y="-60%" width="220%" height="220%">
+                <feGaussianBlur stdDeviation="5" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+
+            {/* 바다 배경 (동·남 해안만 보임) */}
+            <rect width="400" height="240" fill="url(#wSeaBg)" />
+            {/* 파도 라인 */}
+            {[40, 80, 120, 160, 200].map(y => (
+              <path key={y}
+                d={`M 0,${y} Q 50,${y - 6} 100,${y} Q 150,${y + 6} 200,${y} Q 250,${y - 6} 300,${y} Q 350,${y + 6} 400,${y}`}
+                stroke="#93c5fd" strokeWidth="0.9" fill="none" opacity="0.4"
+              />
+            ))}
+
+            {/* 중국 본토 — fill만, stroke 없음 (내륙 국경에 선 안 그림) */}
+            <path
+              d="M 0,0
+                 L 75,3 L 155,0 L 235,4 L 308,2 L 368,7 L 392,22
+                 L 390,52 L 376,80 L 360,106 L 346,130 L 338,153
+                 L 318,172 L 293,188 L 263,200 L 228,210
+                 L 193,212 L 170,206 L 145,219 L 94,240
+                 L 0,240 Z"
+              fill="url(#wLandFill)"
+            />
+            {/* 해안선만 별도 stroke — 동·동남 해안(황해~남중국해)만 표시 */}
+            <path
+              d="M 392,22
+                 L 390,52 L 376,80 L 360,106 L 346,130 L 338,153
+                 L 318,172 L 293,188 L 263,200 L 228,210
+                 L 193,212 L 170,206 L 145,219 L 94,240"
+              fill="none" stroke="#7a9c52" strokeWidth="1.5"
+              strokeLinecap="round" strokeLinejoin="round"
+            />
+            {/* 청장고원 (서북 고지대 음영) */}
+            <path
+              d="M 0,0 L 75,3 L 105,24 L 122,56 L 124,88
+                 L 108,114 L 86,138 L 64,165 L 45,148 L 20,125 L 0,100 Z"
+              fill="#c4d898" opacity="0.52"
+            />
+
+            {/* 지형 격자선 */}
+            {[60, 120, 180].map(y => (
+              <line key={`h${y}`} x1="0" y1={y} x2="400" y2={y} stroke="#a8c470" strokeWidth="0.4" opacity="0.28" />
+            ))}
+            {[100, 200, 300].map(x => (
+              <line key={`v${x}`} x1={x} y1="0" x2={x} y2="240" stroke="#a8c470" strokeWidth="0.4" opacity="0.28" />
+            ))}
+
+            {/* 도로 연결선 */}
+            {roads.map(([a, b], i) => (
+              <line key={i}
+                x1={zones[a].x} y1={zones[a].y}
+                x2={zones[b].x} y2={zones[b].y}
+                stroke="#57534e" strokeWidth="2.5" strokeDasharray="8,5"
+                strokeLinecap="round" opacity="0.5"
+              />
+            ))}
+
+            {/* 구역 노드 */}
+            {zones.map((z, i) => {
+              const s = getNodeStyle(i);
+              const active = i === currentRound;
+              return (
+                <g key={i}>
+                  {active && (
+                    <circle cx={z.x} cy={z.y} r="28" fill={s.fill} opacity="0.22" filter="url(#wGlow)" />
+                  )}
+                  <circle cx={z.x} cy={z.y} r="21" fill={s.ring} />
+                  <circle cx={z.x} cy={z.y} r="17" fill={s.fill} />
+                  <text
+                    x={z.x} y={z.y}
+                    textAnchor="middle" dominantBaseline="central"
+                    fontSize="16" fontWeight="900" fill={s.text}
+                    fontFamily="'Helvetica Neue', Arial, sans-serif"
+                  >
+                    {i + 1}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* 나침반 */}
+            <g transform="translate(375, 28)">
+              <circle cx="0" cy="0" r="12" fill="white" opacity="0.72" />
+              <polygon points="0,-9 -2.5,0 2.5,0" fill="#374151" />
+              <polygon points="0,9 -2.5,0 2.5,0" fill="#9ca3af" />
+              <polygon points="-9,0 0,-2.5 0,2.5" fill="#9ca3af" />
+              <polygon points="9,0 0,-2.5 0,2.5" fill="#374151" />
+              <text x="0" y="-5" textAnchor="middle" dominantBaseline="central"
+                fontSize="5.5" fontWeight="800" fill="#111827">N</text>
+            </g>
+
+            {/* 中国 레이블 */}
+            <text x="14" y="234" fontSize="9" fill="#4b5563" opacity="0.55"
+              fontFamily="'Helvetica Neue', Arial, sans-serif" fontWeight="600">中国</text>
+          </svg>
+        </div>
+        <div className="mt-2 text-center">
+          <a
+            href={joinUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold text-sm px-4 py-1.5 rounded-full transition-colors"
+          >
+            방 코드: {roomCode} 🔗
+          </a>
+        </div>
+      </div>
+    );
+  };
 
   // ===== 로비 =====
   if (hostPhase === 'lobby') {
@@ -546,6 +699,23 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
           <p className="text-stone-500">{wt(lang, 'selectTeamMembers')}</p>
           <div className="mt-4 animate-pulse text-4xl">📱</div>
         </div>
+
+        <div className="bg-white rounded-2xl p-4 max-w-sm w-full shadow mt-3">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-base">🏠</span>
+            <span className="text-xs font-bold text-stone-400 uppercase tracking-widest">회중 성원 명단</span>
+            <span className="ml-auto text-xs text-stone-400 font-semibold">{game.players.length}명</span>
+            <span className="text-xs font-bold text-red-500">공안: {game.players.filter(p => p.team === 'agent').length}명</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {game.players.map((p, i) => (
+              <span key={p.id} className={`px-2.5 py-1 rounded-full text-xs font-bold ${p.id === currentMission.leaderId ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-300' : 'bg-stone-100 text-stone-600'}`}>
+                {i + 1}. {p.name}{p.id === currentMission.leaderId ? ' 👑' : ''}
+              </span>
+            ))}
+          </div>
+        </div>
+
         {game.consecutiveRejects > 0 && (
           <p className="text-red-500 text-sm font-bold mt-4">{wt(lang, 'consecutiveReject')}: {game.consecutiveRejects}/5</p>
         )}
@@ -601,29 +771,44 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
     return (
       <div className="h-dvh bg-stone-100 flex flex-col items-center justify-center p-6">
         <MissionMap />
-        <div className={`rounded-2xl p-8 max-w-sm w-full text-center shadow-lg ${approved ? 'bg-blue-500' : 'bg-red-500'}`}>
-          <div className="text-5xl mb-3">{approved ? '✅' : '❌'}</div>
-          <h2 className="text-2xl font-black text-white mb-2">{wt(lang, 'voteFinished')}</h2>
-          <h3 className="text-xl font-bold text-white mb-4">{approved ? wt(lang, 'approved') : wt(lang, 'rejected')}</h3>
-          <div className="flex justify-center gap-6 text-white mb-4">
-            <div><p className="text-2xl font-black">{approveCount}</p><p className="text-sm opacity-80">{wt(lang, 'voteApproveCount')}</p></div>
-            <div><p className="text-2xl font-black">{rejectCount}</p><p className="text-sm opacity-80">{wt(lang, 'voteRejectCount')}</p></div>
+        <div className="rounded-3xl p-6 max-w-lg w-full bg-white shadow-xl">
+          <div className={`rounded-3xl px-5 py-4 mb-5 text-white text-center ${approved ? 'bg-blue-600' : 'bg-red-600'}`}>
+            <div className="text-5xl mb-2">{approved ? '✅' : '❌'}</div>
+            <h2 className="text-2xl font-black mb-1">{wt(lang, 'voteFinished')}</h2>
+            <p className="text-sm opacity-90">{approved ? wt(lang, 'approved') : wt(lang, 'rejected')}</p>
           </div>
-          <div className="border-t border-white/20 pt-3 space-y-1">
+
+          <div className="grid grid-cols-2 gap-3 mb-5 text-center text-stone-800">
+            <div className="rounded-3xl bg-blue-50 border border-blue-100 p-4">
+              <p className="text-3xl font-black text-blue-700">{approveCount}</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-blue-500">{wt(lang, 'voteApproveCount')}</p>
+            </div>
+            <div className="rounded-3xl bg-red-50 border border-red-100 p-4">
+              <p className="text-3xl font-black text-red-700">{rejectCount}</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-red-500">{wt(lang, 'voteRejectCount')}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
             {game.players.map((p, i) => {
               const vote = votes[p.id];
+              const isApprove = vote === true;
               return (
-                <div key={p.id} className="flex justify-between text-sm text-white/80 animate-slide-up"
-                  style={{ animationDelay: `${i * 0.08}s` }}>
-                  <span>{p.name}</span>
-                  <span className="animate-flip-in" style={{ animationDelay: `${i * 0.08 + 0.2}s` }}>
-                    {vote === true ? '👍' : vote === false ? '👎' : '...'}
+                <div
+                  key={p.id}
+                  className={`flex items-center justify-between rounded-3xl border px-4 py-3 shadow-sm transition-all ${isApprove ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}
+                  style={{ animationDelay: `${i * 0.05}s` }}
+                >
+                  <span className="font-semibold text-stone-800">{p.name}</span>
+                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${isApprove ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'}`}>
+                    {isApprove ? 'O' : 'X'}
                   </span>
                 </div>
               );
             })}
           </div>
         </div>
+
         <button onClick={() => { sfxClick(); handleAfterVoteResult(); }}
           className="mt-6 bg-stone-800 text-white px-8 py-3 rounded-xl font-bold">{wt(lang, 'proceed')}</button>
         <ReconnectQR />

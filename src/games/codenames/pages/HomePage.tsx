@@ -2,6 +2,7 @@ import { useGameStore } from '../store/game-store';
 import { t } from '../lib/i18n';
 import type { WordPack } from '../lib/words';
 import { sfxToggle, sfxClick } from '../../../lib/sound';
+import JWIcon from '../../../components/JWIcon';
 
 interface HomePageProps {
   onStartGame: () => void;
@@ -15,6 +16,15 @@ const PACKS: { value: WordPack; label: string }[] = [
 
 export default function HomePage({ onStartGame, onBack }: HomePageProps) {
   const { newGame, lang, pack, setPack } = useGameStore();
+
+  const getPackButtonClass = (value: WordPack) => {
+    const isJW = value === 'jw';
+    const isActive = pack === value;
+    if (isJW) {
+      return `inline-flex items-center justify-center w-14 h-14 rounded-2xl transition-all ${isActive ? 'shadow-lg scale-105' : 'opacity-60 hover:opacity-90'}`;
+    }
+    return `px-4 py-1.5 rounded-full text-sm font-bold transition-colors ${isActive ? 'bg-amber-500 text-white' : 'bg-stone-200 text-stone-600 hover:bg-stone-300'}`;
+  };
 
   const handleStart = () => {
     newGame();
@@ -40,12 +50,9 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
             <button
               key={p.value}
               onClick={() => { sfxToggle(); setPack(p.value); }}
-              className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors
-                ${pack === p.value
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-stone-200 text-stone-600 hover:bg-stone-300'}`}
+              className={getPackButtonClass(p.value)}
             >
-              {p.label}
+              {p.value === 'jw' ? <JWIcon active={pack === 'jw'} /> : p.label}
             </button>
           ))}
         </div>
