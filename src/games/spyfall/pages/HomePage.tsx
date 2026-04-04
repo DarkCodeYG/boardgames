@@ -3,6 +3,7 @@ import { useSpyfallStore } from '../store/game-store';
 import { useGameStore } from '../../codenames/store/game-store';
 import { t } from '../../codenames/lib/i18n';
 import type { WordPack } from '../../codenames/lib/words';
+import { sfxToggle, sfxClick, sfxCountUp, sfxCountDown } from '../../../lib/sound';
 
 const PACKS: { value: WordPack; label: string }[] = [
   { value: 'standard', label: 'Standard' },
@@ -72,7 +73,7 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
     <div className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-b from-stone-100 to-stone-200 p-6">
       <div className="text-center max-w-md w-full">
         {onBack && (
-          <button onClick={onBack} className="mb-4 text-stone-500 hover:text-stone-700 font-bold text-sm">
+          <button onClick={() => { sfxClick(); onBack?.(); }} className="mb-4 text-stone-500 hover:text-stone-700 font-bold text-sm">
             ← {t(lang, 'goHome')}
           </button>
         )}
@@ -82,7 +83,7 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
           {PACKS.map((p) => (
             <button
               key={p.value}
-              onClick={() => setPack(p.value)}
+              onClick={() => { sfxToggle(); setPack(p.value); }}
               className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors
                 ${pack === p.value ? 'bg-amber-500 text-white' : 'bg-stone-200 text-stone-600 hover:bg-stone-300'}`}
             >
@@ -111,10 +112,10 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
           <div>
             <label className="text-sm font-bold text-stone-600">{txt.players}</label>
             <div className="flex items-center justify-center gap-3 mt-2">
-              <button onClick={() => setPlayerCount(Math.max(3, playerCount - 1))}
+              <button onClick={() => { sfxCountDown(); setPlayerCount(Math.max(3, playerCount - 1)); }}
                 className="w-10 h-10 rounded-full bg-stone-200 font-bold text-lg hover:bg-stone-300">-</button>
               <span className="text-3xl font-black w-12 text-center">{playerCount}</span>
-              <button onClick={() => setPlayerCount(Math.min(12, playerCount + 1))}
+              <button onClick={() => { sfxCountUp(); setPlayerCount(Math.min(12, playerCount + 1)); }}
                 className="w-10 h-10 rounded-full bg-stone-200 font-bold text-lg hover:bg-stone-300">+</button>
             </div>
           </div>
@@ -122,10 +123,10 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
           <div>
             <label className="text-sm font-bold text-stone-600">{txt.minutes}</label>
             <div className="flex items-center justify-center gap-3 mt-2">
-              <button onClick={() => setRoundMinutes(Math.max(3, roundMinutes - 1))}
+              <button onClick={() => { sfxCountDown(); setRoundMinutes(Math.max(3, roundMinutes - 1)); }}
                 className="w-10 h-10 rounded-full bg-stone-200 font-bold text-lg hover:bg-stone-300">-</button>
               <span className="text-3xl font-black w-12 text-center">{roundMinutes}</span>
-              <button onClick={() => setRoundMinutes(Math.min(15, roundMinutes + 1))}
+              <button onClick={() => { sfxCountUp(); setRoundMinutes(Math.min(15, roundMinutes + 1)); }}
                 className="w-10 h-10 rounded-full bg-stone-200 font-bold text-lg hover:bg-stone-300">+</button>
             </div>
           </div>

@@ -1,38 +1,20 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useGameStore } from '../../codenames/store/game-store';
 import { wt } from '../lib/i18n';
-import { createRoom, setGameState, subscribeRoom, submitAction } from '../lib/firebase-room';
+import { createRoom, setGameState, subscribeRoom, submitAction, deleteRoom, cleanupOldRooms } from '../lib/firebase-room';
 import { startGame as startGameEngine, getPlayerInfo, proceedAfterVote, nextRound, assassinate } from '../lib/game-engine';
 import { createGame, addPlayer } from '../lib/game-engine';
 import type { GameState, SpecialRole } from '../lib/types';
+import { sfxGameStart, sfxVictory, sfxDefeat, sfxAssassin, sfxClick, sfxModalOpen, sfxTurnEnd, sfxToggle, sfxCardFlip } from '../../../lib/sound';
 
 interface Props {
   onGoHome: () => void;
   enabledRoles: SpecialRole[];
+  playerCount: number;
 }
 
-// 알림음
-function playSound() {
-  try {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 800;
-    gain.gain.value = 0.3;
-    osc.start();
-    osc.stop(ctx.currentTime + 0.15);
-    setTimeout(() => {
-      const osc2 = ctx.createOscillator();
-      osc2.connect(gain);
-      osc2.frequency.value = 1000;
-      osc2.start();
-      osc2.stop(ctx.currentTime + 0.15);
-    }, 180);
-  } catch {}
-}
+// 효과음은 공유 모듈 사용 (src/lib/sound.ts)
 
 type HostPhase =
   | 'lobby'
@@ -49,9 +31,10 @@ type HostPhase =
   | 'assassinate'
   | 'finished';
 
-export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
+export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: Props) {
   const lang = useGameStore((s) => s.lang);
   const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [roomError, setRoomError] = useState<string | null>(null);
   const [roomData, setRoomData] = useState<Record<string, unknown> | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
   const [hostPhase, setHostPhase] = useState<HostPhase>('lobby');
@@ -59,10 +42,43 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
   const [manualName, setManualName] = useState('');
   const [revealRoles, setRevealRoles] = useState(false);
   const prevPhaseRef = useRef<string | null>(null);
+  const roomCodeRef = useRef<string | null>(null);
+  const hostPhaseRef = useRef(hostPhase);
+
+  // ref 동기화
+  useEffect(() => { roomCodeRef.current = roomCode; }, [roomCode]);
+  useEffect(() => { hostPhaseRef.current = hostPhase; }, [hostPhase]);
+
+  // 탭 닫기 / 페이지 이동 시 방 삭제
+  useEffect(() => {
+    const handleUnload = () => {
+      if (roomCodeRef.current) {
+        navigator.sendBeacon?.(`https://boardgame-373fb-default-rtdb.firebaseio.com/rooms/${roomCodeRef.current}.json`, '');
+        deleteRoom(roomCodeRef.current).catch(() => {});
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      if (roomCodeRef.current) deleteRoom(roomCodeRef.current).catch(() => {});
+    };
+  }, []);
 
   // 방 생성
   useEffect(() => {
-    createRoom(enabledRoles).then(setRoomCode);
+    const timer = setTimeout(() => {
+      if (!roomCode) setRoomError('Firebase 연결 시간 초과. 네트워크를 확인하거나 Firebase 보안 규칙을 갱신하세요.');
+    }, 8000);
+    createRoom(enabledRoles, playerCount).then((code) => {
+      clearTimeout(timer);
+      setRoomCode(code);
+    }).catch((err) => {
+      clearTimeout(timer);
+      setRoomError(`방 생성 실패: ${err.message}`);
+    });
+    // 1시간 이상 된 오래된 방 정리 (백그라운드)
+    cleanupOldRooms().catch(() => {});
+    return () => clearTimeout(timer);
   }, []);
 
   // 방 구독
@@ -75,9 +91,24 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
       if (data) {
         const serverPhase = data.phase as string;
 
-        // 인도자가 팀 확정 → 알림음 + 안내
+        // 인도자가 팀 확정 → 알림음 + 안내 + Firebase teamIds를 로컬 game에 동기화
         if (prevPhaseRef.current === 'team-build' && serverPhase === 'vote') {
-          playSound();
+          sfxModalOpen();
+          // Firebase에서 teamIds를 읽어 로컬 game에 반영
+          const fbMissions = data.missions as Record<string, unknown>[] | undefined;
+          setGame(prev => {
+            if (!prev) return prev;
+            const round = prev.currentRound;
+            if (fbMissions?.[round]) {
+              const fbTeamIds = (fbMissions[round] as Record<string, unknown>).teamIds as string[] | undefined;
+              if (fbTeamIds && fbTeamIds.length > 0) {
+                const missions = [...prev.missions];
+                missions[round] = { ...missions[round], teamIds: fbTeamIds };
+                return { ...prev, missions };
+              }
+            }
+            return prev;
+          });
           setHostPhase('team-announced');
           setTimeout(() => setHostPhase('waiting-vote'), 3000);
         }
@@ -88,9 +119,9 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
           const currentRound = data.currentRound as number;
           if (missions?.[currentRound]) {
             const votes = (missions[currentRound] as Record<string, unknown>).votes as Record<string, boolean> | undefined;
-            const playerCount = game?.players.length || 0;
-            if (votes && Object.keys(votes).length === playerCount && hostPhase === 'waiting-vote') {
-              playSound();
+            const totalPlayers = game?.players.length || 0;
+            if (votes && Object.keys(votes).length === totalPlayers && hostPhaseRef.current === 'waiting-vote') {
+              sfxModalOpen();
               setHostPhase('vote-result');
             }
           }
@@ -104,8 +135,8 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
             const m = missions[currentRound] as Record<string, unknown>;
             const submissions = m.submissions as Record<string, boolean> | undefined;
             const teamIds = (m.teamIds as string[]) || [];
-            if (submissions && Object.keys(submissions).length === teamIds.length && hostPhase === 'waiting-mission') {
-              playSound();
+            if (submissions && Object.keys(submissions).length === teamIds.length && hostPhaseRef.current === 'waiting-mission') {
+              sfxModalOpen();
               setHostPhase('confirm-mission-result');
             }
           }
@@ -114,7 +145,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
         prevPhaseRef.current = serverPhase;
       }
     });
-  }, [roomCode, game?.players.length, hostPhase]);
+  }, [roomCode, game?.players.length]);
 
   // 카운트다운
   useEffect(() => {
@@ -131,13 +162,30 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
   const playerList = players ? Object.entries(players).map(([id, p]) => ({ id, name: p.name })) : [];
   const joinUrl = roomCode ? `${window.location.origin}${window.location.pathname}?game=witnesses-online&room=${roomCode}&lang=${lang}` : '';
 
+  const currentMission = game?.missions[game.currentRound];
+  const leader = currentMission ? game?.players.find(p => p.id === currentMission.leaderId) : null;
+
+  // 봉사 결과 카드 셔플 (memoize — 렌더마다 재셔플 방지)
+  const missionCards = useMemo(() => {
+    if (!currentMission?.submissions) return [];
+    return [...Object.values(currentMission.submissions)].sort(() => Math.random() - 0.5);
+  }, [currentMission?.result]);
+
+  // confetti 위치 (memoize)
+  const confettiPositions = useMemo(() =>
+    Array.from({ length: 30 }, () => ({
+      left: `${Math.random() * 100}%`,
+      delay: Math.random() * 2,
+      duration: 2 + Math.random() * 3,
+    })), [hostPhase]);
+
   // Firebase 동기화
   const syncGame = async (newGame: GameState, extraPhase?: string) => {
     if (!roomCode) return;
     setGame(newGame);
     const playerInfos: Record<string, { team: string; specialRole: string | null; info: string[] }> = {};
     for (const p of newGame.players) {
-      playerInfos[p.id] = { team: p.team, specialRole: p.specialRole, info: getPlayerInfo(newGame, p.id) };
+      playerInfos[p.id] = { team: p.team, specialRole: p.specialRole, info: getPlayerInfo(newGame, p.id, lang) };
     }
     await setGameState(roomCode, {
       ...serializeGame(newGame),
@@ -162,6 +210,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
       seed: g.seed,
       roleRevealEndAt: g.roleRevealEndAt,
       enabledRoles: g.enabledRoles.filter(r => r !== null),
+      commanderIsAlsoCleric: g.commanderIsAlsoCleric || false,
       gamePlayers: Object.fromEntries(g.players.map(p => [p.id, { name: p.name, team: p.team, specialRole: p.specialRole }])),
       missions: g.missions.map(m => ({
         round: m.round, requiredSize: m.requiredSize, needsTwoFails: m.needsTwoFails,
@@ -174,28 +223,43 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
   // 수동 이름 추가
   const handleManualAdd = async () => {
     if (!roomCode || !manualName.trim()) return;
+    const trimmed = manualName.trim();
+    // 중복 이름 체크
+    if (playerList.some(p => p.name === trimmed)) {
+      alert(wt(lang, 'duplicateName'));
+      return;
+    }
+    // 초과 인원 체크
+    if (playerList.length >= playerCount) {
+      alert(wt(lang, 'roomFull'));
+      return;
+    }
     const pid = `manual_${Date.now().toString(36)}`;
-    await submitAction(roomCode, `players/${pid}`, { name: manualName.trim(), manual: true });
+    await submitAction(roomCode, `players/${pid}`, { name: trimmed, manual: true });
     setManualName('');
   };
 
   // 게임 시작
   const handleStart = async () => {
-    if (!roomCode || playerList.length < 5) return;
+    if (!roomCode || playerList.length !== playerCount) return;
+    sfxGameStart();
+
+    // playerCount 인원만큼만 사용 (초과 참가 방지)
+    const activePlayers = playerList.slice(0, playerCount);
 
     let gameState = createGame(enabledRoles);
-    for (const p of playerList) {
+    for (const p of activePlayers) {
       gameState = addPlayer(gameState, p.name);
     }
     gameState = startGameEngine(gameState);
 
     // 플레이어 매핑: Firebase pid → game pid
     const mapping: Record<string, string> = {};
-    playerList.forEach((p, i) => { mapping[p.id] = `p${i}`; });
+    activePlayers.forEach((p, i) => { mapping[p.id] = `p${i}`; });
 
     const playerInfos: Record<string, { team: string; specialRole: string | null; info: string[] }> = {};
     for (const p of gameState.players) {
-      playerInfos[p.id] = { team: p.team, specialRole: p.specialRole, info: getPlayerInfo(gameState, p.id) };
+      playerInfos[p.id] = { team: p.team, specialRole: p.specialRole, info: getPlayerInfo(gameState, p.id, lang) };
     }
 
     await setGameState(roomCode, {
@@ -212,6 +276,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
   // 역할 확인 후 맵으로
   const handleProceedToMap = async () => {
     if (!game || !roomCode) return;
+    sfxModalOpen();
     const newGame = { ...game, phase: 'team-build' as const };
     await syncGame(newGame);
     setHostPhase('waiting-team');
@@ -219,29 +284,31 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
 
   // 투표 결과 처리 후
   const handleAfterVoteResult = async () => {
-    if (!game || !roomCode) return;
-    // 현재 미션의 투표 결과 반영
-    const missions = (roomData?.missions as Record<string, unknown>[]) || [];
-    const m = missions[game.currentRound] as Record<string, unknown>;
-    const votes = (m?.votes || {}) as Record<string, boolean>;
+    if (!game || !roomCode || !roomData) return;
+    // Firebase에서 현재 미션 데이터 읽기 (teamIds, votes 포함)
+    const fbMissions = (roomData.missions as Record<string, unknown>[]) || [];
+    const fbm = fbMissions[game.currentRound] as Record<string, unknown> | undefined;
+    if (!fbm) return;
+    const votes = (fbm.votes || {}) as Record<string, boolean>;
+    const fbTeamIds = (fbm.teamIds as string[]) || game.missions[game.currentRound].teamIds;
     const approveCount = Object.values(votes).filter(v => v).length;
     const approved = approveCount > game.players.length / 2;
 
     const updatedMissions = [...game.missions];
-    updatedMissions[game.currentRound] = { ...updatedMissions[game.currentRound], votes, approved };
+    updatedMissions[game.currentRound] = { ...updatedMissions[game.currentRound], teamIds: fbTeamIds, votes, approved };
 
     let newGame: GameState = { ...game, missions: updatedMissions };
 
     if (approved) {
       newGame = { ...newGame, phase: 'mission' as const, consecutiveRejects: 0 };
-      await syncGame(newGame);
+      await syncGame(newGame, 'vote-result'); // 클라이언트는 호스트가 봉사 시작 확인할 때까지 대기
       setHostPhase('confirm-mission');
     } else {
       const rejects = game.consecutiveRejects + 1;
       if (rejects >= 5) {
         newGame = { ...newGame, phase: 'finished' as const, winner: 'agent', winReason: 'winReason5Rejects', consecutiveRejects: rejects };
         await syncGame(newGame);
-        setHostPhase('finished');
+        setHostPhase('finished'); newGame.winner === 'witness' ? sfxVictory() : sfxDefeat();
       } else {
         newGame = proceedAfterVote({ ...newGame, consecutiveRejects: rejects });
         await syncGame(newGame);
@@ -253,16 +320,19 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
   // 봉사 시작
   const handleStartMission = async () => {
     if (!game || !roomCode) return;
+    sfxModalOpen();
     await submitAction(roomCode, 'phase', 'mission');
     setHostPhase('waiting-mission');
   };
 
   // 봉사 결과 확인
   const handleRevealMissionResult = async () => {
-    if (!game || !roomCode) return;
-    const missions = (roomData?.missions as Record<string, unknown>[]) || [];
-    const m = missions[game.currentRound] as Record<string, unknown>;
-    const submissions = (m?.submissions || {}) as Record<string, boolean>;
+    if (!game || !roomCode || !roomData) return;
+    sfxAssassin();
+    const fbMissions = (roomData.missions as Record<string, unknown>[]) || [];
+    const fbm = fbMissions[game.currentRound] as Record<string, unknown> | undefined;
+    if (!fbm) return;
+    const submissions = (fbm.submissions || {}) as Record<string, boolean>;
 
     const failCount = Object.values(submissions).filter(v => !v).length;
     const mission = game.missions[game.currentRound];
@@ -280,7 +350,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
     if (newAW >= 3) {
       newGame = { ...newGame, phase: 'finished' as const, winner: 'agent', winReason: 'winReason3Fail' };
       await syncGame(newGame);
-      setHostPhase('finished');
+      setHostPhase('finished'); newGame.winner === 'witness' ? sfxVictory() : sfxDefeat();
     } else if (newWW >= 3) {
       const hasCmd = game.players.some(p => p.specialRole === 'commander');
       if (hasCmd) {
@@ -290,7 +360,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
       } else {
         newGame = { ...newGame, phase: 'finished' as const, winner: 'witness', winReason: 'winReason3Success' };
         await syncGame(newGame);
-        setHostPhase('finished');
+        setHostPhase('finished'); newGame.winner === 'witness' ? sfxVictory() : sfxDefeat();
       }
     } else {
       await syncGame(newGame, 'mission-result');
@@ -301,6 +371,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
   // 다음 라운드
   const handleNextRound = async () => {
     if (!game) return;
+    sfxModalOpen();
     const newGame = nextRound(game);
     await syncGame(newGame);
     setHostPhase('waiting-team');
@@ -309,15 +380,45 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
   // 당간부 지목
   const handleAssassinate = async (targetId: string) => {
     if (!game) return;
+    sfxAssassin();
     const newGame = assassinate(game, targetId);
     await syncGame(newGame);
-    setHostPhase('finished');
+    setHostPhase('finished'); newGame.winner === 'witness' ? sfxVictory() : sfxDefeat();
   };
 
-  if (!roomCode) return <div className="h-dvh flex items-center justify-center"><p>방 생성 중...</p></div>;
+  // 에러 화면
+  if (roomError) return (
+    <div className="h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
+      <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-6 max-w-sm w-full text-center">
+        <div className="text-4xl mb-3">⚠️</div>
+        <p className="text-red-700 font-bold mb-4">{roomError}</p>
+        <button onClick={() => { sfxClick(); onGoHome(); }} className="bg-stone-800 text-white px-6 py-3 rounded-xl font-bold">{wt(lang, 'goHome')}</button>
+      </div>
+    </div>
+  );
 
-  const currentMission = game?.missions[game.currentRound];
-  const leader = currentMission ? game?.players.find(p => p.id === currentMission.leaderId) : null;
+  if (!roomCode) return (
+    <div className="h-dvh flex flex-col items-center justify-center bg-stone-100">
+      <div className="animate-spin w-8 h-8 border-4 border-stone-300 border-t-stone-800 rounded-full mb-4" />
+      <p className="text-stone-500 font-bold">{wt(lang, 'creatingRoom')}</p>
+    </div>
+  );
+
+  // ===== 재접속 QR + 다시하기 (하단 고정) =====
+  const ReconnectQR = () => (
+    <div className="fixed bottom-4 right-4 flex items-end gap-2">
+      <button
+        onClick={() => { if (confirm(wt(lang, 'confirmRestart'))) { if (roomCode) deleteRoom(roomCode).catch(() => {}); onGoHome(); } }}
+        className="bg-white rounded-xl px-3 py-2 shadow-lg opacity-80 hover:opacity-100 transition-opacity text-stone-500 hover:text-red-500 text-xs font-bold"
+      >
+        🔄 {wt(lang, 'playAgain')}
+      </button>
+      <div className="bg-white rounded-xl p-2 shadow-lg opacity-80 hover:opacity-100 transition-opacity">
+        <QRCodeSVG value={joinUrl} size={80} />
+        <p className="text-[10px] text-stone-400 text-center mt-1">{wt(lang, 'reconnect')}</p>
+      </div>
+    </div>
+  );
 
   // ===== 구역 맵 컴포넌트 =====
   const MissionMap = () => (
@@ -339,41 +440,65 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
 
   // ===== 로비 =====
   if (hostPhase === 'lobby') {
+    const allJoined = playerList.length === playerCount;
+    const overCapacity = playerList.length > playerCount;
     return (
       <div className="h-dvh bg-stone-100 flex flex-col items-center p-6 overflow-auto">
-        <h2 className="text-2xl font-black text-stone-800 mb-4">📖 {wt(lang, 'title')}</h2>
+        <h2 className="text-2xl font-black text-stone-800 mb-4">{wt(lang, 'title')}</h2>
 
         <div className="bg-white rounded-2xl p-6 shadow-md text-center max-w-sm w-full mb-4">
-          <p className="text-stone-500 text-sm mb-3">QR을 스캔해서 참가하세요</p>
-          <QRCodeSVG value={joinUrl} size={180} className="mx-auto mb-3" />
+          <p className="text-stone-500 text-sm mb-3">{wt(lang, 'scanToJoin')}</p>
+          <QRCodeSVG value={joinUrl} size={200} className="mx-auto mb-3" />
           <p className="text-xs text-stone-400">방 코드: <strong className="font-mono text-lg text-stone-800">{roomCode}</strong></p>
         </div>
 
-        {/* 수동 입력 */}
+        {/* 참가자 현황 */}
         <div className="bg-white rounded-xl p-4 shadow-sm max-w-sm w-full mb-4">
-          <h3 className="font-bold text-stone-700 mb-2">참가자 ({playerList.length}/12)</h3>
-          <div className="flex gap-2 mb-3">
-            <input
-              type="text" value={manualName}
-              onChange={(e) => setManualName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleManualAdd()}
-              placeholder="이름 직접 입력"
-              className="flex-1 border-2 border-stone-300 rounded-lg px-3 py-2 font-bold focus:outline-none focus:border-stone-500"
-              maxLength={10}
-            />
-            <button onClick={handleManualAdd} disabled={!manualName.trim() || playerList.length >= 12}
-              className="bg-stone-800 text-white px-4 py-2 rounded-lg font-bold disabled:opacity-40">{wt(lang, 'addPlayer')}</button>
-          </div>
+          <h3 className="font-bold text-stone-700 mb-2">
+            {wt(lang, 'participants')} <span className={`${allJoined ? 'text-green-600' : 'text-amber-600'}`}>{playerList.length}/{playerCount}</span>
+          </h3>
+
+          {/* 수동 입력 */}
+          {!allJoined && (
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text" value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleManualAdd()}
+                placeholder={wt(lang, 'manualInput')}
+                className="flex-1 border-2 border-stone-300 rounded-lg px-3 py-2 font-bold focus:outline-none focus:border-stone-500"
+                maxLength={10}
+              />
+              <button onClick={() => { sfxClick(); handleManualAdd(); }} disabled={!manualName.trim()}
+                className="bg-stone-800 text-white px-4 py-2 rounded-lg font-bold disabled:opacity-40">{wt(lang, 'addPlayer')}</button>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2">
-            {playerList.map((p) => (
-              <span key={p.id} className="bg-stone-100 px-3 py-1 rounded-full text-sm font-bold">{p.name}</span>
+            {playerList.map((p, i) => (
+              <span key={p.id} className="bg-stone-100 px-3 py-1 rounded-full text-sm font-bold animate-pop-in"
+                style={{ animationDelay: `${i * 0.1}s` }}>
+                {i + 1}. {p.name}
+              </span>
+            ))}
+            {!allJoined && Array.from({ length: playerCount - playerList.length }).map((_, i) => (
+              <span key={`empty-${i}`} className="bg-stone-50 border-2 border-dashed border-stone-300 px-3 py-1 rounded-full text-sm text-stone-300">
+                {wt(lang, 'waiting')}
+              </span>
             ))}
           </div>
         </div>
 
-        <button onClick={handleStart} disabled={playerList.length < 5}
-          className="w-full max-w-sm bg-stone-800 text-white text-xl font-bold py-4 rounded-2xl shadow-lg hover:bg-stone-700 active:scale-95 disabled:opacity-40">
-          {playerList.length >= 5 ? wt(lang, 'startGame') : wt(lang, 'needPlayers')}
+        {overCapacity && (
+          <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3 max-w-sm w-full text-center mb-4">
+            <p className="text-red-600 font-bold text-sm">⚠️ {wt(lang, 'overCapacity')}</p>
+          </div>
+        )}
+
+        <button onClick={handleStart} disabled={!allJoined || overCapacity}
+          className={`w-full max-w-sm text-xl font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-all
+            ${allJoined && !overCapacity ? 'bg-green-600 text-white hover:bg-green-500 animate-pulse' : 'bg-stone-300 text-stone-500 cursor-not-allowed'}`}>
+          {allJoined && !overCapacity ? `🎮 ${wt(lang, 'startGame')}` : `${playerList.length}/${playerCount} ${wt(lang, 'needPlayers')}`}
         </button>
       </div>
     );
@@ -384,8 +509,8 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
     return (
       <div className="h-dvh bg-stone-900 flex flex-col items-center justify-center p-6">
         <h2 className="text-xl font-bold text-white mb-2">{wt(lang, 'roleReveal')}</h2>
-        <p className="text-stone-400 mb-1">폰에서 역할을 확인하세요</p>
-        <p className="text-stone-500 text-sm mb-4">수동 입력된 참가자는 QR을 스캔하세요</p>
+        <p className="text-stone-400 mb-1">{wt(lang, 'checkRoleOnPhone')}</p>
+        <p className="text-stone-500 text-sm mb-4">{wt(lang, 'manualScanGuide')}</p>
 
         <div className="text-5xl font-mono font-black text-amber-400 mb-4">
           {countdown}{wt(lang, 'seconds')}
@@ -397,13 +522,14 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
         </div>
 
         <button
-          onClick={handleProceedToMap}
+          onClick={() => { sfxClick(); handleProceedToMap(); }}
           disabled={countdown > 0}
           className={`px-8 py-3 rounded-xl font-bold text-lg transition-all
             ${countdown > 0 ? 'bg-stone-700 text-stone-500 cursor-not-allowed' : 'bg-amber-400 text-stone-800 hover:bg-amber-300 active:scale-95'}`}
         >
           {wt(lang, 'proceed')}
         </button>
+        <ReconnectQR />
       </div>
     );
   }
@@ -415,14 +541,15 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
         <MissionMap />
         <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-lg">
           <p className="text-stone-500 text-sm mb-1">{wt(lang, 'round')} {game.currentRound + 1} · {wt(lang, 'required')}: {currentMission.requiredSize}명
-            {currentMission.needsTwoFails ? ' (실패 2개 필요)' : ''}</p>
+            {currentMission.needsTwoFails ? ` (${wt(lang, 'needsTwoFails')})` : ''}</p>
           <h2 className="text-2xl font-black text-stone-800 mb-2">{wt(lang, 'leader')}: {leader?.name}</h2>
-          <p className="text-stone-500">봉사 팀원을 선택해주세요</p>
+          <p className="text-stone-500">{wt(lang, 'selectTeamMembers')}</p>
           <div className="mt-4 animate-pulse text-4xl">📱</div>
         </div>
         {game.consecutiveRejects > 0 && (
           <p className="text-red-500 text-sm font-bold mt-4">{wt(lang, 'consecutiveReject')}: {game.consecutiveRejects}/5</p>
         )}
+        <ReconnectQR />
       </div>
     );
   }
@@ -435,9 +562,10 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
         <MissionMap />
         <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-8 max-w-sm w-full text-center shadow-lg">
           <div className="text-4xl mb-3">🔔</div>
-          <h2 className="text-xl font-black text-stone-800 mb-2">인도자가 봉사임명을 완료했습니다</h2>
+          <h2 className="text-xl font-black text-stone-800 mb-2">{wt(lang, 'teamAnnounced')}</h2>
           <p className="text-stone-600 font-bold">{teamNames.join(', ')}</p>
         </div>
+        <ReconnectQR />
       </div>
     );
   }
@@ -451,10 +579,11 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
       <div className="h-dvh bg-stone-100 flex flex-col items-center justify-center p-6">
         <MissionMap />
         <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-lg">
-          <h2 className="text-xl font-black text-stone-800 mb-2">봉사팀 임명을 찬성 또는 이의를 제기해 주세요</h2>
+          <h2 className="text-xl font-black text-stone-800 mb-2">{wt(lang, 'voteTeamGuide')}</h2>
           <div className="text-4xl font-black text-stone-800 mt-4">{votedCount} / {game.players.length}</div>
-          <p className="text-stone-400 text-sm mt-2">투표 진행 중...</p>
+          <p className="text-stone-400 text-sm mt-2">{wt(lang, 'votingProgress')}</p>
         </div>
+        <ReconnectQR />
       </div>
     );
   }
@@ -474,27 +603,30 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
         <MissionMap />
         <div className={`rounded-2xl p-8 max-w-sm w-full text-center shadow-lg ${approved ? 'bg-blue-500' : 'bg-red-500'}`}>
           <div className="text-5xl mb-3">{approved ? '✅' : '❌'}</div>
-          <h2 className="text-2xl font-black text-white mb-2">투표가 끝났습니다</h2>
+          <h2 className="text-2xl font-black text-white mb-2">{wt(lang, 'voteFinished')}</h2>
           <h3 className="text-xl font-bold text-white mb-4">{approved ? wt(lang, 'approved') : wt(lang, 'rejected')}</h3>
           <div className="flex justify-center gap-6 text-white mb-4">
             <div><p className="text-2xl font-black">{approveCount}</p><p className="text-sm opacity-80">{wt(lang, 'voteApproveCount')}</p></div>
             <div><p className="text-2xl font-black">{rejectCount}</p><p className="text-sm opacity-80">{wt(lang, 'voteRejectCount')}</p></div>
           </div>
           <div className="border-t border-white/20 pt-3 space-y-1">
-            {game.players.map(p => {
-              // Firebase pid → game pid 역매핑으로 투표 찾기
+            {game.players.map((p, i) => {
               const vote = votes[p.id];
               return (
-                <div key={p.id} className="flex justify-between text-sm text-white/80">
+                <div key={p.id} className="flex justify-between text-sm text-white/80 animate-slide-up"
+                  style={{ animationDelay: `${i * 0.08}s` }}>
                   <span>{p.name}</span>
-                  <span>{vote === true ? '👍' : vote === false ? '👎' : '...'}</span>
+                  <span className="animate-flip-in" style={{ animationDelay: `${i * 0.08 + 0.2}s` }}>
+                    {vote === true ? '👍' : vote === false ? '👎' : '...'}
+                  </span>
                 </div>
               );
             })}
           </div>
         </div>
-        <button onClick={handleAfterVoteResult}
+        <button onClick={() => { sfxClick(); handleAfterVoteResult(); }}
           className="mt-6 bg-stone-800 text-white px-8 py-3 rounded-xl font-bold">{wt(lang, 'proceed')}</button>
+        <ReconnectQR />
       </div>
     );
   }
@@ -506,13 +638,14 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
         <MissionMap />
         <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-lg">
           <h2 className="text-xl font-black text-stone-800 mb-4">
-            {game.currentRound + 1}번 구역 봉사를 시작하시겠습니까?
+            {wt(lang, 'round')} {game.currentRound + 1} — {wt(lang, 'confirmMission')}
           </h2>
-          <button onClick={handleStartMission}
+          <button onClick={() => { sfxClick(); handleStartMission(); }}
             className="bg-blue-500 text-white px-8 py-3 rounded-xl font-bold text-lg hover:bg-blue-600">
             ✅ {wt(lang, 'confirm')}
           </button>
         </div>
+        <ReconnectQR />
       </div>
     );
   }
@@ -526,9 +659,10 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
       <div className="h-dvh bg-stone-100 flex flex-col items-center justify-center p-6">
         <MissionMap />
         <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-lg">
-          <h2 className="text-xl font-black text-stone-800 mb-2">봉사 진행 중...</h2>
+          <h2 className="text-xl font-black text-stone-800 mb-2">{wt(lang, 'missionInProgress')}</h2>
           <div className="text-4xl font-black text-stone-800 mt-4">{submittedCount} / {currentMission.teamIds.length}</div>
         </div>
+        <ReconnectQR />
       </div>
     );
   }
@@ -539,29 +673,49 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
       <div className="h-dvh bg-stone-100 flex flex-col items-center justify-center p-6">
         <MissionMap />
         <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-lg">
-          <h2 className="text-xl font-black text-stone-800 mb-4">봉사를 완료했습니다.<br/>결과를 확인하시겠습니까?</h2>
-          <button onClick={handleRevealMissionResult}
+          <h2 className="text-xl font-black text-stone-800 mb-4 whitespace-pre-line">{wt(lang, 'missionComplete')}</h2>
+          <button onClick={() => { sfxCardFlip(); handleRevealMissionResult(); }}
             className="bg-stone-800 text-white px-8 py-3 rounded-xl font-bold text-lg">{wt(lang, 'confirm')}</button>
         </div>
+        <ReconnectQR />
       </div>
     );
   }
 
   // ===== 봉사 결과 =====
   if (hostPhase === 'mission-result' && game && currentMission) {
-    const failCount = currentMission.submissions ? Object.values(currentMission.submissions).filter(v => !v).length : 0;
+    const submissions = currentMission.submissions ? Object.values(currentMission.submissions) : [];
+    const successCount = submissions.filter(v => v).length;
+    const failCount = submissions.filter(v => !v).length;
     const isSuccess = currentMission.result === 'success';
 
     return (
       <div className="h-dvh bg-stone-100 flex flex-col items-center justify-center p-6">
         <MissionMap />
-        <div className={`rounded-2xl p-8 max-w-xs w-full text-center shadow-lg ${isSuccess ? 'bg-blue-500' : 'bg-red-500'}`}>
-          <div className="text-6xl mb-4">{isSuccess ? '✅' : '❌'}</div>
-          <h2 className="text-3xl font-black text-white mb-2">{isSuccess ? wt(lang, 'success') : wt(lang, 'fail')}</h2>
-          <p className="text-white/80">{wt(lang, 'failCount')}: {failCount}{currentMission.needsTwoFails ? ' (2개 필요)' : ''}</p>
+        <div className={`rounded-2xl p-6 max-w-sm w-full text-center shadow-lg ${isSuccess ? 'bg-blue-500' : 'bg-red-500'}`}>
+          <div className="text-5xl mb-3">{isSuccess ? '✅' : '❌'}</div>
+          <h2 className="text-2xl font-black text-white mb-4">{isSuccess ? wt(lang, 'success') : wt(lang, 'fail')}</h2>
+          {/* 카드 시각화 */}
+          <div className="flex justify-center gap-2 mb-4 flex-wrap">
+            {missionCards.map((s, i) => (
+              <div key={i}
+                className={`w-14 h-20 rounded-lg flex items-center justify-center text-2xl font-black shadow-md
+                  ${s ? 'bg-white text-blue-500 border-2 border-blue-300' : 'bg-white text-red-500 border-2 border-red-300'}
+                  animate-[flipIn_0.4s_ease-out_both]`}
+                style={{ animationDelay: `${i * 0.15}s` }}>
+                {s ? '✓' : '✗'}
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-center gap-4 text-white/90 text-sm">
+            <span>✓ {wt(lang, 'success')}: {successCount}</span>
+            <span>✗ {wt(lang, 'fail')}: {failCount}</span>
+          </div>
+          {currentMission.needsTwoFails && <p className="text-white/60 text-xs mt-1">({wt(lang, 'needsTwoFails')})</p>}
         </div>
-        <button onClick={handleNextRound}
+        <button onClick={() => { sfxTurnEnd(); handleNextRound(); }}
           className="mt-6 bg-stone-800 text-white px-8 py-3 rounded-xl font-bold">{wt(lang, 'nextRound')}</button>
+        <ReconnectQR />
       </div>
     );
   }
@@ -583,6 +737,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
             ))}
           </div>
         </div>
+        <ReconnectQR />
       </div>
     );
   }
@@ -590,14 +745,28 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
   // ===== 게임 종료 =====
   if (hostPhase === 'finished' && game) {
     const isWitness = game.winner === 'witness';
+    const confettiColors = isWitness ? ['#3b82f6', '#60a5fa', '#93c5fd', '#ffffff'] : ['#ef4444', '#f87171', '#fca5a5', '#ffffff'];
     return (
-      <div className={`h-dvh flex flex-col items-center justify-center p-6 ${isWitness ? 'bg-blue-600' : 'bg-red-600'}`}>
-        <div className="text-6xl mb-4">{isWitness ? '📖' : '🔴'}</div>
+      <div className={`h-dvh flex flex-col items-center justify-center p-6 relative overflow-hidden ${isWitness ? 'bg-blue-600' : 'bg-red-600'}`}>
+        {/* Confetti */}
+        <div className="absolute inset-0 pointer-events-none">
+          {confettiPositions.map((pos, i) => (
+            <div key={i}
+              className="absolute w-3 h-3 rounded-sm"
+              style={{
+                left: pos.left,
+                backgroundColor: confettiColors[i % confettiColors.length],
+                animation: `confettiFall ${pos.duration}s linear ${pos.delay}s infinite`,
+                opacity: 0.8,
+              }} />
+          ))}
+        </div>
+        <div className="text-6xl mb-4 animate-pop-in">{isWitness ? '📖' : '🔴'}</div>
         <h1 className="text-3xl font-black text-white mb-2">{isWitness ? wt(lang, 'witnessWin') : wt(lang, 'agentWin')}</h1>
         <p className="text-white/80 mb-4">{game.winReason ? wt(lang, game.winReason as any) : ''}</p>
         <MissionMap />
 
-        <button onClick={() => setRevealRoles(!revealRoles)} className="text-white/70 text-sm font-bold mb-4 hover:text-white">{wt(lang, 'revealAll')}</button>
+        <button onClick={() => { sfxToggle(); setRevealRoles(!revealRoles); }} className="text-white/70 text-sm font-bold mb-4 hover:text-white">{wt(lang, 'revealAll')}</button>
         {revealRoles && (
           <div className="bg-white/10 rounded-xl p-4 max-w-sm w-full mb-6">
             {game.players.map(p => (
@@ -611,7 +780,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
           </div>
         )}
 
-        <button onClick={onGoHome} className="bg-white/20 text-white px-6 py-3 rounded-xl font-bold hover:bg-white/30">{wt(lang, 'goHome')}</button>
+        <button onClick={() => { sfxClick(); if (roomCode) deleteRoom(roomCode).catch(() => {}); onGoHome(); }} className="bg-white/20 text-white px-6 py-3 rounded-xl font-bold hover:bg-white/30">{wt(lang, 'goHome')}</button>
       </div>
     );
   }

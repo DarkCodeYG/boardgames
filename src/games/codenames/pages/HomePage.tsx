@@ -1,6 +1,7 @@
 import { useGameStore } from '../store/game-store';
 import { t } from '../lib/i18n';
 import type { WordPack } from '../lib/words';
+import { sfxToggle, sfxClick } from '../../../lib/sound';
 
 interface HomePageProps {
   onStartGame: () => void;
@@ -26,7 +27,7 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
         {/* 뒤로가기 */}
         {onBack && (
           <button
-            onClick={onBack}
+            onClick={() => { sfxClick(); onBack?.(); }}
             className="mb-4 text-stone-500 hover:text-stone-700 font-bold text-sm"
           >
             ← {t(lang, 'goHome')}
@@ -38,7 +39,7 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
           {PACKS.map((p) => (
             <button
               key={p.value}
-              onClick={() => setPack(p.value)}
+              onClick={() => { sfxToggle(); setPack(p.value); }}
               className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors
                 ${pack === p.value
                   ? 'bg-amber-500 text-white'

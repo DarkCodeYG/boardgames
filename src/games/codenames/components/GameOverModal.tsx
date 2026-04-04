@@ -1,5 +1,6 @@
 import type { GameState } from '../lib/types';
 import { t, type Lang } from '../lib/i18n';
+import { sfxClick } from '../../../lib/sound';
 
 interface GameOverModalProps {
   game: GameState;
@@ -29,14 +30,14 @@ export default function GameOverModal({ game, lang, onNewGame, onGoHome }: GameO
 
         <div className="flex gap-3 justify-center">
           <button
-            onClick={onNewGame}
+            onClick={() => { sfxClick(); onNewGame(); }}
             className={`${winnerBg} text-white px-6 py-3 rounded-xl font-bold
                        hover:opacity-90 transition-opacity`}
           >
             {t(lang, 'playAgain')}
           </button>
           <button
-            onClick={onGoHome}
+            onClick={() => { sfxClick(); onGoHome(); }}
             className="bg-stone-200 text-stone-700 px-6 py-3 rounded-xl font-bold
                        hover:bg-stone-300 transition-colors"
           >

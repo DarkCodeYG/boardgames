@@ -20,7 +20,8 @@ export default function SpymasterKeyPage() {
     const params = new URLSearchParams(window.location.search);
     const seed = params.get('seed');
     const l = params.get('lang') as Lang | null;
-    const p = params.get('pack') as WordPack | null;
+    const rawPack = params.get('pack');
+    const p = rawPack && ['standard', 'jw'].includes(rawPack) ? rawPack as WordPack : null;
     if (l && ['ko', 'en', 'zh'].includes(l)) setLang(l);
     if (seed) {
       const result = createBoard(seed, l || 'ko', p || 'standard');

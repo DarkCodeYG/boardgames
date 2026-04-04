@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getPlayerRole } from '../lib/game-engine';
 import type { Lang } from '../../codenames/lib/i18n';
 import type { WordPack } from '../../codenames/lib/words';
+import { sfxClick, sfxSpyReveal, sfxRoleReveal } from '../../../lib/sound';
 
 const TEXTS = {
   ko: {
@@ -61,6 +62,12 @@ export default function PlayerCard() {
     setData(role);
     setPlayerIndex(idx);
     setStep('revealed');
+    // 스파이/일반 역할에 따라 다른 효과음
+    if (role.isSpy) {
+      sfxSpyReveal();
+    } else {
+      sfxRoleReveal();
+    }
   };
 
   // 시드 없음
@@ -84,7 +91,7 @@ export default function PlayerCard() {
           <p className="text-stone-500 mb-6">{txt.confirm}</p>
           <div className="flex gap-3 justify-center">
             <button
-              onClick={() => setStep('select')}
+              onClick={() => { sfxClick(); setStep('select'); }}
               className="bg-stone-200 text-stone-700 px-6 py-3 rounded-xl font-bold
                          hover:bg-stone-300 transition-colors"
             >
@@ -131,24 +138,32 @@ export default function PlayerCard() {
 
   if (data.isSpy) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center bg-red-600 p-6">
-        <div className="text-8xl mb-6">🕵️</div>
-        <h1 className="text-3xl font-black text-white mb-2">{txt.spy}</h1>
-        <p className="text-red-200 text-lg">{txt.spyHint}</p>
+      <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
+        <div className="bg-white rounded-2xl p-8 text-center max-w-xs w-full shadow-lg">
+          <div className="text-8xl mb-4">🕵️</div>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
+            <h1 className="text-3xl font-black text-stone-800">{txt.spy}</h1>
+          </div>
+          <p className="text-stone-500 text-lg">{txt.spyHint}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center bg-blue-600 p-6">
-      <div className="text-8xl mb-6">📍</div>
-      <div className="bg-white/20 rounded-2xl p-6 text-center">
-        <p className="text-blue-200 text-sm mb-1">{txt.location}</p>
-        <h1 className="text-3xl font-black text-white mb-4">{data.location}</h1>
+    <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
+      <div className="bg-white rounded-2xl p-8 text-center max-w-xs w-full shadow-lg">
+        <div className="text-8xl mb-4">📍</div>
+        <div className="flex items-center justify-center gap-2 mb-3">
+          <span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
+          <p className="text-stone-400 text-sm">{txt.location}</p>
+        </div>
+        <h1 className="text-3xl font-black text-stone-800 mb-4">{data.location}</h1>
         {data.role && (
           <>
-            <p className="text-blue-200 text-sm mb-1">{txt.role}</p>
-            <h2 className="text-xl font-bold text-white">{data.role}</h2>
+            <p className="text-stone-400 text-sm mb-1">{txt.role}</p>
+            <h2 className="text-xl font-bold text-stone-700">{data.role}</h2>
           </>
         )}
       </div>

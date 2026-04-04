@@ -1,5 +1,6 @@
 import { useGameStore } from '../games/codenames/store/game-store';
 import { LANG_LABELS, type Lang } from '../games/codenames/lib/i18n';
+import { sfxToggle, sfxGameSelect } from '../lib/sound';
 
 const LANGS: Lang[] = ['ko', 'en', 'zh'];
 
@@ -33,7 +34,7 @@ export default function Home({ onSelectGame }: HomeProps) {
         {LANGS.map((l) => (
           <button
             key={l}
-            onClick={() => setLang(l)}
+            onClick={() => { sfxToggle(); setLang(l); }}
             className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors
               ${lang === l
                 ? 'bg-stone-800 text-white'
@@ -49,7 +50,7 @@ export default function Home({ onSelectGame }: HomeProps) {
 
       <div className="grid gap-4 max-w-md w-full">
         <button
-          onClick={() => onSelectGame('codenames')}
+          onClick={() => { sfxGameSelect(); onSelectGame('codenames'); }}
           className="bg-white rounded-2xl p-5 shadow-md text-left
                      hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
         >
@@ -64,7 +65,7 @@ export default function Home({ onSelectGame }: HomeProps) {
         </button>
 
         <button
-          onClick={() => onSelectGame('spyfall')}
+          onClick={() => { sfxGameSelect(); onSelectGame('spyfall'); }}
           className="bg-white rounded-2xl p-5 shadow-md text-left
                      hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
         >
@@ -79,7 +80,7 @@ export default function Home({ onSelectGame }: HomeProps) {
         </button>
 
         <button
-          onClick={() => onSelectGame('witnesses')}
+          onClick={() => { sfxGameSelect(); onSelectGame('witnesses'); }}
           className="bg-white rounded-2xl p-5 shadow-md text-left
                      hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
         >

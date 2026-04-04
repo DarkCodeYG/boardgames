@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { sfxTimerTick } from '../../../lib/sound';
 
 interface TimerProps {
   startedAt: number;
@@ -8,12 +9,18 @@ interface TimerProps {
 
 export default function Timer({ startedAt, durationMinutes, onTimeUp }: TimerProps) {
   const [remaining, setRemaining] = useState(durationMinutes * 60);
+  const prevRef = useRef(remaining);
 
   useEffect(() => {
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startedAt) / 1000);
       const left = Math.max(0, durationMinutes * 60 - elapsed);
       setRemaining(left);
+      // 마지막 10초 틱 사운드
+      if (left <= 10 && left > 0 && left !== prevRef.current) {
+        sfxTimerTick();
+      }
+      prevRef.current = left;
       if (left <= 0) {
         onTimeUp();
         clearInterval(interval);

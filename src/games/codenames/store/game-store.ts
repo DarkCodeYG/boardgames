@@ -3,6 +3,7 @@ import type { GameState } from '../lib/types';
 import type { Lang } from '../lib/i18n';
 import type { WordPack } from '../lib/words';
 import { createGame, startGame, revealCard, endTurnEarly } from '../lib/game-engine';
+import { sfxCardFlip, sfxCorrect, sfxWrong, sfxAssassin, sfxVictory, sfxDefeat, sfxTurnEnd, sfxGameStart } from '../../../lib/sound';
 
 interface GameStore {
   game: GameState | null;
@@ -37,14 +38,39 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   start: () => {
+    sfxGameStart();
     set((s) => (s.game ? { game: startGame(s.game) } : s));
   },
 
   selectCard: (cardId: number) => {
-    set((s) => (s.game ? { game: revealCard(s.game, cardId) } : s));
+    const { game } = get();
+    if (!game || game.phase !== 'playing') return;
+    const card = game.board[cardId];
+    if (!card || card.revealed) return;
+
+    sfxCardFlip();
+    const next = revealCard(game, cardId);
+    set({ game: next });
+
+    // 결과에 따른 효과음 (카드 뒤집기 후 딜레이)
+    setTimeout(() => {
+      if (next.phase === 'finished') {
+        if (card.type === 'assassin') {
+          sfxAssassin();
+          setTimeout(sfxDefeat, 600);
+        } else {
+          sfxVictory();
+        }
+      } else if (card.type === game.currentTeam) {
+        sfxCorrect();
+      } else {
+        sfxWrong();
+      }
+    }, 200);
   },
 
   passTurn: () => {
+    sfxTurnEnd();
     set((s) => (s.game ? { game: endTurnEarly(s.game) } : s));
   },
 

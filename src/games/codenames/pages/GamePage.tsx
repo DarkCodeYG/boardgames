@@ -5,6 +5,7 @@ import GameHeader from '../components/GameHeader';
 import GameOverModal from '../components/GameOverModal';
 import { useGameStore } from '../store/game-store';
 import { t } from '../lib/i18n';
+import { sfxClick, sfxToggle, sfxModalOpen, sfxModalClose } from '../../../lib/sound';
 
 interface GamePageProps {
   onGoHome: () => void;
@@ -15,7 +16,11 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   const [showQR, setShowQR] = useState(false);
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
 
-  if (!game) return null;
+  if (!game) return (
+    <div className="min-h-dvh flex items-center justify-center bg-stone-100">
+      <p className="text-stone-400 font-bold">{t(lang, 'loading')}</p>
+    </div>
+  );
 
   const spymasterUrl = `${window.location.origin}${window.location.pathname}?seed=${game.seed}&lang=${lang}&pack=${pack}`;
   const teamColor = game.currentTeam === 'red' ? 'bg-red-500' : 'bg-blue-500';
@@ -71,7 +76,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
           <div className="border-t border-stone-200 bg-white">
             <div className="flex items-center justify-center gap-2 p-3">
               <button
-                onClick={() => setShowQR(!showQR)}
+                onClick={() => { sfxToggle(); setShowQR(!showQR); }}
                 className="bg-stone-200 text-stone-700 px-3 py-2 rounded-lg font-bold
                            hover:bg-stone-300 transition-colors text-sm"
               >
@@ -85,7 +90,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
                 {t(lang, 'endTurn')}
               </button>
               <button
-                onClick={() => setShowRestartConfirm(true)}
+                onClick={() => { sfxModalOpen(); setShowRestartConfirm(true); }}
                 className="bg-stone-200 text-stone-700 px-3 py-2 rounded-lg font-bold
                            hover:bg-stone-300 transition-colors text-sm"
               >
@@ -124,14 +129,14 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             <p className="text-stone-500 mb-5">{t(lang, 'restartMsg')}</p>
             <div className="flex gap-3 justify-center">
               <button
-                onClick={() => setShowRestartConfirm(false)}
+                onClick={() => { sfxModalClose(); setShowRestartConfirm(false); }}
                 className="bg-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-bold
                            hover:bg-stone-300 transition-colors"
               >
                 {t(lang, 'cancel')}
               </button>
               <button
-                onClick={handleRestart}
+                onClick={() => { sfxClick(); handleRestart(); }}
                 className="bg-stone-800 text-white px-5 py-2.5 rounded-xl font-bold
                            hover:bg-stone-700 transition-colors"
               >

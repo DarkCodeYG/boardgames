@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import { useSpyfallStore } from '../store/game-store';
 import { useGameStore } from '../../codenames/store/game-store';
 import Timer from '../components/Timer';
+import { sfxClick, sfxModalOpen, sfxModalClose, sfxTimerUp } from '../../../lib/sound';
 
 const TEXTS = {
   ko: {
@@ -11,12 +12,12 @@ const TEXTS = {
     startRound: '라운드 시작!',
     timeUp: '⏰ 시간 종료!',
     vote: '투표하여 스파이를 찾으세요!',
-    newGame: '새 게임',
+    newGame: '홈으로',
     restart: '다시 하기',
-    confirmTitle: '새 게임',
-    confirmMsg: '현재 게임을 종료할까요?',
+    confirmTitle: '게임 종료',
+    confirmMsg: '현재 게임을 종료하고 홈으로 이동할까요?',
     cancel: '취소',
-    confirm: '새 게임 시작',
+    confirm: '홈으로 이동',
   },
   en: {
     qrTitle: 'Each player scans their QR code',
@@ -24,10 +25,10 @@ const TEXTS = {
     startRound: 'Start Round!',
     timeUp: '⏰ Time\'s up!',
     vote: 'Vote to find the spy!',
-    newGame: 'New',
+    newGame: 'Home',
     restart: 'Play Again',
-    confirmTitle: 'New Game',
-    confirmMsg: 'End current game?',
+    confirmTitle: 'End Game',
+    confirmMsg: 'End current game and go home?',
     cancel: 'Cancel',
     confirm: 'Start New Game',
   },
@@ -37,12 +38,12 @@ const TEXTS = {
     startRound: '开始回合！',
     timeUp: '⏰ 时间到！',
     vote: '投票找出间谍！',
-    newGame: '新游戏',
+    newGame: '主页',
     restart: '再来一局',
-    confirmTitle: '新游戏',
-    confirmMsg: '结束当前游戏？',
+    confirmTitle: '结束游戏',
+    confirmMsg: '结束当前游戏并返回主页？',
     cancel: '取消',
-    confirm: '开始新游戏',
+    confirm: '返回主页',
   },
 };
 
@@ -62,7 +63,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
   const baseUrl = `${window.location.origin}${window.location.pathname}`;
 
-  const handleTimeUp = useCallback(() => setTimeUp(true), []);
+  const handleTimeUp = useCallback(() => { sfxTimerUp(); setTimeUp(true); }, []);
 
   const handleRestart = () => {
     newGame(game.playerCount, game.roundMinutes);
@@ -123,14 +124,14 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
           <div className="mt-8 flex gap-3">
             <button
-              onClick={handleRestart}
+              onClick={() => { sfxClick(); handleRestart(); }}
               className="bg-stone-800 text-white px-6 py-3 rounded-xl font-bold
                          hover:bg-stone-700 transition-colors"
             >
               {txt.restart}
             </button>
             <button
-              onClick={() => setShowRestart(true)}
+              onClick={() => { sfxModalOpen(); setShowRestart(true); }}
               className="bg-stone-200 text-stone-700 px-4 py-3 rounded-xl font-bold
                          hover:bg-stone-300 transition-colors text-sm"
             >
@@ -147,11 +148,11 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             <h3 className="text-xl font-bold text-stone-800 mb-2">{txt.confirmTitle}</h3>
             <p className="text-stone-500 mb-5">{txt.confirmMsg}</p>
             <div className="flex gap-3 justify-center">
-              <button onClick={() => setShowRestart(false)}
+              <button onClick={() => { sfxModalClose(); setShowRestart(false); }}
                 className="bg-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-bold hover:bg-stone-300">
                 {txt.cancel}
               </button>
-              <button onClick={() => { reset(); onGoHome(); }}
+              <button onClick={() => { sfxClick(); reset(); onGoHome(); }}
                 className="bg-stone-800 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-stone-700">
                 {txt.confirm}
               </button>

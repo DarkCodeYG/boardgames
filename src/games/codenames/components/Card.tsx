@@ -99,7 +99,7 @@ export default function Card({ card, isSpymasterView, onSelect, disabled, lang }
   // 일반 뷰
   return (
     <button
-      onClick={() => !disabled && onSelect(card.id)}
+      onClick={() => onSelect(card.id)}
       disabled={disabled}
       className={`
         ${baseClass} bg-stone-100 text-stone-800 shadow-md

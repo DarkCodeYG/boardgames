@@ -7,8 +7,8 @@ export const WORDS_EN: string[] = [
   'sauce', 'steak', 'sugar', 'tea', 'toast', 'tomato', 'waffle', 'wine',
 
   // Animals
-  'bear', 'bird', 'butterfly', 'cat', 'chicken', 'cow', 'deer', 'dog',
-  'dolphin', 'dragon', 'eagle', 'elephant', 'fish', 'fox', 'frog', 'giraffe',
+  'bear', 'bird', 'butterfly', 'cat', 'parrot', 'cow', 'deer', 'dog',
+  'dolphin', 'dragon', 'eagle', 'elephant', 'flamingo', 'fox', 'frog', 'giraffe',
   'horse', 'lion', 'monkey', 'mouse', 'owl', 'panda', 'penguin', 'rabbit',
   'shark', 'snake', 'spider', 'tiger', 'turtle', 'whale', 'wolf', 'zebra',
 
@@ -26,7 +26,7 @@ export const WORDS_EN: string[] = [
   'piano', 'ring', 'rocket', 'rope', 'shield', 'shoe', 'sword', 'umbrella',
 
   // Nature
-  'cloud', 'fire', 'flower', 'grass', 'ice', 'leaf', 'lightning', 'moon',
+  'cloud', 'fire', 'flower', 'grass', 'frost', 'leaf', 'lightning', 'moon',
   'rain', 'rainbow', 'river', 'rock', 'sand', 'snow', 'star', 'storm',
   'sun', 'thunder', 'tree', 'volcano', 'wave', 'wind',
 

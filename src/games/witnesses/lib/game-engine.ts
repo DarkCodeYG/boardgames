@@ -34,12 +34,18 @@ export function createGame(enabledRoles: SpecialRole[], existingSeed?: string): 
     seed,
     roleRevealEndAt: null,
     enabledRoles: enabledRoles.filter(r => r !== null) as SpecialRole[],
+    commanderIsAlsoCleric: false,
   };
 }
 
 /** 플레이어 추가 */
 export function addPlayer(state: GameState, name: string): GameState {
-  const id = `p${state.players.length}`;
+  // 기존 ID 중 최대값 + 1로 고유 ID 생성 (삭제 후 재추가 시 충돌 방지)
+  const maxId = state.players.reduce((max, p) => {
+    const num = parseInt(p.id.replace('p', ''), 10);
+    return isNaN(num) ? max : Math.max(max, num);
+  }, -1);
+  const id = `p${maxId + 1}`;
   const player: Player = { id, name, team: 'witness', specialRole: null };
   return { ...state, players: [...state.players, player] };
 }
@@ -73,12 +79,21 @@ export function startGame(state: GameState): GameState {
   const enabled = state.enabledRoles;
   const witnessSpecials: SpecialRole[] = [];
   const agentSpecials: SpecialRole[] = [];
+  let commanderIsAlsoCleric = false;
 
   if (enabled.includes('overseer')) witnessSpecials.push('overseer');
   if (enabled.includes('elder')) witnessSpecials.push('elder');
-  if (enabled.includes('commander')) agentSpecials.push('commander');
-  if (enabled.includes('cleric')) agentSpecials.push('cleric');
-  if (enabled.includes('apostate')) agentSpecials.push('apostate');
+
+  // 공안 2명일 때 당간부+교직자 둘 다 활성화면 → 한 명이 겸임
+  if (comp.agent === 2 && enabled.includes('commander') && enabled.includes('cleric')) {
+    agentSpecials.push('commander'); // 당간부가 교직자 겸임
+    if (enabled.includes('apostate')) agentSpecials.push('apostate');
+    commanderIsAlsoCleric = true;
+  } else {
+    if (enabled.includes('commander')) agentSpecials.push('commander');
+    if (enabled.includes('cleric')) agentSpecials.push('cleric');
+    if (enabled.includes('apostate')) agentSpecials.push('apostate');
+  }
 
   // 셔플된 증인/공안 인덱스에서 순서대로 직분 배정
   const shuffledWitness = shuffle(witnessIndices, rng);
@@ -116,6 +131,7 @@ export function startGame(state: GameState): GameState {
     currentRound: 0,
     currentLeaderIndex: 0,
     roleRevealEndAt: Date.now() + ROLE_REVEAL_SECONDS * 1000,
+    commanderIsAlsoCleric,
   };
 }
 
@@ -290,35 +306,41 @@ export function assassinate(state: GameState, targetId: string): GameState {
   };
 }
 
+const INFO_LABELS = {
+  ko: { agentTeam: '공안 동료', visibleAgents: '공안으로 보이는 사람', overseerCleric: '순감/교직자 중' },
+  en: { agentTeam: 'Agent allies', visibleAgents: 'Visible agents', overseerCleric: 'Overseer/Cleric' },
+  zh: { agentTeam: '公安同伴', visibleAgents: '可见的公安', overseerCleric: '巡回监督/教职者' },
+} as const;
+
 /** 플레이어가 알아야 할 정보 */
-export function getPlayerInfo(state: GameState, playerId: string): string[] {
+export function getPlayerInfo(state: GameState, playerId: string, lang: 'ko' | 'en' | 'zh' = 'ko'): string[] {
   const player = state.players.find(p => p.id === playerId);
   if (!player) return [];
 
+  const labels = INFO_LABELS[lang];
   const info: string[] = [];
   const teamMembers = state.players.filter(p => p.team === player.team && p.id !== playerId);
 
   if (player.team === 'agent') {
-    // 공안끼리 서로 알기
-    info.push(`공안 동료: ${teamMembers.map(p => p.name).join(', ')}`);
+    info.push(`${labels.agentTeam}: ${teamMembers.map(p => p.name).join(', ')}`);
   }
 
   if (player.specialRole === 'overseer') {
-    // 순감: 공안 확인 (배교자 제외)
     const visibleAgents = state.players.filter(
       p => p.team === 'agent' && p.specialRole !== 'apostate'
     );
-    info.push(`공안으로 보이는 사람: ${visibleAgents.map(p => p.name).join(', ')}`);
+    info.push(`${labels.visibleAgents}: ${visibleAgents.map(p => p.name).join(', ')}`);
   }
 
   if (player.specialRole === 'elder') {
-    // 장로: 순감+교직자 이름 (누가 누군지 모름, 셔플해서 제공)
     const targets = state.players.filter(
-      p => p.specialRole === 'overseer' || p.specialRole === 'cleric'
+      p => p.specialRole === 'overseer' || p.specialRole === 'cleric' ||
+        (state.commanderIsAlsoCleric && p.specialRole === 'commander')
     );
-    const shuffledNames = [...targets.map(p => p.name)].sort();
+    const rng = seedrandom(state.seed + '_elder');
+    const shuffledNames = shuffle(targets.map(p => p.name), rng);
     if (shuffledNames.length > 0) {
-      info.push(`순감/교직자 중: ${shuffledNames.join(', ')}`);
+      info.push(`${labels.overseerCleric}: ${shuffledNames.join(', ')}`);
     }
   }
 

@@ -20,6 +20,7 @@ export function createBoard(seed: string, lang: Lang = 'ko', pack: WordPack = 's
   const rng = seedrandom(seed);
 
   const words = getWords(lang, pack);
+  if (words.length < 25) throw new Error(`Not enough words: ${words.length} < 25`);
   const shuffledWords = shuffle(words, rng);
   const selectedWords = shuffledWords.slice(0, 25);
 

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { GameState } from '../lib/types';
 import { createGame, startGame } from '../lib/game-engine';
 import type { WordPack } from '../../codenames/lib/words';
+import { sfxGameStart } from '../../../lib/sound';
 
 interface SpyfallStore {
   game: GameState | null;
@@ -24,6 +25,7 @@ export const useSpyfallStore = create<SpyfallStore>((set, get) => ({
   },
 
   start: () => {
+    sfxGameStart();
     set((s) => (s.game ? { game: startGame(s.game) } : s));
   },
 

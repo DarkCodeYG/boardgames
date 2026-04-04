@@ -52,4 +52,5 @@ export interface GameState {
   seed: string;
   roleRevealEndAt: number | null;
   enabledRoles: SpecialRole[];   // 포함된 특수 직분
+  commanderIsAlsoCleric: boolean; // 공안 2명일 때 당간부=교직자 겸임
 }

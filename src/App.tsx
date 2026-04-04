@@ -20,6 +20,7 @@ type Page =
 function App() {
   const [page, setPage] = useState<Page>('home');
   const [witnessRoles, setWitnessRoles] = useState<SpecialRole[]>([]);
+  const [witnessPlayerCount, setWitnessPlayerCount] = useState(5);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -50,11 +51,11 @@ function App() {
     case 'spyfall-home':
       return <SpyfallHome onStartGame={() => setPage('spyfall-game')} onBack={() => setPage('home')} />;
     case 'witnesses-game':
-      return <WitnessesOnlineGame onGoHome={() => setPage('witnesses-home')} enabledRoles={witnessRoles} />;
+      return <WitnessesOnlineGame onGoHome={() => setPage('witnesses-home')} enabledRoles={witnessRoles} playerCount={witnessPlayerCount} />;
     case 'witnesses-home':
       return (
         <WitnessesHome
-          onStart={(roles) => { setWitnessRoles(roles); setPage('witnesses-game'); }}
+          onStart={(roles, count) => { setWitnessRoles(roles); setWitnessPlayerCount(count); setPage('witnesses-game'); }}
           onBack={() => setPage('home')}
         />
       );
