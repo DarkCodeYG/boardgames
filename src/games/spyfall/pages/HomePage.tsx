@@ -18,9 +18,12 @@ const TEXTS = {
     howToPlay: '📋 게임 방법',
     rule1: '호스트 화면의 QR코드를 각자 스캔하고 이름을 입력하여 방에 입장합니다',
     rule2: '한 명만 스파이! 스파이는 장소를 모릅니다',
-    rule3: '돌아가며 다른 플레이어에게 장소와 관련된 질문을 합니다',
-    rule4: '질문과 답변으로 스파이를 추리하세요. 너무 구체적이면 스파이에게 힌트를 줍니다!',
+    rule3: '순서대로 다른 플레이어 한 명을 지목해 장소 관련 질문을 합니다',
+    rule4: '직전에 자신에게 질문한 사람은 바로 지목할 수 없습니다. 너무 구체적인 질문은 스파이에게 힌트가 됩니다!',
     rule5: '시간 종료 후 투표로 스파이를 지목하거나, 스파이가 장소를 맞추면 스파이 승리!',
+    tipTitle: '💡 팁',
+    tip1: '스파이는 장소를 모르지만 질문에 자연스럽게 답해야 합니다.',
+    tip2: '너무 구체적인 단서는 스파이를 도울 수 있으니 적당한 수준으로 질문하세요.',
   },
   en: {
     title: '🔍 Spyfall',
@@ -29,9 +32,12 @@ const TEXTS = {
     howToPlay: '📋 How to Play',
     rule1: 'Scan the host QR code and enter your name to join',
     rule2: 'One player is the spy! The spy doesn\'t know the location',
-    rule3: 'Take turns asking other players questions about the location',
-    rule4: 'Use Q&A to figure out who the spy is. Be careful — too specific and you give the spy a clue!',
+    rule3: 'Take turns designating one player to ask a location-related question',
+    rule4: 'You cannot immediately question the player who just questioned you. Too specific = clues for the spy!',
     rule5: 'After time runs out, vote to identify the spy. If the spy guesses the location, the spy wins!',
+    tipTitle: '💡 Tips',
+    tip1: 'The spy must answer naturally without knowing the location.',
+    tip2: 'Keep your questions vague enough not to help the spy figure out the location.',
   },
   zh: {
     title: '🔍 间谍危机',
@@ -40,9 +46,12 @@ const TEXTS = {
     howToPlay: '📋 游戏规则',
     rule1: '扫描主机QR码并输入名字加入游戏',
     rule2: '其中一人是间谍！间谍不知道地点',
-    rule3: '轮流向其他玩家提出与地点相关的问题',
-    rule4: '通过问答推理谁是间谍。太具体的话会给间谍线索！',
+    rule3: '依次指定一名玩家提出与地点相关的问题',
+    rule4: '不能立即指定刚问过自己的玩家。太具体的问题会给间谍提示！',
     rule5: '时间结束后投票指认间谍。如果间谍猜出地点，间谍获胜！',
+    tipTitle: '💡 技巧',
+    tip1: '间谍不知道地点，但必须自然地回答问题。',
+    tip2: '问题不要太具体，否则会给间谍提供线索。',
   },
 };
 
@@ -105,6 +114,13 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
             <li><strong>4.</strong> {txt.rule4}</li>
             <li><strong>5.</strong> {txt.rule5}</li>
           </ol>
+          <div className="mt-4 pt-4 border-t border-stone-100">
+            <p className="font-bold text-stone-600 text-sm mb-2">{txt.tipTitle}</p>
+            <ul className="text-sm text-stone-400 space-y-1">
+              <li>• {txt.tip1}</li>
+              <li>• {txt.tip2}</li>
+            </ul>
+          </div>
         </div>
 
         <button

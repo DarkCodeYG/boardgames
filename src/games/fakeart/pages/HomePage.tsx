@@ -91,6 +91,13 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
             <li><strong>4.</strong> {txt.rule4}</li>
             <li><strong>5.</strong> {txt.rule5}</li>
           </ol>
+          <div className="mt-4 pt-4 border-t border-stone-100">
+            <p className="font-bold text-stone-600 text-sm mb-2">{txt.tipTitle}</p>
+            <ul className="text-sm text-stone-400 space-y-1">
+              <li>• {txt.tip1}</li>
+              <li>• {txt.tip2}</li>
+            </ul>
+          </div>
         </div>
 
         {/* 설정 */}

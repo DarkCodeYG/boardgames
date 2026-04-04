@@ -82,6 +82,13 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
             <li><strong>4.</strong> {t(lang, 'rule4')}</li>
             <li><strong>5.</strong> {t(lang, 'rule5')}</li>
           </ol>
+          <div className="mt-4 pt-4 border-t border-stone-100">
+            <p className="font-bold text-stone-600 text-sm mb-2">{t(lang, 'tipTitle')}</p>
+            <ul className="text-sm text-stone-400 space-y-1">
+              <li>• {t(lang, 'tip1')}</li>
+              <li>• {t(lang, 'tip2')}</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
