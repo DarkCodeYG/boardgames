@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getPlayerRole } from '../lib/game-engine';
 import type { Lang } from '../../codenames/lib/i18n';
 import type { WordPack } from '../../codenames/lib/words';
-import { sfxClick, sfxSpyReveal, sfxRoleReveal } from '../../../lib/sound';
+import { sfxClick, sfxRoleReveal } from '../../../lib/sound';
 
 const TEXTS = {
   ko: {
@@ -63,11 +63,7 @@ export default function PlayerCard() {
     setPlayerIndex(idx);
     setStep('revealed');
     // 스파이/일반 역할에 따라 다른 효과음
-    if (role.isSpy) {
-      sfxSpyReveal();
-    } else {
-      sfxRoleReveal();
-    }
+    sfxRoleReveal();
   };
 
   // 시드 없음

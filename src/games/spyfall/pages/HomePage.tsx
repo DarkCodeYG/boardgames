@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import { useSpyfallStore } from '../store/game-store';
 import { useGameStore } from '../../codenames/store/game-store';
 import { t } from '../../codenames/lib/i18n';
 import type { WordPack } from '../../codenames/lib/words';
-import { sfxToggle, sfxClick, sfxCountUp, sfxCountDown } from '../../../lib/sound';
+import { sfxToggle, sfxClick, sfxGameStart } from '../../../lib/sound';
 import JWIcon from '../../../components/JWIcon';
 
 const PACKS: { value: WordPack; label: string }[] = [
@@ -15,11 +14,9 @@ const TEXTS = {
   ko: {
     title: '🔍 스파이폴',
     subtitle: '스파이를 찾아라!',
-    players: '플레이어 수',
-    minutes: '라운드 시간(분)',
     start: '게임 만들기',
     howToPlay: '📋 게임 방법',
-    rule1: '모든 플레이어가 각자 QR코드를 스캔하여 자기 카드를 확인합니다',
+    rule1: '호스트 화면의 QR코드를 각자 스캔하고 이름을 입력하여 방에 입장합니다',
     rule2: '한 명만 스파이! 스파이는 장소를 모릅니다',
     rule3: '돌아가며 다른 플레이어에게 장소와 관련된 질문을 합니다',
     rule4: '질문과 답변으로 스파이를 추리하세요. 너무 구체적이면 스파이에게 힌트를 줍니다!',
@@ -28,11 +25,9 @@ const TEXTS = {
   en: {
     title: '🔍 Spyfall',
     subtitle: 'Find the spy!',
-    players: 'Players',
-    minutes: 'Round (min)',
     start: 'Create Game',
     howToPlay: '📋 How to Play',
-    rule1: 'Each player scans their QR code to see their card',
+    rule1: 'Scan the host QR code and enter your name to join',
     rule2: 'One player is the spy! The spy doesn\'t know the location',
     rule3: 'Take turns asking other players questions about the location',
     rule4: 'Use Q&A to figure out who the spy is. Be careful — too specific and you give the spy a clue!',
@@ -41,11 +36,9 @@ const TEXTS = {
   zh: {
     title: '🔍 间谍危机',
     subtitle: '找出间谍！',
-    players: '玩家人数',
-    minutes: '回合时间(分)',
     start: '创建游戏',
     howToPlay: '📋 游戏规则',
-    rule1: '每位玩家扫描自己的QR码查看卡片',
+    rule1: '扫描主机QR码并输入名字加入游戏',
     rule2: '其中一人是间谍！间谍不知道地点',
     rule3: '轮流向其他玩家提出与地点相关的问题',
     rule4: '通过问答推理谁是间谍。太具体的话会给间谍线索！',
@@ -59,11 +52,9 @@ interface HomePageProps {
 }
 
 export default function HomePage({ onStartGame, onBack }: HomePageProps) {
-  const { pack, setPack, newGame } = useSpyfallStore();
+  const { pack, setPack } = useSpyfallStore();
   const lang = useGameStore((s) => s.lang);
   const txt = TEXTS[lang];
-  const [playerCount, setPlayerCount] = useState(6);
-  const [roundMinutes, setRoundMinutes] = useState(8);
 
   const getPackButtonClass = (value: WordPack) => {
     const isJW = value === 'jw';
@@ -75,7 +66,7 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
   };
 
   const handleStart = () => {
-    newGame(playerCount, roundMinutes);
+    sfxGameStart();
     onStartGame();
   };
 
@@ -114,31 +105,6 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
             <li><strong>4.</strong> {txt.rule4}</li>
             <li><strong>5.</strong> {txt.rule5}</li>
           </ol>
-        </div>
-
-        {/* 설정 */}
-        <div className="bg-white rounded-2xl p-6 shadow-md space-y-4 mb-6">
-          <div>
-            <label className="text-sm font-bold text-stone-600">{txt.players}</label>
-            <div className="flex items-center justify-center gap-3 mt-2">
-              <button onClick={() => { sfxCountDown(); setPlayerCount(Math.max(3, playerCount - 1)); }}
-                className="w-10 h-10 rounded-full bg-stone-200 font-bold text-lg hover:bg-stone-300">-</button>
-              <span className="text-3xl font-black w-12 text-center">{playerCount}</span>
-              <button onClick={() => { sfxCountUp(); setPlayerCount(Math.min(12, playerCount + 1)); }}
-                className="w-10 h-10 rounded-full bg-stone-200 font-bold text-lg hover:bg-stone-300">+</button>
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-bold text-stone-600">{txt.minutes}</label>
-            <div className="flex items-center justify-center gap-3 mt-2">
-              <button onClick={() => { sfxCountDown(); setRoundMinutes(Math.max(3, roundMinutes - 1)); }}
-                className="w-10 h-10 rounded-full bg-stone-200 font-bold text-lg hover:bg-stone-300">-</button>
-              <span className="text-3xl font-black w-12 text-center">{roundMinutes}</span>
-              <button onClick={() => { sfxCountUp(); setRoundMinutes(Math.min(15, roundMinutes + 1)); }}
-                className="w-10 h-10 rounded-full bg-stone-200 font-bold text-lg hover:bg-stone-300">+</button>
-            </div>
-          </div>
         </div>
 
         <button

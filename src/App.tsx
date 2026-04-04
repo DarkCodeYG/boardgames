@@ -5,7 +5,7 @@ import CodenamesGame from './games/codenames/pages/GamePage';
 import SpymasterKeyPage from './games/codenames/components/SpymasterKeyPage';
 import SpyfallHome from './games/spyfall/pages/HomePage';
 import SpyfallGame from './games/spyfall/pages/GamePage';
-import SpyfallPlayerCard from './games/spyfall/components/PlayerCard';
+import SpyfallPlayerPage from './games/spyfall/pages/PlayerPage';
 import WitnessesHome from './games/witnesses/pages/HomePage';
 import WitnessesOnlineGame from './games/witnesses/pages/OnlineGamePage';
 import WitnessesPlayerPage from './games/witnesses/pages/PlayerPage';
@@ -30,7 +30,7 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const game = params.get('game');
 
-    if (game === 'spyfall' && params.get('seed')) {
+    if (game === 'spyfall' && params.get('room')) {
       setPage('spyfall-player');
     } else if (game === 'witnesses-online' && params.get('room')) {
       setPage('witnesses-player');
@@ -45,7 +45,7 @@ function App() {
     case 'spymaster':
       return <SpymasterKeyPage />;
     case 'spyfall-player':
-      return <SpyfallPlayerCard />;
+      return <SpyfallPlayerPage />;
     case 'witnesses-player':
       return <WitnessesPlayerPage />;
     case 'fakeart-player':

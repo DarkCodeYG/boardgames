@@ -3,6 +3,14 @@
     "rooms": {
       ".read": true,
       ".write": true
+    },
+    "fakeart": {
+      ".read": true,
+      ".write": true
+    },
+    "spyfall": {
+      ".read": true,
+      ".write": true
     }
   }
 }
