@@ -1,8 +1,9 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useSpyfallStore } from '../store/game-store';
 import { useGameStore } from '../../codenames/store/game-store';
 import Timer from '../components/Timer';
+import { getPlayerRole } from '../lib/game-engine';
 import { sfxClick, sfxModalOpen, sfxModalClose, sfxTimerUp } from '../../../lib/sound';
 
 const TEXTS = {
@@ -18,6 +19,17 @@ const TEXTS = {
     confirmMsg: '현재 게임을 종료하고 홈으로 이동할까요?',
     cancel: '취소',
     confirm: '홈으로 이동',
+    viewResults: '결과 보기',
+    resultConfirmTitle: '게임 종료 확인',
+    resultConfirmMsg: '게임이 종료되었습니까?',
+    resultConfirm: '확인',
+    resultTitle: '플레이어 정보',
+    resultSubtitle: '각 플레이어의 장소와 역할을 확인하세요',
+    close: '닫기',
+    spy: '스파이',
+    civilian: '스파이 아님',
+    location: '장소',
+    role: '역할',
   },
   en: {
     qrTitle: 'Each player scans their QR code',
@@ -31,6 +43,17 @@ const TEXTS = {
     confirmMsg: 'End current game and go home?',
     cancel: 'Cancel',
     confirm: 'Start New Game',
+    viewResults: 'View Results',
+    resultConfirmTitle: 'Confirm End Game',
+    resultConfirmMsg: 'Has the game ended?',
+    resultConfirm: 'Confirm',
+    resultTitle: 'Player Information',
+    resultSubtitle: 'Review each player’s location and role',
+    close: 'Close',
+    spy: 'Spy',
+    civilian: 'Not Spy',
+    location: 'Location',
+    role: 'Role',
   },
   zh: {
     qrTitle: '每位玩家扫描自己的QR码',
@@ -44,6 +67,17 @@ const TEXTS = {
     confirmMsg: '结束当前游戏并返回主页？',
     cancel: '取消',
     confirm: '返回主页',
+    viewResults: '查看结果',
+    resultConfirmTitle: '确认游戏结束',
+    resultConfirmMsg: '游戏是否已经结束？',
+    resultConfirm: '确认',
+    resultTitle: '玩家信息',
+    resultSubtitle: '查看每位玩家的地点和角色',
+    close: '关闭',
+    spy: '间谍',
+    civilian: '非间谍',
+    location: '地点',
+    role: '角色',
   },
 };
 
@@ -56,8 +90,17 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   const lang = useGameStore((s) => s.lang);
   const [timeUp, setTimeUp] = useState(false);
   const [showRestart, setShowRestart] = useState(false);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [showResults, setShowResults] = useState(false);
 
   const txt = TEXTS[lang];
+
+  const playerRoles = useMemo(() => {
+    if (!game) return [];
+    return Array.from({ length: game.playerCount }, (_, i) =>
+      getPlayerRole(game.seed, i, game.playerCount, lang, pack),
+    );
+  }, [game, lang, pack]);
 
   if (!game) return null;
 
@@ -122,7 +165,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             </>
           )}
 
-          <div className="mt-8 flex gap-3">
+          <div className="mt-8 flex flex-col sm:flex-row gap-3">
             <button
               onClick={() => { sfxClick(); handleRestart(); }}
               className="bg-stone-800 text-white px-6 py-3 rounded-xl font-bold
@@ -136,6 +179,13 @@ export default function GamePage({ onGoHome }: GamePageProps) {
                          hover:bg-stone-300 transition-colors text-sm"
             >
               {txt.newGame}
+            </button>
+            <button
+              onClick={() => { sfxModalOpen(); setShowEndConfirm(true); }}
+              className="bg-slate-700 text-white px-4 py-3 rounded-xl font-bold
+                         hover:bg-slate-600 transition-colors text-sm"
+            >
+              {txt.viewResults}
             </button>
           </div>
         </div>
@@ -156,6 +206,62 @@ export default function GamePage({ onGoHome }: GamePageProps) {
                 className="bg-stone-800 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-stone-700">
                 {txt.confirm}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEndConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl">
+            <h3 className="text-xl font-bold text-stone-800 mb-2">{txt.resultConfirmTitle}</h3>
+            <p className="text-stone-500 mb-5">{txt.resultConfirmMsg}</p>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => { sfxModalClose(); setShowEndConfirm(false); }}
+                className="bg-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-bold hover:bg-stone-300">
+                {txt.cancel}
+              </button>
+              <button onClick={() => { sfxClick(); setShowEndConfirm(false); setShowResults(true); }}
+                className="bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-slate-700">
+                {txt.resultConfirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showResults && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-[2rem] p-6 max-w-2xl w-full shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-stone-900">{txt.resultTitle}</h3>
+                <p className="text-sm text-stone-500">{txt.resultSubtitle}</p>
+              </div>
+              <button onClick={() => { sfxModalClose(); setShowResults(false); }}
+                className="text-stone-500 hover:text-stone-800 text-sm font-bold">
+                {txt.close}
+              </button>
+            </div>
+            <div className="grid gap-3 max-h-[60vh] overflow-auto">
+              {playerRoles.map((player, index) => (
+                <div key={index} className="rounded-3xl border border-stone-200 bg-stone-50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <p className="text-base font-bold text-stone-900">{txt.player} {index + 1}</p>
+                    {player.isSpy ? (
+                      <p className="text-sm text-red-600 font-semibold">{txt.spy}</p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-stone-700">{txt.location}: {player.location}</p>
+                        <p className="text-sm text-stone-700">{txt.role}: {player.role}</p>
+                      </>
+                    )}
+                  </div>
+                  <div className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${player.isSpy ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'}`}>
+                    {player.isSpy ? txt.spy : txt.civilian}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

@@ -148,4 +148,260 @@ export const LOCATIONS_STANDARD: Location[] = [
       zh: ['饲养员', '游客', '兽医', '导游', '小贩', '摄影师', '猴子'],
     },
   },
+  {
+    name: { ko: '박물관', en: 'Museum', zh: '博物馆' },
+    roles: {
+      ko: ['큐레이터', '관람객', '안내원', '경비원', '예술가', '학생', '사진사'],
+      en: ['Curator', 'Visitor', 'Guide', 'Security', 'Artist', 'Student', 'Photographer'],
+      zh: ['馆长', '参观者', '导游', '保安', '艺术家', '学生', '摄影师'],
+    },
+  },
+  {
+    name: { ko: '쇼핑몰', en: 'Mall', zh: '商场' },
+    roles: {
+      ko: ['쇼핑객', '경비원', '점원', '푸드코트 직원', '매니저', '청소부', '부모'],
+      en: ['Shopper', 'Security', 'Clerk', 'Food Court Worker', 'Manager', 'Cleaner', 'Parent'],
+      zh: ['购物者', '保安', '店员', '美食广场员工', '经理', '清洁工', '家长'],
+    },
+  },
+  {
+    name: { ko: '수족관', en: 'Aquarium', zh: '水族馆' },
+    roles: {
+      ko: ['잠수사', '수생학자', '관람객', '안내원', '사진사', '청소부', '사육사'],
+      en: ['Diver', 'Biologist', 'Visitor', 'Guide', 'Photographer', 'Cleaner', 'Keeper'],
+      zh: ['潜水员', '生物学家', '参观者', '导游', '摄影师', '清洁工', '饲养员'],
+    },
+  },
+  {
+    name: { ko: '경기장', en: 'Stadium', zh: '体育场' },
+    roles: {
+      ko: ['선수', '코치', '팬', '해설자', '심판', '보안', '매점 직원'],
+      en: ['Player', 'Coach', 'Fan', 'Announcer', 'Referee', 'Security', 'Vendor'],
+      zh: ['运动员', '教练', '粉丝', '播音员', '裁判', '保安', '小贩'],
+    },
+  },
+  {
+    name: { ko: '공항', en: 'Airport', zh: '机场' },
+    roles: {
+      ko: ['조종사', '수하물 담당', '승객', '세관원', '탑승구 직원', '보안요원', '직원'],
+      en: ['Pilot', 'Handler', 'Passenger', 'Customs Officer', 'Gate Agent', 'Security', 'Staff'],
+      zh: ['飞行员', '行李员', '乘客', '海关', '登机口工作人员', '保安', '工作人员'],
+    },
+  },
+  {
+    name: { ko: '기차역', en: 'Train Station', zh: '火车站' },
+    roles: {
+      ko: ['기관사', '승객', '매표원', '수하물 운반원', '보안요원', '매점 직원', '기술자'],
+      en: ['Conductor', 'Passenger', 'Ticket Seller', 'Porter', 'Security', 'Vendor', 'Engineer'],
+      zh: ['列车长', '乘客', '售票员', '搬运工', '保安', '小贩', '工程师'],
+    },
+  },
+  {
+    name: { ko: '공장', en: 'Factory', zh: '工厂' },
+    roles: {
+      ko: ['현장감독', '노동자', '검사관', '엔지니어', '운전사', '인사담당', '청소부'],
+      en: ['Foreman', 'Worker', 'Inspector', 'Engineer', 'Driver', 'HR', 'Cleaner'],
+      zh: ['主管', '工人', '检查员', '工程师', '司机', '人事', '清洁工'],
+    },
+  },
+  {
+    name: { ko: '식료품점', en: 'Grocery Store', zh: '杂货店' },
+    roles: {
+      ko: ['캐셔', '쇼핑객', '진열원', '매니저', '보안요원', '제빵사', '청소부'],
+      en: ['Cashier', 'Shopper', 'Stocker', 'Manager', 'Security', 'Baker', 'Cleaner'],
+      zh: ['收银员', '购物者', '理货员', '经理', '保安', '面包师', '清洁工'],
+    },
+  },
+  {
+    name: { ko: '우체국', en: 'Post Office', zh: '邮局' },
+    roles: {
+      ko: ['우편배달부', '사무원', '고객', '감독', '분류원', '보안요원', '운전사'],
+      en: ['Carrier', 'Clerk', 'Customer', 'Supervisor', 'Sorter', 'Security', 'Driver'],
+      zh: ['邮递员', '职员', '顾客', '主管', '分拣员', '保安', '司机'],
+    },
+  },
+  {
+    name: { ko: '대학교', en: 'University', zh: '大学' },
+    roles: {
+      ko: ['교수', '학생', '연구원', '사서', '학장', '관리인', '식당 직원'],
+      en: ['Professor', 'Student', 'Researcher', 'Librarian', 'Dean', 'Janitor', 'Cafeteria Worker'],
+      zh: ['教授', '学生', '研究员', '图书管理员', '院长', '管理员', '食堂职员'],
+    },
+  },
+  {
+    name: { ko: '감옥', en: 'Prison', zh: '监狱' },
+    roles: {
+      ko: ['교도관', '수감자', '경비', '변호사', '방문객', '간호사', '요리사'],
+      en: ['Warden', 'Inmate', 'Guard', 'Lawyer', 'Visitor', 'Nurse', 'Cook'],
+      zh: ['狱警', '囚犯', '卫兵', '律师', '访客', '护士', '厨师'],
+    },
+  },
+  {
+    name: { ko: '콘서트홀', en: 'Concert Hall', zh: '音乐厅' },
+    roles: {
+      ko: ['가수', '음악가', '지휘자', '관객', '매표원', '무대 스태프', '보안'],
+      en: ['Singer', 'Musician', 'Conductor', 'Audience', 'Ticket Seller', 'Stagehand', 'Security'],
+      zh: ['歌手', '音乐家', '指挥', '观众', '售票员', '舞台工作人员', '保安'],
+    },
+  },
+  {
+    name: { ko: '유람선', en: 'Cruise Ship', zh: '游轮' },
+    roles: {
+      ko: ['선장', '요리사', '선원', '승객', '연예인', '기술자', '항해사'],
+      en: ['Captain', 'Chef', 'Crew', 'Passenger', 'Entertainer', 'Engineer', 'Sailor'],
+      zh: ['船长', '厨师', '船员', '乘客', '艺人', '工程师', '水手'],
+    },
+  },
+  {
+    name: { ko: '스키장', en: 'Ski Resort', zh: '滑雪胜地' },
+    roles: {
+      ko: ['스키어', '강사', '운영자', '매니저', '제설사', '사진사', '의무원'],
+      en: ['Skier', 'Instructor', 'Operator', 'Manager', 'Snowmaker', 'Photographer', 'Medic'],
+      zh: ['滑雪者', '教练', '运营员', '经理', '造雪员', '摄影师', '医务员'],
+    },
+  },
+  {
+    name: { ko: '볼링장', en: 'Bowling Alley', zh: '保龄球馆' },
+    roles: {
+      ko: ['볼러', '핀세터', '소유주', '코치', '간식점 직원', '주최자', '청소부'],
+      en: ['Bowler', 'Pinsetter', 'Owner', 'Coach', 'Snack Bar Worker', 'Organizer', 'Janitor'],
+      zh: ['保龄球手', '换瓶员', '老板', '教练', '小吃店员工', '组织者', '清洁工'],
+    },
+  },
+  {
+    name: { ko: '나이트클럽', en: 'Nightclub', zh: '夜店' },
+    roles: {
+      ko: ['디제이', '바텐더', '무용수', '문지기', '손님', '매니저', '기술자'],
+      en: ['DJ', 'Bartender', 'Dancer', 'Bouncer', 'Customer', 'Manager', 'Technician'],
+      zh: ['DJ', '酒保', '舞者', '保镖', '顾客', '经理', '技术员'],
+    },
+  },
+  {
+    name: { ko: '버스터미널', en: 'Bus Station', zh: '汽车站' },
+    roles: {
+      ko: ['운전사', '승객', '매표원', '차장', '청소부', '보안', '버스 기사'],
+      en: ['Driver', 'Passenger', 'Ticket Seller', 'Conductor', 'Cleaner', 'Security', 'Coach'],
+      zh: ['司机', '乘客', '售票员', '列车长', '清洁工', '保安', '教练'],
+    },
+  },
+  {
+    name: { ko: '법정', en: 'Courtroom', zh: '法庭' },
+    roles: {
+      ko: ['판사', '변호사', '피고', '원고', '집행관', '배심원', '기자'],
+      en: ['Judge', 'Lawyer', 'Defendant', 'Plaintiff', 'Bailiff', 'Juror', 'Reporter'],
+      zh: ['法官', '律师', '被告', '原告', '法警', '陪审员', '记者'],
+    },
+  },
+  {
+    name: { ko: '공사현장', en: 'Construction Site', zh: '建筑工地' },
+    roles: {
+      ko: ['현장감독', '목수', '전기공', '기계공', '측량사', '노동자', '검사관'],
+      en: ['Foreman', 'Carpenter', 'Electrician', 'Operator', 'Surveyor', 'Laborer', 'Inspector'],
+      zh: ['工地主管', '木匠', '电工', '操作员', '测量员', '工人', '检查员'],
+    },
+  },
+  {
+    name: { ko: '사무실건물', en: 'Office Building', zh: '办公楼' },
+    roles: {
+      ko: ['대표', '비서', '회계사', '개발자', '관리인', '인사담당', '인턴'],
+      en: ['CEO', 'Secretary', 'Accountant', 'Developer', 'Janitor', 'HR Manager', 'Intern'],
+      zh: ['CEO', '秘书', '会计', '开发者', '管理员', '人事经理', '实习生'],
+    },
+  },
+  {
+    name: { ko: '비치리조트', en: 'Beach Resort', zh: '海滩度假村' },
+    roles: {
+      ko: ['투숙객', '구조대원', '컨시어지', '하우스키퍼', '요리사', '가이드', '바텐더'],
+      en: ['Guest', 'Lifeguard', 'Concierge', 'Housekeeper', 'Chef', 'Guide', 'Bartender'],
+      zh: ['住客', '救生员', '礼宾员', '管家', '厨师', '向导', '酒保'],
+    },
+  },
+  {
+    name: { ko: '농장', en: 'Farm', zh: '农场' },
+    roles: {
+      ko: ['농부', '목동', '수의사', '정비사', '축사 관리인', '수확자', '방문객'],
+      en: ['Farmer', 'Shepherd', 'Vet', 'Mechanic', 'Barn Hand', 'Picker', 'Visitor'],
+      zh: ['农夫', '牧羊人', '兽医', '机械师', '棚舍工', '采摘工', '访客'],
+    },
+  },
+  {
+    name: { ko: '베이커리', en: 'Bakery', zh: '面包店' },
+    roles: {
+      ko: ['제빵사', '캐셔', '손님', '데코레이터', '반죽사', '배달원', '청소부'],
+      en: ['Baker', 'Cashier', 'Customer', 'Decorator', 'Mixer Operator', 'Delivery Driver', 'Cleaner'],
+      zh: ['面包师', '收银员', '顾客', '装饰师', '和面师', '送货员', '清洁工'],
+    },
+  },
+  {
+    name: { ko: '타투샵', en: 'Tattoo Parlor', zh: '纹身店' },
+    roles: {
+      ko: ['타투이스트', '손님', '접수원', '견습생', '피어서', '매니저', '청소부'],
+      en: ['Artist', 'Client', 'Receptionist', 'Apprentice', 'Piercer', 'Manager', 'Cleaner'],
+      zh: ['纹身师', '顾客', '接待员', '学徒', '穿刺师', '经理', '清洁工'],
+    },
+  },
+  {
+    name: { ko: '주유소', en: 'Gas Station', zh: '加油站' },
+    roles: {
+      ko: ['주유원', '운전사', '캐셔', '매니저', '정비사', '손님', '트럭 기사'],
+      en: ['Attendant', 'Driver', 'Cashier', 'Manager', 'Mechanic', 'Customer', 'Truck Driver'],
+      zh: ['加油员', '司机', '收银员', '经理', '技师', '顾客', '卡车司机'],
+    },
+  },
+  {
+    name: { ko: '소방서', en: 'Fire Station', zh: '消防站' },
+    roles: {
+      ko: ['소방관', '소방서장', '교신원', '구급대원', '신병', '정비사', '방문객'],
+      en: ['Firefighter', 'Chief', 'Dispatcher', 'Paramedic', 'Recruit', 'Mechanic', 'Visitor'],
+      zh: ['消防员', '队长', '调度员', '急救员', '新兵', '技师', '访客'],
+    },
+  },
+  {
+    name: { ko: '오락실', en: 'Arcade', zh: '游戏厅' },
+    roles: {
+      ko: ['게이머', '직원', '기술자', '사장', '부모', '캐셔', '청소부'],
+      en: ['Gamer', 'Attendant', 'Technician', 'Owner', 'Parent', 'Cashier', 'Janitor'],
+      zh: ['玩家', '服务员', '技术员', '老板', '家长', '收银员', '清洁工'],
+    },
+  },
+  {
+    name: { ko: '과학실험실', en: 'Science Lab', zh: '科学实验室' },
+    roles: {
+      ko: ['과학자', '기술자', '조수', '학생', '안전요원', '청소부', '발명가'],
+      en: ['Scientist', 'Technician', 'Assistant', 'Student', 'Safety Officer', 'Cleaner', 'Inventor'],
+      zh: ['科学家', '技术员', '助理', '学生', '安全员', '清洁工', '发明家'],
+    },
+  },
+  {
+    name: { ko: '수의과병원', en: 'Veterinary Clinic', zh: '兽医医院' },
+    roles: {
+      ko: ['수의사', '주인', '간호사', '접수원', '외과의', '기술자', '환자'],
+      en: ['Vet', 'Owner', 'Nurse', 'Receptionist', 'Surgeon', 'Technician', 'Patient'],
+      zh: ['兽医', '主人', '护士', '接待员', '外科医生', '技师', '病人'],
+    },
+  },
+  {
+    name: { ko: '뉴스룸', en: 'Newsroom', zh: '新闻编辑部' },
+    roles: {
+      ko: ['기자', '편집자', '카메라 기사', '앵커', '프로듀서', '기술자', '인턴'],
+      en: ['Reporter', 'Editor', 'Camera Operator', 'Anchor', 'Producer', 'Engineer', 'Intern'],
+      zh: ['记者', '编辑', '摄影师', '主播', '制片人', '工程师', '实习生'],
+    },
+  },
+  {
+    name: { ko: '댄스스튜디오', en: 'Dance Studio', zh: '舞蹈工作室' },
+    roles: {
+      ko: ['강사', '무용수', '안무가', '부모', '음악가', '학생', '사진사'],
+      en: ['Instructor', 'Dancer', 'Choreographer', 'Parent', 'Musician', 'Student', 'Photographer'],
+      zh: ['教练', '舞者', '编舞', '家长', '音乐家', '学生', '摄影师'],
+    },
+  },
+  {
+    name: { ko: '고고학발굴지', en: 'Archaeological Dig', zh: '考古发掘地' },
+    roles: {
+      ko: ['고고학자', '발굴자', '역사가', '학생', '사진사', '연구소 기술자', '경비원'],
+      en: ['Archaeologist', 'Excavator', 'Historian', 'Student', 'Photographer', 'Lab Tech', 'Guard'],
+      zh: ['考古学家', '发掘者', '历史学家', '学生', '摄影师', '实验室技术员', '守卫'],
+    },
+  },
 ];
