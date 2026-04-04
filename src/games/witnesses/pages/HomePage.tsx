@@ -14,10 +14,11 @@ const ALL_ROLES: { key: SpecialRole; team: 'witness' | 'agent' }[] = [
 
 interface Props {
   onStartGame: () => void;
+  onStartOnline?: (enabledRoles: SpecialRole[]) => void;
   onBack?: () => void;
 }
 
-export default function HomePage({ onStartGame, onBack }: Props) {
+export default function HomePage({ onStartGame, onStartOnline, onBack }: Props) {
   const lang = useGameStore((s) => s.lang);
   const { initAndStart } = useWitnessesStore();
   const [names, setNames] = useState<string[]>([]);
@@ -151,10 +152,20 @@ export default function HomePage({ onStartGame, onBack }: Props) {
           onClick={handleStart}
           disabled={!canStart}
           className="w-full bg-stone-800 text-white text-xl font-bold py-4 rounded-2xl shadow-lg
-                     hover:bg-stone-700 active:scale-95 transition-all disabled:opacity-40"
+                     hover:bg-stone-700 active:scale-95 transition-all disabled:opacity-40 mb-3"
         >
-          {canStart ? wt(lang, 'startGame') : wt(lang, 'needPlayers')}
+          {canStart ? `🎴 ${wt(lang, 'startGame')} (오프라인)` : wt(lang, 'needPlayers')}
         </button>
+
+        {onStartOnline && (
+          <button
+            onClick={() => onStartOnline(enabledRoles)}
+            className="w-full bg-blue-600 text-white text-xl font-bold py-4 rounded-2xl shadow-lg
+                       hover:bg-blue-500 active:scale-95 transition-all"
+          >
+            📱 온라인 모드 (각자 폰 연동)
+          </button>
+        )}
       </div>
     </div>
   );
