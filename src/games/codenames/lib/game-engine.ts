@@ -1,6 +1,7 @@
 import seedrandom from 'seedrandom';
-import type { Card, CardType, Clue, GameState, Team } from './types';
-import { WORDS_KO } from './words-ko';
+import type { Card, CardType, GameState, Team } from './types';
+import type { Lang } from './i18n';
+import { getWords, type WordPack } from './words';
 
 function generateSeed(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -15,18 +16,16 @@ function shuffle<T>(array: T[], rng: () => number): T[] {
   return result;
 }
 
-export function createBoard(seed: string): { board: Card[]; startingTeam: Team } {
+export function createBoard(seed: string, lang: Lang = 'ko', pack: WordPack = 'standard'): { board: Card[]; startingTeam: Team } {
   const rng = seedrandom(seed);
 
-  // 단어 25개 선택
-  const shuffledWords = shuffle(WORDS_KO, rng);
+  const words = getWords(lang, pack);
+  const shuffledWords = shuffle(words, rng);
   const selectedWords = shuffledWords.slice(0, 25);
 
-  // 선공 팀 결정 (선공 9장, 후공 8장)
   const startingTeam: Team = rng() > 0.5 ? 'red' : 'blue';
   const otherTeam: Team = startingTeam === 'red' ? 'blue' : 'red';
 
-  // 색상 배정: 선공 9, 후공 8, 중립 7, 암살자 1
   const types: CardType[] = [
     ...Array(9).fill(startingTeam),
     ...Array(8).fill(otherTeam),
@@ -45,19 +44,13 @@ export function createBoard(seed: string): { board: Card[]; startingTeam: Team }
   return { board, startingTeam };
 }
 
-export function createGame(existingSeed?: string): GameState {
+export function createGame(existingSeed?: string, lang: Lang = 'ko', pack: WordPack = 'standard'): GameState {
   const seed = existingSeed ?? generateSeed();
-  const { board, startingTeam } = createBoard(seed);
+  const { board, startingTeam } = createBoard(seed, lang, pack);
 
   return {
     board,
-    turn: {
-      team: startingTeam,
-      phase: 'giving_clue',
-      clue: null,
-      guessesRemaining: 0,
-      guessesMade: 0,
-    },
+    currentTeam: startingTeam,
     phase: 'setup',
     startingTeam,
     score: { red: 0, blue: 0 },
@@ -67,7 +60,6 @@ export function createGame(existingSeed?: string): GameState {
     } as Record<Team, number>,
     winner: null,
     winReason: null,
-    clueHistory: [],
     seed,
   };
 }
@@ -76,36 +68,10 @@ export function startGame(state: GameState): GameState {
   return { ...state, phase: 'playing' };
 }
 
-export function giveClue(state: GameState, word: string, count: number): GameState {
-  if (state.phase !== 'playing') return state;
-  if (state.turn.phase !== 'giving_clue') return state;
-
-  const clue: Clue = { word, count, team: state.turn.team };
-
-  return {
-    ...state,
-    turn: {
-      ...state.turn,
-      phase: 'guessing',
-      clue,
-      guessesRemaining: count === 0 ? 25 : count + 1, // 0 = 무제한
-      guessesMade: 0,
-    },
-    clueHistory: [...state.clueHistory, clue],
-  };
-}
-
 function switchTurn(state: GameState): GameState {
-  const nextTeam: Team = state.turn.team === 'red' ? 'blue' : 'red';
   return {
     ...state,
-    turn: {
-      team: nextTeam,
-      phase: 'giving_clue',
-      clue: null,
-      guessesRemaining: 0,
-      guessesMade: 0,
-    },
+    currentTeam: state.currentTeam === 'red' ? 'blue' : 'red',
   };
 }
 
@@ -120,12 +86,10 @@ function endGame(state: GameState, winner: Team, reason: 'all_found' | 'assassin
 
 export function revealCard(state: GameState, cardId: number): GameState {
   if (state.phase !== 'playing') return state;
-  if (state.turn.phase !== 'guessing') return state;
 
   const card = state.board[cardId];
   if (!card || card.revealed) return state;
 
-  // 카드 공개
   const newBoard = state.board.map((c, i) =>
     i === cardId ? { ...c, revealed: true } : c
   );
@@ -135,15 +99,13 @@ export function revealCard(state: GameState, cardId: number): GameState {
     newScore[card.type]++;
   }
 
-  let newState: GameState = { ...state, board: newBoard, score: newScore };
+  const newState: GameState = { ...state, board: newBoard, score: newScore };
 
-  // 암살자 → 현재 팀 패배
   if (card.type === 'assassin') {
-    const opponent: Team = state.turn.team === 'red' ? 'blue' : 'red';
+    const opponent: Team = state.currentTeam === 'red' ? 'blue' : 'red';
     return endGame(newState, opponent, 'assassin');
   }
 
-  // 한 팀의 카드를 모두 찾았는지 확인
   if (newScore.red === newState.target.red) {
     return endGame(newState, 'red', 'all_found');
   }
@@ -151,28 +113,14 @@ export function revealCard(state: GameState, cardId: number): GameState {
     return endGame(newState, 'blue', 'all_found');
   }
 
-  // 자기 팀 카드 맞춤
-  if (card.type === state.turn.team) {
-    const remaining = state.turn.guessesRemaining - 1;
-    if (remaining <= 0) {
-      return switchTurn(newState);
-    }
-    return {
-      ...newState,
-      turn: {
-        ...state.turn,
-        guessesRemaining: remaining,
-        guessesMade: state.turn.guessesMade + 1,
-      },
-    };
+  if (card.type === state.currentTeam) {
+    return newState;
   }
 
-  // 상대 팀 카드 또는 중립 → 턴 종료
   return switchTurn(newState);
 }
 
 export function endTurnEarly(state: GameState): GameState {
   if (state.phase !== 'playing') return state;
-  if (state.turn.phase !== 'guessing') return state;
   return switchTurn(state);
 }

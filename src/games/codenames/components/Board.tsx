@@ -1,17 +1,19 @@
 import type { GameState } from '../lib/types';
+import type { Lang } from '../lib/i18n';
 import Card from './Card';
 
 interface BoardProps {
   game: GameState;
   isSpymasterView: boolean;
   onSelectCard: (id: number) => void;
+  lang?: Lang;
 }
 
-export default function Board({ game, isSpymasterView, onSelectCard }: BoardProps) {
-  const canGuess = game.phase === 'playing' && game.turn.phase === 'guessing' && !isSpymasterView;
+export default function Board({ game, isSpymasterView, onSelectCard, lang }: BoardProps) {
+  const canGuess = game.phase === 'playing' && !isSpymasterView;
 
   return (
-    <div className="grid grid-cols-5 gap-2 sm:gap-3 p-2 sm:p-4 max-w-2xl mx-auto">
+    <div className="flex-1 grid grid-cols-5 grid-rows-5 gap-1.5 sm:gap-2 p-1.5 sm:p-2">
       {game.board.map((card) => (
         <Card
           key={card.id}
@@ -19,6 +21,7 @@ export default function Board({ game, isSpymasterView, onSelectCard }: BoardProp
           isSpymasterView={isSpymasterView}
           onSelect={onSelectCard}
           disabled={!canGuess}
+          lang={lang}
         />
       ))}
     </div>

@@ -1,0 +1,81 @@
+import { useGameStore } from '../store/game-store';
+import { t } from '../lib/i18n';
+import type { WordPack } from '../lib/words';
+
+interface HomePageProps {
+  onStartGame: () => void;
+  onBack?: () => void;
+}
+
+const PACKS: { value: WordPack; label: string }[] = [
+  { value: 'standard', label: 'Standard' },
+  { value: 'jw', label: 'JW' },
+];
+
+export default function HomePage({ onStartGame, onBack }: HomePageProps) {
+  const { newGame, lang, pack, setPack } = useGameStore();
+
+  const handleStart = () => {
+    newGame();
+    onStartGame();
+  };
+
+  return (
+    <div className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-b from-stone-100 to-stone-200 p-6">
+      <div className="text-center max-w-md">
+        {/* 뒤로가기 */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="mb-4 text-stone-500 hover:text-stone-700 font-bold text-sm"
+          >
+            ← {t(lang, 'goHome')}
+          </button>
+        )}
+
+        {/* 단어팩 선택 */}
+        <div className="flex justify-center gap-2 mb-6">
+          {PACKS.map((p) => (
+            <button
+              key={p.value}
+              onClick={() => setPack(p.value)}
+              className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors
+                ${pack === p.value
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-stone-200 text-stone-600 hover:bg-stone-300'}`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <h1 className="text-6xl font-black text-stone-800 mb-2">
+          {t(lang, 'title')}
+        </h1>
+        <p className="text-stone-500 text-lg mb-8">
+          {t(lang, 'subtitle')}
+        </p>
+
+        <button
+          onClick={handleStart}
+          className="w-full bg-stone-800 text-white text-xl font-bold
+                     py-4 px-8 rounded-2xl shadow-lg
+                     hover:bg-stone-700 active:scale-95 transition-all"
+        >
+          {t(lang, 'newGame')}
+        </button>
+
+        <div className="mt-8 text-left bg-white rounded-xl p-5 shadow-sm">
+          <h3 className="font-bold text-stone-700 mb-3">{t(lang, 'howToPlay')}</h3>
+          <ol className="text-sm text-stone-500 space-y-2">
+            <li><strong>1.</strong> {t(lang, 'rule1')}</li>
+            <li><strong>2.</strong> {t(lang, 'rule2')}</li>
+            <li><strong>3.</strong> {t(lang, 'rule3')}</li>
+            <li><strong>4.</strong> {t(lang, 'rule4')}</li>
+            <li><strong>5.</strong> {t(lang, 'rule5')}</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  );
+}
