@@ -1,6 +1,6 @@
 import type { Lang } from '../../codenames/lib/i18n';
 
-const TEXTS = {
+export const TEXTS = {
   ko: {
     title: '📖 중국의 증인들',
     subtitle: '증인과 공안의 심리전!',
@@ -108,6 +108,13 @@ const TEXTS = {
     confirmRestart: '정말 게임을 다시 시작하시겠습니까?',
     dualRole: '겸임',
     votePublic: '투표 결과는 공개됩니다',
+    skipBtn: '스킵',
+    confirmGoHome: '홈 화면으로 이동할까요?',
+    goHomeBtn: '홈',
+    currentTerritory: '현재 봉사구역',
+    memberListTitle: '회중 성원 명단',
+    memberCount: (n: number) => `${n}명`,
+    agentCount: (n: number) => `공안: ${n}명`,
   },
   en: {
     title: '📖 Witnesses of China',
@@ -216,6 +223,13 @@ const TEXTS = {
     confirmRestart: 'Are you sure you want to restart the game?',
     dualRole: 'Dual role',
     votePublic: 'Votes will be revealed publicly',
+    skipBtn: 'Skip',
+    confirmGoHome: 'Return to home screen?',
+    goHomeBtn: 'Home',
+    currentTerritory: 'Current Territory',
+    memberListTitle: 'Congregation Members',
+    memberCount: (n: number) => `${n} members`,
+    agentCount: (n: number) => `Agents: ${n}`,
   },
   zh: {
     title: '📖 中国的见证人',
@@ -324,11 +338,19 @@ const TEXTS = {
     confirmRestart: '确定要重新开始游戏吗？',
     dualRole: '兼任',
     votePublic: '投票结果将公开',
+    skipBtn: '跳过',
+    confirmGoHome: '返回主页吗？',
+    goHomeBtn: '主页',
+    currentTerritory: '当前服务区域',
+    memberListTitle: '会众成员名单',
+    memberCount: (n: number) => `${n}人`,
+    agentCount: (n: number) => `公安：${n}人`,
   },
 };
 
 export type WitnessTextKey = keyof typeof TEXTS.ko;
 
 export function wt(lang: Lang, key: WitnessTextKey): string {
-  return TEXTS[lang][key];
+  const val = TEXTS[lang][key];
+  return typeof val === 'string' ? val : '';
 }

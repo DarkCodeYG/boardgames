@@ -186,7 +186,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
   // ===== LOBBY =====
   if (roomState.phase === 'lobby') {
-    const qrUrl = `${origin}${pathname}?game=fakeart&room=${roomCode}`;
+    const qrUrl = `${origin}${pathname}?game=fakeart&room=${roomCode}&lang=${lang}`;
     const canStart = lobbyPlayerCount >= 4;
 
     return (
@@ -251,7 +251,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
           </button>
           {!canStart && (
             <p className="text-center text-stone-400 text-sm mt-2">
-              최소 4명 필요 (현재 {lobbyPlayerCount}명)
+              {txt.minPlayersHint(lobbyPlayerCount)}
             </p>
           )}
         </div>
@@ -265,8 +265,8 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       <div className="min-h-dvh bg-gradient-to-b from-stone-100 to-stone-200 p-6 flex flex-col items-center justify-center">
         <div className="w-full max-w-md text-center">
           <div className="text-5xl mb-4">📋</div>
-          <h2 className="text-3xl font-black text-stone-800 mb-2">역할 확인 중</h2>
-          <p className="text-stone-500 mb-6">모든 플레이어가 역할을 확인하면 그리기를 시작하세요</p>
+          <h2 className="text-3xl font-black text-stone-800 mb-2">{txt.rolesChecking}</h2>
+          <p className="text-stone-500 mb-6">{txt.rolesCheckingHint}</p>
 
           <div className="bg-white rounded-2xl p-4 shadow-md mb-6">
             <div className="flex flex-wrap gap-2">
@@ -296,7 +296,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   if (roomState.phase === 'drawing' && topic) {
     const isLastTurn = roomState.currentDrawerIndex >= playerCount - 1;
     const timerColor = timer <= 10 ? 'text-red-500' : timer <= 20 ? 'text-amber-500' : 'text-stone-700';
-    const drawingQrUrl = `${origin}${pathname}?game=fakeart&room=${roomCode}`;
+    const drawingQrUrl = `${origin}${pathname}?game=fakeart&room=${roomCode}&lang=${lang}`;
 
     return (
       <div className="min-h-dvh bg-stone-100 flex flex-col p-4">
@@ -357,7 +357,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
         <div className="mt-2 flex items-center justify-center gap-3 border-t border-stone-200 pt-2">
           <QRCodeSVG value={drawingQrUrl} size={64} />
           <div>
-            <p className="text-xs text-stone-400 mb-0.5">링크를 잃었나요?</p>
+            <p className="text-xs text-stone-400 mb-0.5">{txt.lostLink}</p>
             <a
               href={drawingQrUrl}
               target="_blank"
@@ -374,7 +374,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
   // ===== VOTING =====
   if (roomState.phase === 'voting') {
-    const voteUrl = `${window.location.origin}${window.location.pathname}?game=fakeart&room=${roomCode}`;
+    const voteUrl = `${window.location.origin}${window.location.pathname}?game=fakeart&room=${roomCode}&lang=${lang}`;
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
         <div className="text-center max-w-md w-full">
@@ -403,7 +403,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
             {/* 투표 재접속 QR */}
             <div className="border-t border-stone-100 pt-4">
-              <p className="text-xs text-stone-400 mb-2">링크를 잃었나요?</p>
+              <p className="text-xs text-stone-400 mb-2">{txt.lostLink}</p>
               <QRCodeSVG value={voteUrl} size={100} className="mx-auto mb-2" />
               <a
                 href={voteUrl}

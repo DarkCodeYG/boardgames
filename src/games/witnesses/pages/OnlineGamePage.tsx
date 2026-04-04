@@ -1,7 +1,7 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useGameStore } from '../../codenames/store/game-store';
-import { wt } from '../lib/i18n';
+import { wt, TEXTS } from '../lib/i18n';
 import { createRoom, setGameState, subscribeRoom, submitAction, deleteRoom, cleanupOldRooms } from '../lib/firebase-room';
 import { startGame as startGameEngine, getPlayerInfo, proceedAfterVote, nextRound, assassinate } from '../lib/game-engine';
 import { createGame, addPlayer } from '../lib/game-engine';
@@ -33,6 +33,7 @@ type HostPhase =
 
 export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: Props) {
   const lang = useGameStore((s) => s.lang);
+  const txt = TEXTS[lang];
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [roomData, setRoomData] = useState<Record<string, unknown> | null>(null);
@@ -412,7 +413,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
           onClick={() => { sfxClick(); handleProceedToMap(); }}
           className="bg-white rounded-xl px-3 py-2 shadow-lg opacity-80 hover:opacity-100 transition-opacity text-stone-500 hover:text-amber-500 text-xs font-bold"
         >
-          ⏭ 스킵
+          ⏭ {txt.skipBtn}
         </button>
       )}
       <button
@@ -422,10 +423,10 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
         🔄 {wt(lang, 'playAgain')}
       </button>
       <button
-        onClick={() => { if (confirm('홈 화면으로 이동할까요?')) { if (roomCode) deleteRoom(roomCode).catch(() => {}); onGoHome(); } }}
+        onClick={() => { if (confirm(txt.confirmGoHome)) { if (roomCode) deleteRoom(roomCode).catch(() => {}); onGoHome(); } }}
         className="bg-white rounded-xl px-3 py-2 shadow-lg opacity-80 hover:opacity-100 transition-opacity text-stone-500 hover:text-blue-500 text-xs font-bold"
       >
-        🏠 홈
+        🏠 {txt.goHomeBtn}
       </button>
       <div className="bg-white rounded-xl p-2 shadow-lg opacity-80 hover:opacity-100 transition-opacity">
         <QRCodeSVG value={joinUrl} size={80} />
@@ -464,7 +465,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
       <div className="mb-6 w-full max-w-lg mx-auto px-2">
         <div className="flex items-center justify-center gap-2 mb-2">
           <span className="text-lg">📍</span>
-          <span className="text-xs font-semibold text-stone-400 uppercase tracking-widest">현재 봉사구역</span>
+          <span className="text-xs font-semibold text-stone-400 uppercase tracking-widest">{txt.currentTerritory}</span>
           <span className="bg-amber-400 text-stone-800 text-sm font-black px-3 py-0.5 rounded-full shadow-sm">{currentRound + 1}번</span>
         </div>
         <div className="rounded-xl overflow-hidden drop-shadow-md">
@@ -703,9 +704,9 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
         <div className="bg-white rounded-2xl p-4 max-w-sm w-full shadow mt-3">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-base">🏠</span>
-            <span className="text-xs font-bold text-stone-400 uppercase tracking-widest">회중 성원 명단</span>
-            <span className="ml-auto text-xs text-stone-400 font-semibold">{game.players.length}명</span>
-            <span className="text-xs font-bold text-red-500">공안: {game.players.filter(p => p.team === 'agent').length}명</span>
+            <span className="text-xs font-bold text-stone-400 uppercase tracking-widest">{txt.memberListTitle}</span>
+            <span className="ml-auto text-xs text-stone-400 font-semibold">{txt.memberCount(game.players.length)}</span>
+            <span className="text-xs font-bold text-red-500">{txt.agentCount(game.players.filter(p => p.team === 'agent').length)}</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {game.players.map((p, i) => (

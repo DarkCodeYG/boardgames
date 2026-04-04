@@ -206,7 +206,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   }
 
   const baseUrl = `${window.location.origin}${window.location.pathname}`;
-  const joinUrl = `${baseUrl}?game=spyfall&room=${roomCode}`;
+  const joinUrl = `${baseUrl}?game=spyfall&room=${roomCode}&lang=${lang}`;
 
   return (
     <div className="h-dvh bg-stone-100 flex flex-col overflow-hidden">

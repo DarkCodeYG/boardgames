@@ -16,6 +16,7 @@ type PlayerView = 'join' | 'waiting' | 'role' | 'roleConfirmed' | 'drawing' | 'v
 export default function PlayerPage() {
   const params = new URLSearchParams(window.location.search);
   const roomCode = params.get('room') ?? '';
+  const urlLang = params.get('lang') as Lang | null;
 
   const [myName, setMyName] = useState('');
   const [playerIndex, setPlayerIndex] = useState(-1);
@@ -55,8 +56,8 @@ export default function PlayerPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomState?.phase]);
 
-  // lang은 roomState에서 가져옴
-  const lang = (roomState?.lang ?? 'ko') as Lang;
+  // lang: roomState 우선, 없으면 URL params, 없으면 ko
+  const lang = (roomState?.lang ?? (urlLang && ['ko','en','zh'].includes(urlLang) ? urlLang : 'ko')) as Lang;
   const txt = I18N[lang];
 
   const playersByIndex = Object.entries(roomState?.players || {})
@@ -269,14 +270,14 @@ export default function PlayerPage() {
           )}
 
           <p className="text-xs text-stone-400 mb-4">
-            {isFake ? '' : '👆 화면을 보여주지 마세요!'}
+            {isFake ? '' : txt.hideFromOthers}
           </p>
 
           <button
             onClick={handleProceedFromRole}
             className="w-full bg-stone-800 text-white font-black py-3 rounded-2xl active:scale-95 transition-all hover:bg-stone-700"
           >
-            확인했어요
+            {txt.confirmBtn}
           </button>
         </div>
       </div>
@@ -288,8 +289,8 @@ export default function PlayerPage() {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6 text-center">
         <div className="text-5xl mb-4">✅</div>
-        <h2 className="text-2xl font-black text-stone-800 mb-2">역할 확인 완료!</h2>
-        <p className="text-stone-500">호스트가 그리기를 시작하면 시작됩니다</p>
+        <h2 className="text-2xl font-black text-stone-800 mb-2">{txt.roleConfirmedTitle}</h2>
+        <p className="text-stone-500">{txt.waitingDrawStart}</p>
       </div>
     );
   }
@@ -338,7 +339,7 @@ export default function PlayerPage() {
           {topic && (
             <details className="mt-4 text-left">
               <summary className="text-xs text-stone-400 font-bold cursor-pointer select-none text-center">
-                제시어 다시보기 👁
+                {txt.reviewWordBtn}
               </summary>
               <div className="mt-3 bg-stone-50 rounded-xl p-3">
                 {isFake ? (

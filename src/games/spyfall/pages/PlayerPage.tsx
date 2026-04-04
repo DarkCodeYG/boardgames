@@ -90,6 +90,12 @@ export default function SpyfallPlayerPage() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('room') || '';
     setRoomCode(code);
+    const urlLang = params.get('lang') as Lang | null;
+    if (urlLang && ['ko', 'en', 'zh'].includes(urlLang)) setLang(urlLang);
+    if (code) {
+      const savedName = localStorage.getItem(`spyfall_name_${code}`);
+      if (savedName) { setName(savedName); setStep('lobby'); }
+    }
   }, []);
 
   // Subscribe to room when not in join step
