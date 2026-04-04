@@ -309,7 +309,7 @@ export function assassinate(state: GameState, targetId: string): GameState {
 const INFO_LABELS = {
   ko: { agentTeam: '공안 동료', visibleAgents: '공안으로 보이는 사람', overseerCleric: '순감/교직자 중' },
   en: { agentTeam: 'Agent allies', visibleAgents: 'Visible agents', overseerCleric: 'Overseer/Cleric' },
-  zh: { agentTeam: '公安同伴', visibleAgents: '可见的公安', overseerCleric: '巡回监督/教职者' },
+  zh: { agentTeam: '公安同伴', visibleAgents: '可见的公安', overseerCleric: '分区监督/教职者' },
 } as const;
 
 /** 플레이어가 알아야 할 정보 */

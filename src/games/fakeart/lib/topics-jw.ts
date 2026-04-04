@@ -140,7 +140,7 @@ export const TOPICS_JW: Topic[] = [
   { category: { ko: 'JW 활동', en: 'JW Activity', zh: 'JW活动' }, word: { ko: '정규 파이오니아', en: 'Regular Pioneer', zh: '正规先驱' } },
   { category: { ko: 'JW 활동', en: 'JW Activity', zh: 'JW活动' }, word: { ko: '보조 파이오니아', en: 'Auxiliary Pioneer', zh: '辅助先驱' } },
   { category: { ko: 'JW 활동', en: 'JW Activity', zh: 'JW活动' }, word: { ko: '재해 구호', en: 'Disaster Relief', zh: '灾害救援' } },
-  { category: { ko: 'JW 활동', en: 'JW Activity', zh: 'JW活动' }, word: { ko: '순회감독자 방문', en: 'Circuit Overseer Visit', zh: '巡回监督访问' } },
+  { category: { ko: 'JW 활동', en: 'JW Activity', zh: 'JW活动' }, word: { ko: '순회감독자 방문', en: 'Circuit Overseer Visit', zh: '分区监督访问' } },
   { category: { ko: 'JW 활동', en: 'JW Activity', zh: 'JW活동' }, word: { ko: '지역 대회', en: 'Regional Convention', zh: '地区大会' } },
   { category: { ko: 'JW 활동', en: 'JW Activity', zh: 'JW活동' }, word: { ko: '성경 드라마', en: 'Bible Drama', zh: '圣经剧' } },
   { category: { ko: 'JW 활동', en: 'JW Activity', zh: 'JW活动' }, word: { ko: '회중 기도', en: 'Congregation Prayer', zh: '会众祷告' } },

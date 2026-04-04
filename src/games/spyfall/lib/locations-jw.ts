@@ -135,7 +135,7 @@ export const LOCATIONS_JW: Location[] = [
     roles: {
       ko: ['순회 감독자', '장로', '파이오니아', '출판인', '침례후보자', '연설자', '안내봉사자'],
       en: ['Circuit Overseer', 'Elder', 'Pioneer', 'Publisher', 'Baptism Candidate', 'Speaker', 'Attendant'],
-      zh: ['巡回监督', '长老', '先驱', '出版者', '受浸候选人', '演讲者', '招待员'],
+      zh: ['分区监督', '长老', '先驱', '出版者', '受浸候选人', '演讲者', '招待员'],
     },
   },
   {
@@ -259,11 +259,11 @@ export const LOCATIONS_JW: Location[] = [
     },
   },
   {
-    name: { ko: '순회 감독자 방문', en: 'Circuit Overseer Visit', zh: '巡回监督来访' },
+    name: { ko: '순회 감독자 방문', en: 'Circuit Overseer Visit', zh: '分区监督来访' },
     roles: {
       ko: ['순회 감독자', '장로', '회중 조정자', '봉사의 종', '파이오니아', '출판인', '성경연구생'],
       en: ['Circuit Overseer', 'Elder', 'Congregation Coordinator', 'Ministerial Servant', 'Pioneer', 'Publisher', 'Bible Student'],
-      zh: ['巡回监督', '长老', '会众协调员', '服务仆人', '先驱', '传道员', '圣经学生'],
+      zh: ['分区监督', '长老', '会众协调员', '服务仆人', '先驱', '传道员', '圣经学生'],
     },
   },
   {

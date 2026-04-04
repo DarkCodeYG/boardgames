@@ -14,7 +14,7 @@ const TEAM_NAMES: Record<Lang, Record<string, string>> = {
 const ROLE_NAMES: Record<Lang, Record<string, string>> = {
   ko: { overseer: '순회감독자', elder: '장로', commander: '당간부', cleric: '교직자', apostate: '배교자' },
   en: { overseer: 'Overseer', elder: 'Elder', commander: 'Commander', cleric: 'Cleric', apostate: 'Apostate' },
-  zh: { overseer: '巡回监督', elder: '长老', commander: '指挥官', cleric: '教职者', apostate: '叛教者' },
+  zh: { overseer: '分区监督', elder: '长老', commander: '指挥官', cleric: '教职者', apostate: '叛教者' },
 };
 
 export default function PlayerPage() {
@@ -169,10 +169,10 @@ export default function PlayerPage() {
       witness_default: '躲避潜入的公安势力，完成服务区域！',
       agent_default: '假装成见证人破坏传道任务。与公安同伴合作！',
       overseer: '你可以看到公安是谁（叛教者除外）。在不暴露身份的情况下引导见证人。⚠️ 如果指挥官识别出你，你的队伍将会失败！',
-      elder: '你知道巡回监督和教职者的名字，但不知道谁是谁。请辨别巡回监督并好好跟随他的引导',
-      commander: '见证人3区成功时，你可以指认巡回监督。仔细观察谁在试图躲避公安',
-      cleric: '在长老眼中你看起来像巡回监督。赢得长老的信任，破坏传道任务',
-      apostate: '巡回监督看不到你。假装成见证人，从内部破坏传道任务',
+      elder: '你知道分区监督和教职者的名字，但不知道谁是谁。请辨别分区监督并好好跟随他的引导',
+      commander: '见证人3区成功时，你可以指认分区监督。仔细观察谁在试图躲避公安',
+      cleric: '在长老眼中你看起来像分区监督。赢得长老的信任，破坏传道任务',
+      apostate: '分区监督看不到你。假装成见证人，从内部破坏传道任务',
     },
   };
 
