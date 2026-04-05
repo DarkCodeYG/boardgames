@@ -42,31 +42,31 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-stone-100 to-stone-200 p-6 flex flex-col items-center justify-center">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => { sfxClick(); onBack(); }}
-            className="text-stone-500 hover:text-stone-700 font-bold text-sm"
-          >
-            ← {txt.goHome}
-          </button>
-          <div className="flex gap-1">
-            {LANGS.map((l) => (
-              <button
-                key={l}
-                onClick={() => { sfxClick(); setLang(l); }}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-colors
-                  ${activeLang === l ? 'bg-stone-800 text-white' : 'bg-stone-200 text-stone-600 hover:bg-stone-300'}`}
-              >
-                {LANG_LABELS[l]}
-              </button>
-            ))}
-          </div>
+      <div className="w-full max-w-md text-center">
+        {/* 뒤로가기 */}
+        <button
+          onClick={() => { sfxClick(); onBack(); }}
+          className="mb-4 text-stone-500 hover:text-stone-700 font-bold text-sm"
+        >
+          ← {txt.goHome}
+        </button>
+
+        {/* 언어 선택 */}
+        <div className="flex justify-center gap-1 mb-6">
+          {LANGS.map((l) => (
+            <button
+              key={l}
+              onClick={() => { sfxClick(); setLang(l); }}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-colors
+                ${activeLang === l ? 'bg-stone-800 text-white' : 'bg-stone-200 text-stone-600 hover:bg-stone-300'}`}
+            >
+              {LANG_LABELS[l]}
+            </button>
+          ))}
         </div>
 
         {/* Title */}
-        <div className="text-center mb-8">
+        <div className="mb-8">
           <div className="text-6xl mb-3">🃏</div>
           <h1 className="text-5xl font-black text-stone-800">{txt.title}</h1>
           <p className="text-stone-500 mt-2 text-sm">{txt.subtitle}</p>
