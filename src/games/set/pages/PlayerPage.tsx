@@ -295,15 +295,44 @@ export default function PlayerPage() {
               </div>
             )}
             {hasTurn && !isMySetTurn && !isMyGyulTurn && turn && (
-              <div className="bg-stone-100 rounded-xl px-4 py-3 text-center">
-                <p className="text-stone-400 text-sm">{txt.turnDeclared(turn.playerName, turn.type)}</p>
+              <div className={`rounded-xl px-4 py-3 text-center
+                ${turn.type === 'gyul' ? 'bg-blue-50 border border-blue-200' : 'bg-stone-100'}`}>
+                <p className={`text-sm font-bold ${turn.type === 'gyul' ? 'text-blue-600' : 'text-stone-400'}`}>
+                  {txt.turnDeclared(turn.playerName, turn.type)}
+                </p>
                 {turn.type === 'set' && (
                   <p className={`text-2xl font-black mt-1 ${timerColor}`}>{txt.timeLeft(timeLeft)}</p>
+                )}
+                {turn.type === 'gyul' && (
+                  <p className="text-blue-400 text-xs mt-1">{txt.checkingGyul}</p>
                 )}
               </div>
             )}
           </div>
         </div>
+
+        {/* Compact scoreboard */}
+        {roomState.players && Object.keys(roomState.players).length > 1 && (
+          <div className="px-5 pb-2 shrink-0">
+            <div className="bg-white rounded-xl px-3 py-2 border border-stone-100 shadow-sm">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
+                {Object.entries(roomState.players)
+                  .map(([key, info]) => ({
+                    key,
+                    name: info.displayName,
+                    total: (JSON.parse(info.collectedCards || '[]') as number[]).length + (info.bonusPoints ?? 0),
+                  }))
+                  .sort((a, b) => b.total - a.total)
+                  .map((p, idx) => (
+                    <span key={p.key} className={`text-sm font-bold
+                      ${p.name === myName ? 'text-amber-600' : 'text-stone-500'}`}>
+                      {idx === 0 ? '👑 ' : ''}{p.name} <span className="font-black">{p.total}</span>
+                    </span>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Buttons */}
         <div className="flex flex-col gap-3 px-5 pb-8 shrink-0">

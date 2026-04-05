@@ -17,7 +17,7 @@ import {
 } from '../lib/firebase-set';
 import type { SetRoomState, Lang } from '../lib/types';
 import SetCard from '../components/SetCard';
-import { sfxClick, sfxGameStart, sfxVictory, sfxTimerTick, sfxTimerUp, sfxPlayerJoin, sfxCardFlip } from '../../../lib/sound';
+import { sfxClick, sfxToggle, sfxGameStart, sfxVictory, sfxTimerTick, sfxTimerUp, sfxPlayerJoin, sfxCardFlip } from '../../../lib/sound';
 
 const SET_TIMEOUT_SECS = 10;
 
@@ -208,8 +208,15 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   const handleCardClick = (cardId: number) => {
     if (!roomState?.currentTurn || roomState.currentTurn.type !== 'set' || resolving) return;
     setSelectedCards((prev) => {
-      if (prev.includes(cardId)) return prev.filter((id) => id !== cardId);
-      if (prev.length >= 3) return prev;
+      if (prev.includes(cardId)) {
+        sfxClick();
+        return prev.filter((id) => id !== cardId);
+      }
+      if (prev.length >= 3) {
+        sfxClick();
+        return prev;
+      }
+      sfxToggle();
       return [...prev, cardId];
     });
   };
@@ -376,7 +383,9 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             <span className="font-black text-amber-600 text-lg tracking-wider">{roomCode}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-stone-500 text-sm font-bold">{txt.deckRemaining(deckCards.length)}</span>
+            <span className={`text-sm font-bold ${deckCards.length === 0 ? 'text-red-500 animate-pulse' : 'text-stone-500'}`}>
+              {txt.deckRemaining(deckCards.length)}{deckCards.length === 0 ? ' 🔚' : ''}
+            </span>
             <span className="text-stone-500 text-sm font-bold">{txt.tableCards(tableCards.length)}</span>
             <button
               onClick={() => { sfxClick(); setShowHintConfirm(true); }}
@@ -394,19 +403,38 @@ export default function GamePage({ onGoHome }: GamePageProps) {
           <div className="flex-1 flex flex-col gap-2 min-w-0">
             {/* Turn banner */}
             {(isSetTurn || isGyulTurn) && (
-              <div className={`rounded-xl px-4 py-2 flex items-center justify-between shrink-0
+              <div className={`rounded-xl px-4 py-2 shrink-0
                 ${isSetTurn ? 'bg-orange-100 border-2 border-orange-400' : 'bg-blue-100 border-2 border-blue-400'}`}>
-                <span className="font-black text-stone-800 text-sm">
-                  {txt.turnDeclared(turn!.playerName, turn!.type)}
-                </span>
-                <div className="flex items-center gap-3">
-                  {isSetTurn && (
-                    <span className={`text-2xl font-black tabular-nums ${timerColor}`}>{timeLeft}</span>
-                  )}
-                  {isGyulTurn && (
-                    <span className="text-sm font-bold text-blue-600">{txt.checkingGyul}</span>
-                  )}
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-stone-800 text-sm">
+                    {txt.turnDeclared(turn!.playerName, turn!.type)}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {isSetTurn && selectedCards.length > 0 && !resolving && (
+                      <button
+                        onClick={() => { sfxClick(); setSelectedCards([]); }}
+                        className="text-xs text-stone-400 hover:text-red-500 font-bold px-2 py-0.5 rounded-lg hover:bg-white/60 transition-colors"
+                      >
+                        ✕ {txt.clearSelection}
+                      </button>
+                    )}
+                    {isSetTurn && (
+                      <span className={`text-2xl font-black tabular-nums ${timerColor}`}>{timeLeft}</span>
+                    )}
+                    {isGyulTurn && (
+                      <span className="text-sm font-bold text-blue-600">{txt.checkingGyul}</span>
+                    )}
                   </div>
+                </div>
+                {isSetTurn && (
+                  <div className="w-full h-1.5 bg-orange-200 rounded-full mt-1.5">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ease-linear
+                        ${timeLeft <= 3 ? 'bg-red-500' : timeLeft <= 6 ? 'bg-amber-500' : 'bg-orange-500'}`}
+                      style={{ width: `${(timeLeft / SET_TIMEOUT_SECS) * 100}%` }}
+                    />
+                  </div>
+                )}
               </div>
             )}
 

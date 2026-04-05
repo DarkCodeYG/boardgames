@@ -7,28 +7,26 @@ let ctx: AudioContext | null = null;
 
 function getCtx(): AudioContext {
   if (!ctx || ctx.state === 'closed') ctx = new AudioContext();
-  if (ctx.state === 'suspended') ctx.resume();
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
   return ctx;
 }
 
-// iOS Safari는 사용자 인터랙션 없이 AudioContext를 시작하지 못함.
-// 또한 백그라운드 복귀 시 AudioContext를 다시 suspend시키므로,
-// 리스너를 제거하지 않고 매 터치마다 suspended 여부를 확인해 재unlock.
+// iOS Safari 오디오 unlock:
+// - user gesture 밖에서는 AudioContext를 시작/재개할 수 없음
+// - 백그라운드 복귀 또는 ~30초 비활성 후 AudioContext를 자동 suspend시킴
+// → 리스너를 유지해 매 터치마다 재unlock, 항상 무음 버퍼로 워밍업.
+//   (iOS 13+는 running 상태여도 첫 버퍼 재생 없이 소리 안 나는 경우 있음)
 if (typeof window !== 'undefined') {
   const unlock = () => {
     try {
       if (!ctx) ctx = new AudioContext();
       if (ctx.state !== 'running') ctx.resume().catch(() => {});
-      // iOS는 running 상태여도 무음 버퍼 재생 없이는 실제 소리가 안 나는 경우 있음.
-      // 매 터치마다 무음 버퍼로 워밍업 (1샘플 = 무시할 수준의 비용).
       const buf = ctx.createBuffer(1, 1, 22050);
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.connect(ctx.destination);
-      src.start(0);
+      src.start(); // suspended 상태에서도 resume 후 즉시 재생되도록 인자 없이 호출
     } catch {}
-    // 리스너 유지: iOS는 백그라운드 복귀/비활성 후 AudioContext를 재suspend하므로
-    // 다음 터치에서 재unlock 가능하도록 제거하지 않음.
   };
   window.addEventListener('touchstart', unlock, true);
   window.addEventListener('pointerdown', unlock, true);
