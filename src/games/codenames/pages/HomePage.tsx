@@ -15,7 +15,7 @@ const PACKS: { value: WordPack; label: string }[] = [
 ];
 
 export default function HomePage({ onStartGame, onBack }: HomePageProps) {
-  const { newGame, lang, pack, setPack } = useGameStore();
+  const { newGame, lang, pack, setPack, hiddenMode } = useGameStore();
 
   const getPackButtonClass = (value: WordPack) => {
     const isJW = value === 'jw';
@@ -46,7 +46,7 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
 
         {/* 단어팩 선택 */}
         <div className="flex justify-center gap-2 mb-6">
-          {PACKS.map((p) => (
+          {PACKS.filter((p) => p.value !== 'jw' || hiddenMode).map((p) => (
             <button
               key={p.value}
               onClick={() => { sfxToggle(); setPack(p.value); }}

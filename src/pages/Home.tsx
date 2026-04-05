@@ -27,9 +27,9 @@ const TEXTS = {
 };
 
 const QUIZ_POOL = [
-  { q: '왕국설립년도?', a: '1914' },
-  { q: 'RP의 1년 요구시간?', a: '600' },
-  { q: '큰무리발표년도?', a: '1935' },
+  { q: { ko: '왕국설립년도?', en: 'Year the Kingdom was established?', zh: '王国建立年份？' }, a: '1914' },
+  { q: { ko: 'RP의 1년 요구시간?', en: 'Annual hours for Regular Pioneer?', zh: '正规先驱年度时间要求？' }, a: '600' },
+  { q: { ko: '큰무리발표년도?', en: 'Year the Great Crowd was identified?', zh: '大群人宣布年份？' }, a: '1935' },
 ];
 
 interface HomeProps {
@@ -129,6 +129,21 @@ export default function Home({ onSelectGame }: HomeProps) {
           </div>
         </button>
 
+        <button
+          onClick={() => { sfxGameSelect(); onSelectGame('set'); }}
+          className="bg-white rounded-2xl p-5 shadow-md text-left
+                     hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
+        >
+          <div className="flex items-center gap-4">
+            <span className="text-4xl">🃏</span>
+            <div>
+              <h2 className="text-xl font-bold text-stone-800">{txt.set}</h2>
+              <p className="text-sm text-stone-500">{txt.setDesc}</p>
+              <p className="text-xs text-stone-400 mt-1">{txt.setPlayers}</p>
+            </div>
+          </div>
+        </button>
+
         {hiddenMode && (
           <button
             onClick={() => { sfxGameSelect(); onSelectGame('witnesses'); }}
@@ -145,21 +160,6 @@ export default function Home({ onSelectGame }: HomeProps) {
             </div>
           </button>
         )}
-
-        <button
-          onClick={() => { sfxGameSelect(); onSelectGame('set'); }}
-          className="bg-white rounded-2xl p-5 shadow-md text-left
-                     hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <span className="text-4xl">🃏</span>
-            <div>
-              <h2 className="text-xl font-bold text-stone-800">{txt.set}</h2>
-              <p className="text-sm text-stone-500">{txt.setDesc}</p>
-              <p className="text-xs text-stone-400 mt-1">{txt.setPlayers}</p>
-            </div>
-          </div>
-        </button>
       </div>
 
       <p className="text-stone-400 text-xs mt-8">{txt.more}</p>
@@ -176,14 +176,14 @@ export default function Home({ onSelectGame }: HomeProps) {
       {showQuiz && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl">
-            <p className="text-stone-700 font-bold text-lg mb-4 text-center">{quiz.q}</p>
+            <p className="text-stone-700 font-bold text-lg mb-4 text-center">{quiz.q[lang]}</p>
             <input
               type="text"
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleQuizSubmit()}
               className="w-full border-2 border-stone-300 focus:border-stone-500 rounded-xl px-4 py-2 text-center text-lg font-bold outline-none transition-colors"
-              placeholder="답을 입력하세요"
+              placeholder={{ ko: '답을 입력하세요', en: 'Enter answer', zh: '请输入答案' }[lang]}
               autoFocus
             />
             <div className="flex gap-2 mt-4">
@@ -191,13 +191,13 @@ export default function Home({ onSelectGame }: HomeProps) {
                 onClick={() => setShowQuiz(false)}
                 className="flex-1 py-2 rounded-xl bg-stone-100 text-stone-500 font-bold hover:bg-stone-200"
               >
-                취소
+                {{ ko: '취소', en: 'Cancel', zh: '取消' }[lang]}
               </button>
               <button
                 onClick={handleQuizSubmit}
                 className="flex-1 py-2 rounded-xl bg-stone-800 text-white font-bold hover:bg-stone-700"
               >
-                확인
+                {{ ko: '확인', en: 'OK', zh: '确认' }[lang]}
               </button>
             </div>
           </div>

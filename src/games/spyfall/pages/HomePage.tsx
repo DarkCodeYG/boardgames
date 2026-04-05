@@ -63,6 +63,7 @@ interface HomePageProps {
 export default function HomePage({ onStartGame, onBack }: HomePageProps) {
   const { pack, setPack } = useSpyfallStore();
   const lang = useGameStore((s) => s.lang);
+  const hiddenMode = useGameStore((s) => s.hiddenMode);
   const txt = TEXTS[lang];
 
   const getPackButtonClass = (value: WordPack) => {
@@ -90,7 +91,7 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
 
         {/* 단어팩 선택 */}
         <div className="flex justify-center gap-2 mb-6">
-          {PACKS.map((p) => (
+          {PACKS.filter((p) => p.value !== 'jw' || hiddenMode).map((p) => (
             <button
               key={p.value}
               onClick={() => { sfxToggle(); setPack(p.value); }}

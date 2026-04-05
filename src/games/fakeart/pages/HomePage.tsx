@@ -15,6 +15,7 @@ interface HomePageProps {
 
 export default function HomePage({ onStartGame, onBack }: HomePageProps) {
   const lang = useGameStore((s) => s.lang);
+  const hiddenMode = useGameStore((s) => s.hiddenMode);
   const txt = I18N[lang];
   const { setRoom } = useFakeartStore();
 
@@ -70,12 +71,14 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
           >
             {txt.standard}
           </button>
-          <button
-            onClick={() => { sfxToggle(); setPack('jw'); }}
-            className={getPackButtonClass('jw')}
-          >
-            <JWIcon active={pack === 'jw'} />
-          </button>
+          {hiddenMode && (
+            <button
+              onClick={() => { sfxToggle(); setPack('jw'); }}
+              className={getPackButtonClass('jw')}
+            >
+              <JWIcon active={pack === 'jw'} />
+            </button>
+          )}
         </div>
 
         <h1 className="text-5xl font-black text-stone-800 mb-2">🎨 {txt.title}</h1>

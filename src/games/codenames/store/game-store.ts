@@ -9,9 +9,11 @@ interface GameStore {
   game: GameState | null;
   lang: Lang;
   pack: WordPack;
+  hiddenMode: boolean;
 
   setLang: (lang: Lang) => void;
   setPack: (pack: WordPack) => void;
+  setHiddenMode: (v: boolean) => void;
   newGame: (seed?: string) => void;
   start: () => void;
   selectCard: (cardId: number) => void;
@@ -23,6 +25,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   game: null,
   lang: 'ko',
   pack: 'standard',
+  hiddenMode: false,
 
   setLang: (lang: Lang) => {
     set({ lang });
@@ -30,6 +33,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setPack: (pack: WordPack) => {
     set({ pack });
+  },
+
+  setHiddenMode: (v: boolean) => {
+    set({ hiddenMode: v });
   },
 
   newGame: (seed?: string) => {
