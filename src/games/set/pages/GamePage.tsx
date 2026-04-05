@@ -36,6 +36,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   const [resolving, setResolving] = useState(false);
 
   const [newCardIds, setNewCardIds] = useState<Map<number, number>>(new Map());
+  const [showHintConfirm, setShowHintConfirm] = useState(false);
+  const [hintCards, setHintCards] = useState<number[] | null>(null);
+  const [hintVisible, setHintVisible] = useState(false);
+  const hintIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const processedTurnRef = useRef<string | null>(null);
@@ -161,6 +165,28 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     setBanner(text);
     bannerTimerRef.current = setTimeout(() => setBanner(null), 2500);
   }, []);
+
+  const handleHintConfirm = () => {
+    const cards = JSON.parse(roomState?.tableCards || '[]') as number[];
+    const currentTheme = theme || roomState?.theme;
+    const set = currentTheme === 'genius' ? findAnyGeniusSet(cards) : findAnySet(cards);
+    setShowHintConfirm(false);
+    if (!set) { showBanner(txt.hintNoSet); return; }
+
+    setHintCards([...set]);
+    setHintVisible(true);
+    let blinks = 0;
+    if (hintIntervalRef.current) clearInterval(hintIntervalRef.current);
+    hintIntervalRef.current = setInterval(() => {
+      blinks++;
+      setHintVisible(blinks % 2 === 0);
+      if (blinks >= 6) {
+        clearInterval(hintIntervalRef.current!);
+        setHintCards(null);
+        setHintVisible(false);
+      }
+    }, 400);
+  };
 
   const handleCardClick = (cardId: number) => {
     if (!roomState?.currentTurn || roomState.currentTurn.type !== 'set' || resolving) return;
@@ -335,6 +361,12 @@ export default function GamePage({ onGoHome }: GamePageProps) {
           <div className="flex items-center gap-3">
             <span className="text-stone-500 text-sm font-bold">{txt.deckRemaining(deckCards.length)}</span>
             <span className="text-stone-500 text-sm font-bold">{txt.tableCards(tableCards.length)}</span>
+            <button
+              onClick={() => { sfxClick(); setShowHintConfirm(true); }}
+              className="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm rounded-lg transition-colors"
+            >
+              💡 {txt.hintBtn}
+            </button>
             <LangToggle />
           </div>
         </div>
@@ -382,9 +414,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
               {tableCards.map((cardId) => {
                 const delayIdx = newCardIds.get(cardId);
                 const isNew = delayIdx !== undefined;
+                const isHint = hintCards?.includes(cardId) && hintVisible;
                 return (
                   <div key={cardId}
-                       className={isNew ? 'animate-flip-in' : ''}
+                       className={`${isNew ? 'animate-flip-in' : ''} ${isHint ? 'ring-4 ring-yellow-400 rounded-xl scale-110 z-10 relative transition-all duration-150' : ''}`}
                        style={isNew ? { animationDelay: `${delayIdx * 120}ms` } : undefined}>
                     <SetCard
                       cardId={cardId}
@@ -425,6 +458,30 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             </div>
           </div>
         </div>
+
+        {/* Hint confirm modal */}
+        {showHintConfirm && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl text-center">
+              <div className="text-4xl mb-3">💡</div>
+              <p className="text-stone-700 font-bold text-lg mb-5">{txt.hintConfirm}</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowHintConfirm(false)}
+                  className="flex-1 py-3 rounded-xl bg-stone-100 text-stone-500 font-bold hover:bg-stone-200"
+                >
+                  {txt.hintNo}
+                </button>
+                <button
+                  onClick={handleHintConfirm}
+                  className="flex-1 py-3 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-400"
+                >
+                  {txt.confirm}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Result banner overlay */}
         {banner && (

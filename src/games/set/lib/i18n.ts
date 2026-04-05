@@ -50,6 +50,10 @@ type Txt = {
   readyHint: string;
   flashCorrect: string;
   flashWrong: string;
+  hintBtn: string;
+  hintConfirm: string;
+  hintNo: string;
+  hintNoSet: string;
   howToPlay: string;
   rule1: string;
   rule2: string;
@@ -123,6 +127,10 @@ export const I18N: Record<Lang, Txt> = {
     readyHint: '셋이 보이면 버튼을 누르세요',
     flashCorrect: '정답',
     flashWrong: '오답',
+    hintBtn: '힌트',
+    hintConfirm: '정말 힌트를 보시겠습니까?',
+    hintNo: '취소',
+    hintNoSet: '현재 셋이 없습니다',
     howToPlay: '게임 방법',
     rule1: '바닥에 12장의 카드가 펼쳐집니다.',
     rule2: '셋(Set): 3장을 골라 각 속성(개수·색상·모양·채우기)이 모두 같거나 모두 다른 조합.',
@@ -194,6 +202,10 @@ export const I18N: Record<Lang, Txt> = {
     readyHint: 'Press the button when you see a Set',
     flashCorrect: 'Correct!',
     flashWrong: 'Wrong!',
+    hintBtn: 'Hint',
+    hintConfirm: 'Really show a hint?',
+    hintNo: 'Cancel',
+    hintNoSet: 'No Set exists currently',
     howToPlay: 'How to Play',
     rule1: '12 cards are laid face-up on the table.',
     rule2: 'A Set: 3 cards where each attribute (count·color·shape·fill) is all-same or all-different.',
@@ -265,6 +277,10 @@ export const I18N: Record<Lang, Txt> = {
     readyHint: '看到集合时按按钮',
     flashCorrect: '正确！',
     flashWrong: '错误！',
+    hintBtn: '提示',
+    hintConfirm: '确定要查看提示吗？',
+    hintNo: '取消',
+    hintNoSet: '当前没有集合',
     howToPlay: '游戏方法',
     rule1: '桌面摆放12张牌。',
     rule2: '集合(Set)：选3张牌，每项属性（数量·颜色·形状·填充）全相同或全不同。',
