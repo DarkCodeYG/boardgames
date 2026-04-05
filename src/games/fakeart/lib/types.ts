@@ -26,4 +26,5 @@ export interface RoomState {
   fakeGuess: string;
   winner: 'fake' | 'others' | null;
   canvasImage?: string;                   // 완성된 그림 base64 JPEG (투표/결과 단계)
+  votingStartedAt?: number;              // 투표 시작 서버 타임스탬프 (ms) — 재접속 타이머 동기화용
 }

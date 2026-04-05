@@ -5,16 +5,19 @@ import { wt, TEXTS } from '../lib/i18n';
 import { createRoom, setGameState, subscribeRoom, submitAction, deleteRoom, resetRoomForNewGame, cleanupOldRooms, updateGameState } from '../lib/firebase-room';
 import { startGame as startGameEngine, getPlayerInfo, proceedAfterVote, nextRound, assassinate } from '../lib/game-engine';
 import { createGame, addPlayer } from '../lib/game-engine';
+import { TEAM_COMP } from '../lib/config';
 import type { GameState, SpecialRole } from '../lib/types';
 import { sfxGameStart, sfxVictory, sfxDefeat, sfxAssassin, sfxClick, sfxModalOpen, sfxTurnEnd, sfxToggle, sfxCardFlip } from '../../../lib/sound';
 
 interface Props {
   onGoHome: () => void;
   enabledRoles: SpecialRole[];
-  playerCount: number;
 }
 
 // 효과음은 공유 모듈 사용 (src/lib/sound.ts)
+
+const MIN_PLAYERS = 5;
+const MAX_PLAYERS = 12;
 
 type HostPhase =
   | 'lobby'
@@ -31,7 +34,7 @@ type HostPhase =
   | 'assassinate'
   | 'finished';
 
-export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: Props) {
+export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
   const globalLang = useGameStore((s) => s.lang);
   const setLang = useGameStore((s) => s.setLang);
   const lang = globalLang;
@@ -42,6 +45,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
   const [game, setGame] = useState<GameState | null>(null);
   const [hostPhase, setHostPhase] = useState<HostPhase>('lobby');
   const [countdown, setCountdown] = useState(30);
+  const [hostVoteSecondsLeft, setHostVoteSecondsLeft] = useState<number | null>(null);
   const [manualName, setManualName] = useState('');
   const [revealRoles, setRevealRoles] = useState(false);
   const prevPhaseRef = useRef<string | null>(null);
@@ -72,7 +76,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
     const timer = setTimeout(() => {
       if (!roomCode) setRoomError('Firebase 연결 시간 초과. 네트워크를 확인하거나 Firebase 보안 규칙을 갱신하세요.');
     }, 8000);
-    createRoom(enabledRoles, playerCount, globalLang).then((code) => {
+    createRoom(enabledRoles, MAX_PLAYERS, globalLang).then((code) => {
       clearTimeout(timer);
       setRoomCode(code);
     }).catch((err) => {
@@ -161,6 +165,27 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
     return () => clearInterval(timer);
   }, [hostPhase]);
 
+  // 투표 카운트다운 (호스트)
+  const hostVoteDeadline = hostPhase === 'waiting-vote' ? (roomData?.voteDeadline as number | undefined) : undefined;
+  useEffect(() => {
+    if (!hostVoteDeadline) { setHostVoteSecondsLeft(null); return; }
+    const update = () => setHostVoteSecondsLeft(Math.max(0, Math.ceil((hostVoteDeadline - Date.now()) / 1000)));
+    update();
+    const id = setInterval(update, 500);
+    return () => clearInterval(id);
+  }, [hostVoteDeadline]);
+
+  // 투표 타임아웃 시 미투표자 기권 자동제출 (호스트 안전망)
+  useEffect(() => {
+    if (hostVoteSecondsLeft !== 0 || hostPhase !== 'waiting-vote' || !game || !roomCode) return;
+    const missions = roomData?.missions as Record<string, unknown>[] | undefined;
+    const currentRound = game.currentRound;
+    const mission = missions?.[currentRound] as Record<string, unknown> | undefined;
+    const votes = (mission?.votes || {}) as Record<string, boolean>;
+    const missing = game.players.filter(p => !(p.id in votes));
+    missing.forEach(p => submitAction(roomCode, `missions/${currentRound}/votes/${p.id}`, false));
+  }, [hostVoteSecondsLeft]);
+
   const players = roomData?.players as Record<string, { name: string }> | undefined;
   const playerList = players ? Object.entries(players).map(([id, p]) => ({ id, name: p.name })) : [];
   const joinUrl = roomCode ? `${window.location.origin}${window.location.pathname}?game=witnesses-online&room=${roomCode}&lang=${lang}` : '';
@@ -232,8 +257,8 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
       alert(wt(lang, 'duplicateName'));
       return;
     }
-    // 초과 인원 체크
-    if (playerList.length >= playerCount) {
+    // 최대 인원 체크
+    if (playerList.length >= MAX_PLAYERS) {
       alert(wt(lang, 'roomFull'));
       return;
     }
@@ -263,21 +288,19 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
 
   // 게임 시작
   const handleStart = async () => {
-    if (!roomCode || playerList.length !== playerCount) return;
+    const count = playerList.length;
+    if (!roomCode || count < MIN_PLAYERS || count > MAX_PLAYERS) return;
     sfxGameStart();
 
-    // playerCount 인원만큼만 사용 (초과 참가 방지)
-    const activePlayers = playerList.slice(0, playerCount);
-
     let gameState = createGame(enabledRoles);
-    for (const p of activePlayers) {
+    for (const p of playerList) {
       gameState = addPlayer(gameState, p.name);
     }
     gameState = startGameEngine(gameState);
 
     // 플레이어 매핑: Firebase pid → game pid
     const mapping: Record<string, string> = {};
-    activePlayers.forEach((p, i) => { mapping[p.id] = `p${i}`; });
+    playerList.forEach((p, i) => { mapping[p.id] = `p${i}`; });
 
     const playerInfos: Record<string, { team: string; specialRole: string | null; info: string[] }> = {};
     for (const p of gameState.players) {
@@ -618,11 +641,16 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
 
   // ===== 로비 =====
   if (hostPhase === 'lobby') {
-    const allJoined = playerList.length === playerCount;
-    const overCapacity = playerList.length > playerCount;
+    const count = playerList.length;
+    const comp = TEAM_COMP[count];
+    const canStart = count >= MIN_PLAYERS && count <= MAX_PLAYERS;
+    const isFull = count >= MAX_PLAYERS;
     return (
       <div className="h-dvh bg-stone-100 flex flex-col items-center p-6 overflow-auto">
-        <div className="w-full max-w-sm flex justify-end mb-2"><LangToggle /></div>
+        <div className="w-full max-w-sm flex justify-between items-center mb-2">
+          <button onClick={() => { sfxClick(); if (roomCode) deleteRoom(roomCode).catch(() => {}); onGoHome(); }} className="text-stone-500 hover:text-stone-700 font-bold text-sm">← {wt(lang, 'goHome')}</button>
+          <LangToggle />
+        </div>
         <h2 className="text-2xl font-black text-stone-800 mb-4">{wt(lang, 'title')}</h2>
 
         <div className="bg-white rounded-2xl p-6 shadow-md text-center max-w-sm w-full mb-4">
@@ -644,12 +672,23 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
 
         {/* 참가자 현황 */}
         <div className="bg-white rounded-xl p-4 shadow-sm max-w-sm w-full mb-4">
-          <h3 className="font-bold text-stone-700 mb-2">
-            {wt(lang, 'participants')} <span className={`${allJoined ? 'text-green-600' : 'text-amber-600'}`}>{playerList.length}/{playerCount}</span>
-          </h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold text-stone-700">
+              {wt(lang, 'participants')} <span className={canStart ? 'text-green-600' : 'text-amber-600'}>{count}명</span>
+            </h3>
+            {comp ? (
+              <span className="text-sm font-bold">
+                <span className="text-blue-600">{wt(lang, 'witness')} {comp.witness}</span>
+                <span className="text-stone-400"> / </span>
+                <span className="text-red-600">{wt(lang, 'agent')} {comp.agent}</span>
+              </span>
+            ) : (
+              <span className="text-xs text-stone-400">{wt(lang, 'needPlayers')}</span>
+            )}
+          </div>
 
           {/* 수동 입력 */}
-          {!allJoined && (
+          {!isFull && (
             <div className="flex gap-2 mb-3">
               <input
                 type="text" value={manualName}
@@ -671,24 +710,13 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
                 {i + 1}. {p.name}
               </span>
             ))}
-            {!allJoined && Array.from({ length: playerCount - playerList.length }).map((_, i) => (
-              <span key={`empty-${i}`} className="bg-stone-50 border-2 border-dashed border-stone-300 px-3 py-1 rounded-full text-sm text-stone-300">
-                {wt(lang, 'waiting')}
-              </span>
-            ))}
           </div>
         </div>
 
-        {overCapacity && (
-          <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3 max-w-sm w-full text-center mb-4">
-            <p className="text-red-600 font-bold text-sm">⚠️ {wt(lang, 'overCapacity')}</p>
-          </div>
-        )}
-
-        <button onClick={handleStart} disabled={!allJoined || overCapacity}
+        <button onClick={handleStart} disabled={!canStart}
           className={`w-full max-w-sm text-xl font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-all
-            ${allJoined && !overCapacity ? 'bg-green-600 text-white hover:bg-green-500 animate-pulse' : 'bg-stone-300 text-stone-500 cursor-not-allowed'}`}>
-          {allJoined && !overCapacity ? `🎮 ${wt(lang, 'startGame')}` : `${playerList.length}/${playerCount} ${wt(lang, 'needPlayers')}`}
+            ${canStart ? 'bg-green-600 text-white hover:bg-green-500 animate-pulse' : 'bg-stone-300 text-stone-500 cursor-not-allowed'}`}>
+          {canStart ? `🎮 ${wt(lang, 'startGame')} (${count}명)` : `${wt(lang, 'needPlayers')}`}
         </button>
       </div>
     );
@@ -789,6 +817,11 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
           <h2 className="text-xl font-black text-stone-800 mb-2">{wt(lang, 'voteTeamGuide')}</h2>
           <div className="text-4xl font-black text-stone-800 mt-4">{votedCount} / {game.players.length}</div>
           <p className="text-stone-400 text-sm mt-2">{wt(lang, 'votingProgress')}</p>
+          {hostVoteSecondsLeft !== null && (
+            <div className={`text-3xl font-black mt-4 tabular-nums ${hostVoteSecondsLeft <= 10 ? 'text-red-500' : 'text-stone-500'}`}>
+              ⏱ {hostVoteSecondsLeft}
+            </div>
+          )}
         </div>
         <ReconnectQR />
       </div>

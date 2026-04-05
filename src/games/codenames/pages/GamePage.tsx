@@ -51,7 +51,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       {game.phase === 'setup' && (
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="bg-white rounded-2xl p-6 shadow-md text-center max-w-sm w-full">
-            <div className="flex justify-end mb-3"><LangToggle /></div>
+            <div className="flex justify-between items-center mb-3">
+              <button onClick={() => { sfxModalOpen(); setShowGoHomeConfirm(true); }} className="text-stone-500 hover:text-stone-700 font-bold text-sm">← {t(lang, 'goHome')}</button>
+              <LangToggle />
+            </div>
             <h2 className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'qrTitle')}</h2>
             <p className="text-stone-500 text-sm mb-4">{t(lang, 'qrDesc')}</p>
             <div className="flex justify-center mb-4">
@@ -159,7 +162,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
                 {t(lang, 'cancel')}
               </button>
               <button
-                onClick={() => { sfxClick(); onGoHome(); }}
+                onClick={() => { sfxClick(); setShowGoHomeConfirm(false); onGoHome(); }}
                 className="bg-stone-800 text-white px-5 py-2.5 rounded-xl font-bold
                            hover:bg-stone-700 transition-colors"
               >

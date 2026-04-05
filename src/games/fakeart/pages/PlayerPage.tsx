@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import GameEndedModal from '../../../components/GameEndedModal';
 import { I18N } from '../lib/i18n';
 import type { Lang } from '../lib/types';
 import { resolveGame } from '../lib/game-engine';
@@ -27,16 +28,37 @@ export default function PlayerPage() {
   const [joinError, setJoinError] = useState('');
   const [joining, setJoining] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
+  const [voteAbstained, setVoteAbstained] = useState(false);
+  const [voteTimeLeft, setVoteTimeLeft] = useState(60);
   const [hasGuessed, setHasGuessed] = useState(false);
   const [guessInput, setGuessInput] = useState('');
   const resultSoundPlayedRef = useRef(false);
   const roleSoundPlayedRef = useRef(false);
   const autoReconnectAttempted = useRef(false);
+  const roomNullTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasReceivedRoomRef = useRef(false);
+  const [roomEndedByHost, setRoomEndedByHost] = useState(false);
 
-  // Firebase 구독
+  // Firebase 구독 (null 오탐지 방지: 3초 디바운스 후 게임 종료 처리)
   useEffect(() => {
     if (!roomCode) return;
-    return subscribeFakeartRoom(roomCode, setRoomState);
+    return subscribeFakeartRoom(roomCode, (state) => {
+      if (state !== null) {
+        hasReceivedRoomRef.current = true;
+        if (roomNullTimerRef.current) {
+          clearTimeout(roomNullTimerRef.current);
+          roomNullTimerRef.current = null;
+        }
+        setRoomState(state);
+      } else if (hasReceivedRoomRef.current && playerIndex !== -1) {
+        if (!roomNullTimerRef.current) {
+          roomNullTimerRef.current = setTimeout(() => setRoomEndedByHost(true), 3000);
+        }
+      } else {
+        setRoomState(state);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode]);
 
   // 자동 재접속: sessionStorage(탭 독립) → 새로고침 복구 / localStorage → 이름 pre-fill만
@@ -83,6 +105,7 @@ export default function PlayerPage() {
       roleSoundPlayedRef.current = false;
       resultSoundPlayedRef.current = false;
       setHasVoted(false);
+      setVoteAbstained(false);
       setHasGuessed(false);
     } else if ((phase === 'roles' || phase === 'drawing') && view === 'waiting') {
       setView('role');
@@ -98,7 +121,7 @@ export default function PlayerPage() {
       setView('result');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomState?.phase]);
+  }, [roomState?.phase, view === 'join']);
 
   // lang: roomState 우선, 없으면 URL params, 없으면 ko
   const lang = (roomState?.lang ?? (urlLang && ['ko','en','zh'].includes(urlLang) ? urlLang : 'ko')) as Lang;
@@ -134,6 +157,33 @@ export default function PlayerPage() {
       sfxVictory();
     }
   }, [view, roomState]);
+
+  // 투표 단계 진입 시 타이머 리셋 (재접속 동기화: votingStartedAt 기준 잔여 시간 계산)
+  useEffect(() => {
+    if (view !== 'voting') return;
+    const startedAt = roomState?.votingStartedAt;
+    // Math.ceil로 잔여 시간 계산 → 재접속 시 witnesses와 동일한 방식으로 동기화
+    const remaining = startedAt ? Math.max(0, Math.ceil((startedAt + 60000 - Date.now()) / 1000)) : 60;
+    setVoteTimeLeft(remaining);
+    setVoteAbstained(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, roomState?.votingStartedAt]);
+
+  // 투표 카운트다운 (1초마다)
+  useEffect(() => {
+    if (view !== 'voting' || hasVoted || voteTimeLeft <= 0) return;
+    const id = setTimeout(() => setVoteTimeLeft((t) => t - 1), 1000);
+    return () => clearTimeout(id);
+  }, [view, hasVoted, voteTimeLeft]);
+
+  // 시간 초과 → 자동 기권 (-1 제출)
+  useEffect(() => {
+    if (view !== 'voting' || hasVoted || voteTimeLeft !== 0 || playerIndex < 0) return;
+    submitVote(roomCode, playerIndex, -1).catch(console.error);
+    setHasVoted(true);
+    setVoteAbstained(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, hasVoted, voteTimeLeft]);
 
   // 이름 배너 (join 제외 모든 화면 상단 고정)
   const NameBanner = () => {
@@ -216,6 +266,11 @@ export default function PlayerPage() {
     await submitFakeGuess(roomCode, guessInput.trim());
     setHasGuessed(true);
   };
+
+  // ===== 게임 종료 (호스트가 방을 닫음, 3초 디바운스 후) =====
+  if (roomEndedByHost) {
+    return <GameEndedModal emoji="🎨" title={txt.gameEnded} closeLabel={txt.closeTab} closeHint={txt.closeTabHint} />;
+  }
 
   // ===== JOIN =====
   if (view === 'join') {
@@ -360,8 +415,31 @@ export default function PlayerPage() {
     const isMyTurn = currentDrawerPlayerIndex === playerIndex;
 
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
+      <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6 pt-16 gap-3 overflow-y-auto">
         <NameBanner />
+
+        {/* 그림 진행 상황 미리보기 (턴 교체 시마다 갱신) */}
+        {roomState.canvasImage && (
+          <div className="bg-white rounded-2xl p-3 max-w-xs w-full shadow-md">
+            <img
+              src={roomState.canvasImage}
+              alt="drawing progress"
+              className="w-full max-h-48 object-contain rounded-xl border border-stone-200 mb-2"
+            />
+            <div className="flex flex-wrap gap-1 justify-center">
+              {playersByIndex.map((name, idx) => (
+                <span
+                  key={idx}
+                  className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                  style={{ backgroundColor: PLAYER_COLORS[idx % PLAYER_COLORS.length] }}
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-lg">
           {isMyTurn ? (
             <>
@@ -456,10 +534,32 @@ export default function PlayerPage() {
         <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-lg">
           <div className="text-4xl mb-3">🗳️</div>
           <h2 className="text-xl font-black text-stone-800 mb-2">{txt.voting}</h2>
-          <p className="text-stone-500 text-sm mb-4">{txt.voteWho}</p>
+          <p className="text-stone-500 text-sm mb-3">{txt.voteWho}</p>
+
+          {!hasVoted && (
+            <div className="mb-4">
+              <div className="flex items-center justify-end mb-1">
+                <span className={`font-black text-base tabular-nums ${
+                  voteTimeLeft > 30 ? 'text-green-600' : voteTimeLeft > 15 ? 'text-amber-500' : 'text-red-500'
+                }`}>
+                  {txt.voteTimerLabel(voteTimeLeft)}
+                </span>
+              </div>
+              <div className="w-full h-2 bg-stone-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-1000 ease-linear ${
+                    voteTimeLeft > 30 ? 'bg-green-500' : voteTimeLeft > 15 ? 'bg-amber-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${(voteTimeLeft / 60) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           {hasVoted ? (
-            <p className="text-green-600 font-black text-lg">{txt.alreadyVoted}</p>
+            <p className={`font-black text-lg ${voteAbstained ? 'text-orange-500' : 'text-green-600'}`}>
+              {voteAbstained ? txt.voteAbstained : txt.alreadyVoted}
+            </p>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {Array.from({ length: playerCount }, (_, i) => {

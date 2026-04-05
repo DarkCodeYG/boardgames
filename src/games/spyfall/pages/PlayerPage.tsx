@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import GameEndedModal from '../../../components/GameEndedModal';
 import { getPlayerRole } from '../lib/game-engine';
 import {
   joinSpyfallRoom,
@@ -29,6 +30,9 @@ const TEXTS = {
     error: '오류가 발생했습니다.',
     invalidRoom: '잘못된 접근입니다.',
     loading: '로딩 중...',
+    gameEnded: '게임이 종료되었습니다',
+    closeTab: '탭 닫기',
+    closeTabHint: '탭을 직접 닫아주세요',
   },
   en: {
     enterName: 'Enter your name',
@@ -49,6 +53,9 @@ const TEXTS = {
     error: 'An error occurred.',
     invalidRoom: 'Invalid access.',
     loading: 'Loading...',
+    gameEnded: 'Game has ended',
+    closeTab: 'Close Tab',
+    closeTabHint: 'Please close this tab manually',
   },
   zh: {
     enterName: '请输入您的名字',
@@ -69,10 +76,13 @@ const TEXTS = {
     error: '发生错误。',
     invalidRoom: '访问无效。',
     loading: '加载中...',
+    gameEnded: '游戏已结束',
+    closeTab: '关闭标签页',
+    closeTabHint: '请手动关闭此标签页',
   },
 };
 
-type Step = 'join' | 'lobby' | 'card';
+type Step = 'join' | 'lobby' | 'card' | 'ended';
 
 export default function SpyfallPlayerPage() {
   const [roomCode, setRoomCode] = useState('');
@@ -85,6 +95,7 @@ export default function SpyfallPlayerPage() {
   const [prevSeed, setPrevSeed] = useState<string | null>(null);
   const [revealedSeed, setRevealedSeed] = useState<string | null>(null);
   const justJoinedRef = useRef(false);
+  const roomNullTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -115,8 +126,18 @@ export default function SpyfallPlayerPage() {
   useEffect(() => {
     if (!roomCode || step === 'join') return;
     const unsub = subscribeSpyfallRoom(roomCode, (data) => {
+      if (!data) {
+      if (!roomNullTimerRef.current) {
+        roomNullTimerRef.current = setTimeout(() => setStep('ended'), 3000);
+      }
+      return;
+    }
+    if (roomNullTimerRef.current) {
+      clearTimeout(roomNullTimerRef.current);
+      roomNullTimerRef.current = null;
+    }
       setRoom(data);
-      if (data?.lang) setLang(data.lang);
+      if (data.lang) setLang(data.lang);
     });
     return () => unsub();
   }, [roomCode, step]);
@@ -208,6 +229,11 @@ export default function SpyfallPlayerPage() {
         <p className="text-stone-500">{txt.invalidRoom}</p>
       </div>
     );
+  }
+
+  // Ended step
+  if (step === 'ended') {
+    return <GameEndedModal emoji="🔍" title={txt.gameEnded} closeLabel={txt.closeTab} closeHint={txt.closeTabHint} />;
   }
 
   // Join step

@@ -4,17 +4,44 @@ import { sfxClick } from '../../../lib/sound';
 interface DrawCanvasProps {
   disabled?: boolean;
   undoLabel?: string;
+  eraserLabel?: string;
   canvasRef?: React.RefObject<HTMLCanvasElement | null>;
   strokeColor?: string;
+  baselineSnapshot?: ImageData | null;
 }
 
-export default function DrawCanvas({ disabled = false, undoLabel = 'Undo', canvasRef: externalRef, strokeColor = '#000000' }: DrawCanvasProps) {
+export default function DrawCanvas({
+  disabled = false,
+  undoLabel = 'Undo',
+  eraserLabel = 'Eraser',
+  canvasRef: externalRef,
+  strokeColor = '#000000',
+  baselineSnapshot,
+}: DrawCanvasProps) {
   const internalRef = useRef<HTMLCanvasElement>(null);
   const canvasRef = externalRef ?? internalRef;
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const [undoStack, setUndoStack] = useState<ImageData[]>([]);
-  const hasDrawnRef = useRef(false); // 실제로 그린 적 있는지 추적
+  const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
+  const hasDrawnRef = useRef(false);
+  const baselineCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // 새 플레이어 턴 시작 시: undo 스택 초기화 + baseline 캔버스 생성
+  useEffect(() => {
+    setUndoStack([]);
+    setTool('pen');
+    if (!baselineSnapshot) {
+      baselineCanvasRef.current = null;
+      return;
+    }
+    const tmp = document.createElement('canvas');
+    tmp.width = baselineSnapshot.width;
+    tmp.height = baselineSnapshot.height;
+    const tmpCtx = tmp.getContext('2d');
+    if (tmpCtx) tmpCtx.putImageData(baselineSnapshot, 0, 0);
+    baselineCanvasRef.current = tmp;
+  }, [baselineSnapshot]);
 
   // 캔버스를 부모 크기에 맞게 리사이즈
   useEffect(() => {
@@ -28,7 +55,6 @@ export default function DrawCanvas({ disabled = false, undoLabel = 'Undo', canva
       if (rect.width === 0 || rect.height === 0) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      // 실제로 그린 내용이 있을 때만 복원 (기본 캔버스 검정 픽셀 복원 방지)
       const imageData = hasDrawnRef.current
         ? ctx.getImageData(0, 0, canvas.width, canvas.height)
         : null;
@@ -56,6 +82,18 @@ export default function DrawCanvas({ disabled = false, undoLabel = 'Undo', canva
     };
   };
 
+  // 지우개: baseline 스냅샷의 해당 원형 영역 복원
+  const eraseAt = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    const baseline = baselineCanvasRef.current;
+    if (!baseline) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, 15, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(baseline, 0, 0);
+    ctx.restore();
+  }, []);
+
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     if (disabled) return;
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -73,16 +111,19 @@ export default function DrawCanvas({ disabled = false, undoLabel = 'Undo', canva
     const pos = getPos(e);
     lastPointRef.current = pos;
 
-    // 점 찍기 (클릭만 했을 때)
-    ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
-    ctx.fillStyle = strokeColor;
-    ctx.fill();
-  }, [disabled, strokeColor]);
+    if (tool === 'eraser') {
+      eraseAt(ctx, pos.x, pos.y);
+    } else {
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
+      ctx.fillStyle = strokeColor;
+      ctx.fill();
+    }
+  }, [disabled, strokeColor, tool, eraseAt]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawingRef.current || disabled) return;
@@ -95,17 +136,21 @@ export default function DrawCanvas({ disabled = false, undoLabel = 'Undo', canva
     const last = lastPointRef.current;
     if (!last) return;
 
-    ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
+    if (tool === 'eraser') {
+      eraseAt(ctx, pos.x, pos.y);
+    } else {
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+    }
 
     lastPointRef.current = pos;
-  }, [disabled, strokeColor]);
+  }, [disabled, strokeColor, tool, eraseAt]);
 
   const handlePointerUp = useCallback(() => {
     isDrawingRef.current = false;
@@ -126,26 +171,41 @@ export default function DrawCanvas({ disabled = false, undoLabel = 'Undo', canva
     setUndoStack(newStack);
   };
 
+  const cursorStyle = disabled ? 'default' : tool === 'eraser' ? 'cell' : 'crosshair';
+
   return (
     <div className="relative w-full h-full">
       <canvas
         ref={canvasRef}
         className="w-full h-full bg-white rounded-xl touch-none"
-        style={{ touchAction: 'none', cursor: disabled ? 'default' : 'crosshair' }}
+        style={{ touchAction: 'none', cursor: cursorStyle }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       />
-      {!disabled && undoStack.length > 0 && (
-        <button
-          onClick={handleUndo}
-          className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm border border-stone-300
-                     text-stone-700 font-bold px-3 py-1.5 rounded-lg shadow text-sm
-                     hover:bg-stone-100 active:scale-95 transition-all"
-        >
-          ↩ {undoLabel}
-        </button>
+      {!disabled && (
+        <div className="absolute bottom-3 right-3 flex gap-2">
+          <button
+            onClick={() => { sfxClick(); setTool((t) => t === 'eraser' ? 'pen' : 'eraser'); }}
+            className={`backdrop-blur-sm border font-bold px-3 py-1.5 rounded-lg shadow text-sm transition-all active:scale-95
+              ${tool === 'eraser'
+                ? 'bg-amber-100 border-amber-400 text-amber-700'
+                : 'bg-white/90 border-stone-300 text-stone-700 hover:bg-stone-100'}`}
+          >
+            🧹 {eraserLabel}
+          </button>
+          {undoStack.length > 0 && (
+            <button
+              onClick={handleUndo}
+              className="bg-white/90 backdrop-blur-sm border border-stone-300
+                         text-stone-700 font-bold px-3 py-1.5 rounded-lg shadow text-sm
+                         hover:bg-stone-100 active:scale-95 transition-all"
+            >
+              ↩ {undoLabel}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

@@ -9,6 +9,7 @@ import {
   updateFakeartRoom,
   setWinner,
   resetFakeartRoomForNewGame,
+  deleteFakeartRoom,
 } from '../lib/firebase-room';
 import type { RoomState } from '../lib/types';
 import DrawCanvas from '../components/DrawCanvas';
@@ -25,9 +26,12 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [timer, setTimer] = useState(drawTime);
+  const [baselineSnapshot, setBaselineSnapshot] = useState<ImageData | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const processedVotesRef = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isMountedRef = useRef(true);
+  const isNextProcessingRef = useRef(false);
 
   const lang = ((roomState?.lang ?? storeLang ?? globalLang) || 'ko') as NonNullable<typeof storeLang>;
   const txt = I18N[lang];
@@ -46,6 +50,12 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     .sort((a, b) => a[1].index - b[1].index)
     .map(([name]) => name);
   const playerName = (idx: number) => playersByIndex[idx] ?? `P${idx + 1}`;
+
+  // 언마운트 추적 (비동기 콜백 내 stale 업데이트 방지)
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   // Firebase 구독
   useEffect(() => {
@@ -90,6 +100,17 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomState?.phase, roomState?.currentDrawerIndex]);
 
+  // 플레이어 턴 전환 시 현재 캔버스를 baseline으로 저장 (undo/지우개 범위 제한)
+  useEffect(() => {
+    if (roomState?.phase !== 'drawing') return;
+    const canvas = canvasRef.current;
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    setBaselineSnapshot(ctx.getImageData(0, 0, canvas.width, canvas.height));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomState?.currentDrawerIndex, roomState?.phase]);
+
   // 투표 완료 자동 처리 (phase 변경 시 ref 초기화 포함)
   useEffect(() => {
     if (!roomState || roomState.phase !== 'voting') {
@@ -131,21 +152,54 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     await updateFakeartRoom(roomCode, { phase: 'drawing' });
   };
 
-  const handleNextTurn = async () => {
-    if (!roomState) return;
+  const handleNextTurn = () => {
+    if (!roomState || isNextProcessingRef.current) return;
+    isNextProcessingRef.current = true;
+
     const nextIndex = roomState.currentDrawerIndex + 1;
+    const canvas = canvasRef.current;
+
+    // await 없이 즉시 fire-and-forget → 버튼 반응 즉각
     if (nextIndex >= roomState.playerCount) {
-      // 모두 완료 → 캔버스 캡처 후 voting
       sfxTimerUp();
-      const canvas = canvasRef.current;
-      const canvasImage = canvas
-        ? canvas.toDataURL('image/jpeg', 0.6)
-        : undefined;
-      await updateFakeartRoom(roomCode, { phase: 'voting', ...(canvasImage ? { canvasImage } : {}) });
+      updateFakeartRoom(roomCode, { phase: 'voting', votingStartedAt: Date.now() }).catch(console.error);
     } else {
       sfxClick();
-      await updateFakeartRoom(roomCode, { currentDrawerIndex: nextIndex });
+      updateFakeartRoom(roomCode, { currentDrawerIndex: nextIndex }).catch(console.error);
     }
+
+    // createImageBitmap: GPU 가속 리사이즈 (메인스레드 블로킹 없음) → convertToBlob → 업로드
+    if (canvas) {
+      createImageBitmap(canvas, { resizeWidth: 480, resizeQuality: 'medium' })
+        .then((bitmap) => {
+          const offscreen = new OffscreenCanvas(bitmap.width, bitmap.height);
+          offscreen.getContext('2d')!.drawImage(bitmap, 0, 0);
+          return offscreen.convertToBlob({ type: 'image/jpeg', quality: 0.6 });
+        })
+        .then((blob) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (!isMountedRef.current) return;
+            updateFakeartRoom(roomCode, { canvasImage: reader.result as string }).catch(console.error);
+            isNextProcessingRef.current = false;
+          };
+          reader.readAsDataURL(blob);
+        })
+        .catch((err) => {
+          console.error(err);
+          isNextProcessingRef.current = false;
+        });
+    } else {
+      isNextProcessingRef.current = false;
+    }
+  };
+
+  const handlePrevTurn = async () => {
+    if (!roomState) return;
+    const prevIndex = roomState.currentDrawerIndex - 1;
+    if (prevIndex < 0) return;
+    sfxClick();
+    await updateFakeartRoom(roomCode, { currentDrawerIndex: prevIndex });
   };
 
   const handleGuessResult = async (correct: boolean) => {
@@ -211,7 +265,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       <div className="min-h-dvh bg-gradient-to-b from-stone-100 to-stone-200 p-6 flex flex-col items-center">
         <div className="w-full max-w-md">
           <div className="flex items-center justify-between mb-4">
-            <button onClick={() => { sfxClick(); onGoHome(); }} className="text-stone-500 hover:text-stone-700 font-bold text-sm">
+            <button onClick={() => { sfxClick(); deleteFakeartRoom(roomCode).catch(() => {}); onGoHome(); }} className="text-stone-500 hover:text-stone-700 font-bold text-sm">
               ← {txt.goHome}
             </button>
             <LangToggle />
@@ -323,17 +377,33 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     return (
       <div className="h-dvh bg-stone-100 flex flex-col px-3 pt-3 pb-2">
         {/* 상단 정보 바 */}
-        <div className="flex items-center justify-between mb-2 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-black text-stone-800">
-              {txt.drawingTurn(playerName(currentDrawerPlayerIndex))}
-            </span>
-            <span className="text-xs text-stone-400">
-              ({roomState.currentDrawerIndex + 1}/{playerCount})
+        <div className="relative flex items-center justify-between mb-2 shrink-0">
+          {/* 좌측: 턴 순번 */}
+          <span className="text-xs text-stone-400 w-16">
+            ({roomState.currentDrawerIndex + 1}/{playerCount})
+          </span>
+          {/* 중앙: 그리는 사람 */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+            <span
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: PLAYER_COLORS[currentDrawerPlayerIndex % PLAYER_COLORS.length] }}
+            />
+            <span className="text-sm font-black text-stone-800 whitespace-nowrap">
+              {txt.drawingNow(playerName(currentDrawerPlayerIndex))}
             </span>
           </div>
+          {/* 우측: 타이머 + 버튼 */}
           <div className="flex items-center gap-3">
             <span className={`text-3xl font-black tabular-nums ${timerColor}`}>{timer}</span>
+            {roomState.currentDrawerIndex > 0 && (
+              <button
+                onClick={handlePrevTurn}
+                className="bg-stone-200 text-stone-700 font-bold px-3 py-1.5 rounded-xl text-sm
+                           hover:bg-stone-300 active:scale-95 transition-all"
+              >
+                ← {txt.prevTurn}
+              </button>
+            )}
             <button
               onClick={() => { sfxClick(); handleNextTurn(); }}
               className="bg-stone-800 text-white font-bold px-3 py-1.5 rounded-xl text-sm
@@ -352,8 +422,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
           <DrawCanvas
             disabled={false}
             undoLabel={txt.undo}
+            eraserLabel={txt.eraser}
             canvasRef={canvasRef}
             strokeColor={PLAYER_COLORS[currentDrawerPlayerIndex % PLAYER_COLORS.length]}
+            baselineSnapshot={baselineSnapshot}
           />
         </div>
 
@@ -589,7 +661,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
               {txt.playAgain}
             </button>
             <button
-              onClick={() => { sfxClick(); onGoHome(); }}
+              onClick={() => { sfxClick(); deleteFakeartRoom(roomCode).catch(() => {}); onGoHome(); }}
               className="flex-1 bg-white/20 text-white font-black py-3 rounded-2xl
                          hover:bg-white/30 active:scale-95 transition-all"
             >

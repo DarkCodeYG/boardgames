@@ -1,4 +1,4 @@
-import { ref, set, get, update, onValue, runTransaction, type Unsubscribe } from 'firebase/database';
+import { ref, set, get, update, remove, onValue, runTransaction, type Unsubscribe } from 'firebase/database';
 import { db } from '../../../lib/firebase';
 import type { RoomState, Pack, Lang } from './types';
 
@@ -113,6 +113,11 @@ export async function submitFakeGuess(code: string, guess: string): Promise<void
 
 export async function setWinner(code: string, winner: 'fake' | 'others'): Promise<void> {
   await update(roomRef(code), { winner, phase: 'result' });
+}
+
+/** 호스트: 방 삭제 (홈으로 이동 시) */
+export async function deleteFakeartRoom(code: string): Promise<void> {
+  await remove(roomRef(code));
 }
 
 /** 같은 방/플레이어 유지, 게임 상태만 초기화 (다시 하기용) */

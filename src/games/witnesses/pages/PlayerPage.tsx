@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
+import GameEndedModal from '../../../components/GameEndedModal';
 import { subscribeRoom, joinRoom, submitAction } from '../lib/firebase-room';
 import type { Lang } from '../../codenames/lib/i18n';
 import { wt } from '../lib/i18n';
 import { sfxClick, sfxToggle, sfxCorrect, sfxModalOpen, sfxModalClose, sfxRoleReveal } from '../../../lib/sound';
 
-type PlayerPhase = 'join' | 'lobby' | 'role-reveal' | 'waiting' | 'team-build' | 'vote' | 'mission' | 'vote-result' | 'mission-result' | 'finished';
+type PlayerPhase = 'join' | 'lobby' | 'role-reveal' | 'waiting' | 'team-build' | 'vote' | 'mission' | 'vote-result' | 'mission-result' | 'finished' | 'ended' | 'not-participant';
 
 const TEAM_NAMES: Record<Lang, Record<string, string>> = {
   ko: { witness: '증인', agent: '공안' },
@@ -30,6 +31,9 @@ export default function PlayerPage() {
   const [showRole, setShowRole] = useState(false);
   const [joining, setJoining] = useState(false);
   const roleRevealedRef = useRef(false);
+  const [voteSecondsLeft, setVoteSecondsLeft] = useState<number | null>(null);
+  const roomNullTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   // URL 파라미터 + localStorage 자동 재접속
   useEffect(() => {
@@ -91,7 +95,19 @@ export default function PlayerPage() {
         setLang(data.lang as Lang);
       }
 
-      if (!data) return;
+      if (!data) {
+        // 네트워크 순단 오탐지 방지: 3초 후에도 null이면 종료 처리
+        if (!roomNullTimerRef.current) {
+          roomNullTimerRef.current = setTimeout(() => {
+            setPhase('ended');
+          }, 3000);
+        }
+        return;
+      }
+      if (roomNullTimerRef.current) {
+        clearTimeout(roomNullTimerRef.current);
+        roomNullTimerRef.current = null;
+      }
       const serverPhase = data.phase as string;
 
       // playerMapping에서 내 gameId 찾기 (로컬 변수로 즉시 사용 — setState 타이밍 문제 방지)
@@ -103,6 +119,12 @@ export default function PlayerPage() {
           currentGameId = gid;
           if (gid !== myGameId) setMyGameId(gid);
         }
+      }
+
+      // 게임 진행 중 참가하지 않은 플레이어 감지
+      if (serverPhase !== 'lobby' && myPid && mapping && !mapping[myPid]) {
+        setPhase('not-participant');
+        return;
       }
 
       // phase 전환 (currentGameId 사용 — myGameId보다 항상 최신)
@@ -286,6 +308,39 @@ export default function PlayerPage() {
     );
   };
 
+  // ===== 투표 카운트다운 타이머 =====
+  const voteDeadlineFromRoom = phase === 'vote' ? (room?.voteDeadline as number | undefined) : undefined;
+  useEffect(() => {
+    if (!voteDeadlineFromRoom) { setVoteSecondsLeft(null); return; }
+    const update = () => setVoteSecondsLeft(Math.max(0, Math.ceil((voteDeadlineFromRoom - Date.now()) / 1000)));
+    update();
+    const id = setInterval(update, 500);
+    return () => clearInterval(id);
+  }, [voteDeadlineFromRoom]);
+
+  // 타임아웃 시 기권 자동제출 (반대로 처리)
+  useEffect(() => {
+    if (voteSecondsLeft !== 0 || phase !== 'vote' || !myGameId || !room) return;
+    const missions = room.missions as Record<string, unknown>[] | undefined;
+    const currentRound = room.currentRound as number | undefined;
+    if (!missions || currentRound === undefined) return;
+    const mission = missions[currentRound] as Record<string, unknown> | undefined;
+    if (!mission) return;
+    const votes = (mission.votes || {}) as Record<string, boolean>;
+    if (myGameId in votes) return;
+    submitAction(roomCode, `missions/${currentRound}/votes/${myGameId}`, false);
+  }, [voteSecondsLeft]);
+
+  // ===== 게임 종료 (호스트가 방을 닫음) =====
+  // ===== 게임 참여자 아님 =====
+  if (phase === 'not-participant') {
+    return <GameEndedModal emoji="🚫" title={wt(lang, 'notParticipant')} subtitle={wt(lang, 'notParticipantHint')} closeLabel={wt(lang, 'closeTab')} closeHint={wt(lang, 'closeTabHint')} />;
+  }
+
+  if (phase === 'ended') {
+    return <GameEndedModal emoji="📖" title={wt(lang, 'gameEnded')} closeLabel={wt(lang, 'closeTab')} closeHint={wt(lang, 'closeTabHint')} />;
+  }
+
   // ===== 이름 입력 =====
   if (phase === 'join') {
     return (
@@ -424,11 +479,22 @@ export default function PlayerPage() {
       setSelectedTeam(next);
     };
 
+    const VOTING_TIMEOUT_MS = 60_000;
     const handleConfirm = async () => {
+      if (isConfirming) return;
+      setIsConfirming(true);
       const teamIds = [...selectedTeam];
-      await submitAction(roomCode, `missions/${currentRound}/teamIds`, teamIds);
-      await submitAction(roomCode, 'phase', 'vote');
-      setSelectedTeam(new Set());
+      try {
+        await submitAction(roomCode, `missions/${currentRound}/teamIds`, teamIds);
+        await submitAction(roomCode, 'voteDeadline', Date.now() + VOTING_TIMEOUT_MS);
+        await submitAction(roomCode, 'phase', 'vote');
+        setSelectedTeam(new Set());
+      } catch (err) {
+        console.error('팀 제출 실패, 다시 시도하세요:', err);
+        // phase가 변경되지 않았으므로 인도자가 재시도 가능
+      } finally {
+        setIsConfirming(false);
+      }
     };
 
     return (
@@ -478,10 +544,10 @@ export default function PlayerPage() {
           {/* 확정 버튼 */}
           <button
             onClick={() => { sfxCorrect(); handleConfirm(); }}
-            disabled={selectedTeam.size !== requiredSize}
+            disabled={selectedTeam.size !== requiredSize || isConfirming}
             className="mt-4 w-full bg-stone-900 text-white py-3.5 rounded-xl font-bold text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-stone-800 active:scale-95"
           >
-            {wt(lang, 'confirm')} ({selectedTeam.size}/{requiredSize})
+            {isConfirming ? '...' : `${wt(lang, 'confirm')} (${selectedTeam.size}/${requiredSize})`}
           </button>
         </div>
       </div>
@@ -517,8 +583,16 @@ export default function PlayerPage() {
           <p className="text-stone-500 mb-2">{wt(lang, 'voteGuide')}</p>
           <p className="text-stone-400 text-xs mb-4">{wt(lang, 'votePublic')}</p>
 
+          {!alreadyVoted && voteSecondsLeft !== null && (
+            <div className={`text-2xl font-black mb-4 tabular-nums ${voteSecondsLeft <= 10 ? 'text-red-500' : 'text-stone-600'}`}>
+              ⏱ {voteSecondsLeft}
+            </div>
+          )}
+
           {alreadyVoted ? (
             <p className="text-stone-400 font-bold">{wt(lang, 'voteComplete')}</p>
+          ) : voteSecondsLeft === 0 ? (
+            <p className="text-orange-500 font-bold">{wt(lang, 'voteAbstain')}</p>
           ) : (
             <div className="flex gap-3 justify-center">
               <button onClick={() => { sfxClick(); handleVote(false); }}
