@@ -28,7 +28,7 @@ const TEXTS = {
 
 const QUIZ_POOL = [
   { q: { ko: '왕국설립년도?', en: 'Year the Kingdom was established?', zh: '王国建立年份？' }, a: '1914' },
-  { q: { ko: 'RP의 1년 요구시간?', en: 'Annual hours for Regular Pioneer?', zh: '正规先驱年度时间要求？' }, a: '600' },
+  { q: { ko: 'RP의 1년 요구시간?', en: 'Annual hours required for RP?', zh: 'RP年度时间要求？' }, a: '600' },
   { q: { ko: '큰무리발표년도?', en: 'Year the Great Crowd was identified?', zh: '大群人宣布年份？' }, a: '1935' },
 ];
 
