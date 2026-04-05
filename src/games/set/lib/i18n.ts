@@ -107,7 +107,7 @@ export const I18N: Record<Lang, Txt> = {
         case 'set_wrong': return `❌ ${name} 셋 실패 — 카드 1장 반납`;
         case 'set_timeout': return `⏰ ${name} 시간 초과 — 카드 1장 반납`;
         case 'gyul_correct': return `🎯 ${name} 결 성공! +2점`;
-        case 'gyul_wrong': return `❌ ${name} 결 실패 — 카드 1장 반납`;
+        case 'gyul_wrong': return `❌ ${name} 결 실패 — 부가점수 -2`;
       }
     },
     gameOver: '게임 종료',
@@ -128,7 +128,7 @@ export const I18N: Record<Lang, Txt> = {
     rule2: '셋(Set): 3장을 골라 각 속성(개수·색상·모양·채우기)이 모두 같거나 모두 다른 조합.',
     rule3: '셋이 보이면 가장 먼저 셋! 버튼을 누릅니다. 선점 성공 시 호스트 화면에서 10초 내에 3장을 선택하세요.',
     rule4: '정답이면 3장을 획득. 오답·시간초과이면 보유 카드 1장을 바닥에 반납.',
-    rule5: '바닥에 셋이 없다고 판단되면 결 버튼을 눌러 선점. 맞으면 +2 부가점수, 틀리면 카드 1장 반납.',
+    rule5: '바닥에 셋이 없다고 판단되면 결 버튼을 눌러 선점. 맞으면 +2 부가점수, 틀리면 부가점수 -2.',
     rule6: '덱이 소진되고 더 이상 셋을 만들 수 없으면 게임 종료. 카드 수 + 부가점수 합계가 가장 높은 플레이어가 승리!',
     tipTitle: '셋 판별 예시',
     tip1: '빨강 1개·빨강 2개·빨강 3개 (개수 모두 다름, 색상 모두 같음) → 셋!',
@@ -178,7 +178,7 @@ export const I18N: Record<Lang, Txt> = {
         case 'set_wrong': return `❌ ${name} wrong Set — return 1 card`;
         case 'set_timeout': return `⏰ ${name} timed out — return 1 card`;
         case 'gyul_correct': return `🎯 ${name} correct No-Set! +2pts`;
-        case 'gyul_wrong': return `❌ ${name} wrong No-Set — return 1 card`;
+        case 'gyul_wrong': return `❌ ${name} wrong No-Set — bonus -2`;
       }
     },
     gameOver: 'Game Over',
@@ -199,7 +199,7 @@ export const I18N: Record<Lang, Txt> = {
     rule2: 'A Set: 3 cards where each attribute (count·color·shape·fill) is all-same or all-different.',
     rule3: 'Spot a Set? Press SET! first to claim your turn. Select 3 cards on the host screen within 10 seconds.',
     rule4: 'Correct → keep the 3 cards. Wrong or timeout → return 1 card from your hand.',
-    rule5: 'Think no Set exists? Press NO SET first. Correct → +2 bonus points. Wrong → return 1 card.',
+    rule5: 'Think no Set exists? Press NO SET first. Correct → +2 bonus points. Wrong → bonus -2.',
     rule6: 'Game ends when the deck runs out and no more Sets can be formed. Most cards + bonus wins!',
     tipTitle: 'Set Example',
     tip1: 'Red 1 · Red 2 · Red 3 (count all different, color all same) → Set!',
@@ -249,7 +249,7 @@ export const I18N: Record<Lang, Txt> = {
         case 'set_wrong': return `❌ ${name}集合失败 — 还1张牌`;
         case 'set_timeout': return `⏰ ${name}超时 — 还1张牌`;
         case 'gyul_correct': return `🎯 ${name}无集合正确！+2分`;
-        case 'gyul_wrong': return `❌ ${name}无集合错误 — 还1张牌`;
+        case 'gyul_wrong': return `❌ ${name}无集合错误 — 奖励分-2`;
       }
     },
     gameOver: '游戏结束',
@@ -270,7 +270,7 @@ export const I18N: Record<Lang, Txt> = {
     rule2: '集合(Set)：选3张牌，每项属性（数量·颜色·形状·填充）全相同或全不同。',
     rule3: '发现集合？最先按集合！按钮抢占回合。在主持人屏幕上10秒内选择3张牌。',
     rule4: '答对→获得3张牌。答错或超时→将手中1张牌归还桌面。',
-    rule5: '认为桌面无集合？最先按无集合按钮抢占。答对→+2奖励分，答错→归还1张牌。',
+    rule5: '认为桌面无集合？最先按无集合按钮抢占。答对→+2奖励分，答错→奖励分-2。',
     rule6: '牌堆耗尽且无法再组成集合时游戏结束。牌数+奖励分合计最高的玩家获胜！',
     tipTitle: '集合示例',
     tip1: '红1·红2·红3（数量全不同，颜色全相同）→ 集合！',

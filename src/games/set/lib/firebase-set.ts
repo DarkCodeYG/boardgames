@@ -199,25 +199,14 @@ export async function resolveGyulWrong(
   room: SetRoomState,
   playerName: string,
 ): Promise<void> {
-  const tableCards = JSON.parse(room.tableCards) as number[];
   const sanitized = sanitizeName(playerName);
   const player = room.players[sanitized];
-  const collectedCards = JSON.parse(player?.collectedCards ?? '[]') as number[];
-
-  let newCollectedCards = collectedCards;
-  let newTableCards = tableCards;
-  if (collectedCards.length > 0) {
-    const randIdx = Math.floor(Math.random() * collectedCards.length);
-    const returned = collectedCards[randIdx];
-    newCollectedCards = collectedCards.filter((_, i) => i !== randIdx);
-    newTableCards = [...tableCards, returned];
-  }
+  const bonusPoints = Math.max(0, (player?.bonusPoints ?? 0) - 2);
 
   await update(roomRef(code), {
-    tableCards: JSON.stringify(newTableCards),
     currentTurn: null,
     lastResult: { playerName, type: 'gyul_wrong' as ResultType, timestamp: Date.now() },
-    [`players/${sanitized}/collectedCards`]: JSON.stringify(newCollectedCards),
+    [`players/${sanitized}/bonusPoints`]: bonusPoints,
   });
 }
 
