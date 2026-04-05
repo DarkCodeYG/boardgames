@@ -119,6 +119,7 @@ export async function resetRoomForNewGame(code: string): Promise<void> {
     maxPlayers: current.maxPlayers ?? 12,
     players: current.players ?? {},
     createdAt: current.createdAt ?? Date.now(),
+    lang: current.lang ?? 'ko',
   });
 }
 

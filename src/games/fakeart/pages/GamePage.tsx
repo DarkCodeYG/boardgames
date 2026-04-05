@@ -8,6 +8,7 @@ import {
   subscribeFakeartRoom,
   updateFakeartRoom,
   setWinner,
+  resetFakeartRoomForNewGame,
 } from '../lib/firebase-room';
 import type { RoomState } from '../lib/types';
 import DrawCanvas from '../components/DrawCanvas';
@@ -181,16 +182,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
   const handlePlayAgain = async () => {
     sfxClick();
-    await updateFakeartRoom(roomCode, {
-      phase: 'lobby',
-      seed: generateSeed(),
-      currentDrawerIndex: 0,
-      votes: {},
-      fakeGuess: '',
-      winner: null,
-      playerCount: 0,
-      canvasImage: undefined,
-    });
+    await resetFakeartRoomForNewGame(roomCode, generateSeed());
   };
 
   if (!roomCode || !roomState) {

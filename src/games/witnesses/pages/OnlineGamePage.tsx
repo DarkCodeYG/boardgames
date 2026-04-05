@@ -32,7 +32,8 @@ type HostPhase =
   | 'finished';
 
 export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: Props) {
-  const { lang: globalLang, setLang } = useGameStore((s) => ({ lang: s.lang, setLang: s.setLang }));
+  const globalLang = useGameStore((s) => s.lang);
+  const setLang = useGameStore((s) => s.setLang);
   const lang = globalLang;
   const txt = TEXTS[lang];
   const [roomCode, setRoomCode] = useState<string | null>(null);

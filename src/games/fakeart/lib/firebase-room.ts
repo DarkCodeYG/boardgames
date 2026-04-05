@@ -114,3 +114,22 @@ export async function submitFakeGuess(code: string, guess: string): Promise<void
 export async function setWinner(code: string, winner: 'fake' | 'others'): Promise<void> {
   await update(roomRef(code), { winner, phase: 'result' });
 }
+
+/** 같은 방/플레이어 유지, 게임 상태만 초기화 (다시 하기용) */
+export async function resetFakeartRoomForNewGame(code: string, seed: string): Promise<void> {
+  const snap = await get(roomRef(code));
+  if (!snap.exists()) return;
+  const current = snap.val() as RoomState;
+  await set(roomRef(code), {
+    phase: 'lobby',
+    seed,
+    pack: current.pack,
+    lang: current.lang,
+    drawTime: current.drawTime,
+    players: current.players ?? {},
+    playerCount: 0,
+    currentDrawerIndex: 0,
+    fakeGuess: '',
+    // votes, winner, canvasImage → intentionally omitted (removed from Firebase on set)
+  });
+}
