@@ -248,6 +248,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
       phase: g.phase,
       currentRound: g.currentRound,
       currentLeaderIndex: g.currentLeaderIndex,
+      leaderOrder: g.leaderOrder,
       consecutiveRejects: g.consecutiveRejects,
       witnessWins: g.witnessWins,
       agentWins: g.agentWins,
@@ -714,11 +715,11 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
                 onChange={(e) => setManualName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleManualAdd()}
                 placeholder={wt(lang, 'manualInput')}
-                className="flex-1 border-2 border-stone-300 rounded-lg px-3 py-2 font-bold focus:outline-none focus:border-stone-500"
+                className="flex-1 min-w-0 border-2 border-stone-300 rounded-lg px-3 py-2 font-bold focus:outline-none focus:border-stone-500"
                 maxLength={10}
               />
               <button onClick={() => { sfxClick(); handleManualAdd(); }} disabled={!manualName.trim()}
-                className="bg-stone-800 text-white px-4 py-2 rounded-lg font-bold disabled:opacity-40">{wt(lang, 'addPlayer')}</button>
+                className="shrink-0 bg-stone-800 text-white px-4 py-2 rounded-lg font-bold disabled:opacity-40">{wt(lang, 'addPlayer')}</button>
             </div>
           )}
 

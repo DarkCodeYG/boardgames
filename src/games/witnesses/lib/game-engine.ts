@@ -25,6 +25,7 @@ export function createGame(enabledRoles: SpecialRole[], existingSeed?: string): 
     missions: [],
     currentRound: 0,
     currentLeaderIndex: 0,
+    leaderOrder: [],
     consecutiveRejects: 0,
     witnessWins: 0,
     agentWins: 0,
@@ -130,6 +131,7 @@ export function startGame(state: GameState): GameState {
     missions,
     currentRound: 0,
     currentLeaderIndex: 0,
+    leaderOrder,
     roleRevealEndAt: Date.now() + ROLE_REVEAL_SECONDS * 1000,
     commanderIsAlsoCleric,
   };
@@ -245,6 +247,11 @@ export function submitMissionCard(state: GameState, playerId: string, success: b
   return { ...state, missions };
 }
 
+function advanceLeader(state: GameState): { nextCursor: number; leaderId: string } {
+  const nextCursor = (state.currentLeaderIndex + 1) % state.players.length;
+  return { nextCursor, leaderId: state.players[state.leaderOrder[nextCursor]].id };
+}
+
 /** 투표 결과 확인 후 다음 단계 */
 export function proceedAfterVote(state: GameState): GameState {
   const mission = state.missions[state.currentRound];
@@ -252,11 +259,11 @@ export function proceedAfterVote(state: GameState): GameState {
     return { ...state, phase: 'mission' };
   }
   // 부결 → 인도자 변경, 다시 팀 구성
-  const nextLeaderIdx = (state.currentLeaderIndex + 1) % state.players.length;
+  const { nextCursor, leaderId } = advanceLeader(state);
   const missions = [...state.missions];
   missions[state.currentRound] = {
     ...mission,
-    leaderId: state.players[nextLeaderIdx].id,
+    leaderId,
     teamIds: [],
     votes: {},
     approved: null,
@@ -264,23 +271,31 @@ export function proceedAfterVote(state: GameState): GameState {
   return {
     ...state, missions,
     phase: 'team-build',
-    currentLeaderIndex: nextLeaderIdx,
+    currentLeaderIndex: nextCursor,
   };
 }
 
 /** 미션 결과 확인 후 다음 라운드 */
 export function nextRound(state: GameState): GameState {
-  const nextRound = state.currentRound + 1;
-  if (nextRound >= 5) {
+  const next = state.currentRound + 1;
+  if (next >= 5) {
     const winner = state.witnessWins >= 3 ? 'witness' as const : 'agent' as const;
     return { ...state, phase: 'finished', winner, winReason: winner === 'witness' ? 'winReason3Success' : 'winReason3Fail' };
   }
 
+  const { nextCursor, leaderId } = advanceLeader(state);
+  const missions = [...state.missions];
+  missions[next] = {
+    ...missions[next],
+    leaderId,
+  };
+
   return {
     ...state,
+    missions,
     phase: 'team-build',
-    currentRound: nextRound,
-    currentLeaderIndex: (state.currentLeaderIndex + 1) % state.players.length,
+    currentRound: next,
+    currentLeaderIndex: nextCursor,
     consecutiveRejects: 0,
   };
 }

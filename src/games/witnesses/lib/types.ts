@@ -42,7 +42,8 @@ export interface GameState {
   players: Player[];
   missions: Mission[];
   currentRound: number;          // 0-indexed (0~4)
-  currentLeaderIndex: number;    // players 배열 인덱스
+  currentLeaderIndex: number;    // leaderOrder 배열 커서 (0-indexed)
+  leaderOrder: number[];         // 게임 시작 시 결정된 인도자 순서 (players 인덱스 배열)
   consecutiveRejects: number;    // 연속 부결 횟수
   witnessWins: number;
   agentWins: number;
