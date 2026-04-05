@@ -260,32 +260,32 @@ export default function PlayerPage() {
 
         {/* Buttons */}
         <div className="flex-1 flex flex-col gap-4 px-5 pb-8 justify-end">
-          {/* 셋 button */}
-          <button
-            onPointerDown={handleSet}
-            disabled={hasTurn || claimingTurn}
-            className={`
-              w-full py-10 rounded-3xl font-black text-4xl shadow-lg transition-all
-              ${hasTurn || claimingTurn
-                ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
-                : 'bg-red-500 text-white hover:bg-red-400 active:scale-95 active:shadow-inner'}
-            `}
-          >
-            {txt.setBtn}
-          </button>
-
-          {/* 결 button */}
+          {/* 결 button — 상단, 작게 */}
           <button
             onPointerDown={handleGyul}
             disabled={hasTurn || claimingTurn}
             className={`
-              w-full py-6 rounded-3xl font-black text-2xl shadow-lg transition-all
+              w-full py-4 rounded-2xl font-black text-xl shadow-md transition-all
               ${hasTurn || claimingTurn
                 ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
                 : 'bg-blue-500 text-white hover:bg-blue-400 active:scale-95 active:shadow-inner'}
             `}
           >
             {txt.gyulBtn}
+          </button>
+
+          {/* 셋 button — 하단, 크게 */}
+          <button
+            onPointerDown={handleSet}
+            disabled={hasTurn || claimingTurn}
+            className={`
+              w-full py-16 rounded-3xl font-black text-5xl shadow-xl transition-all
+              ${hasTurn || claimingTurn
+                ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
+                : 'bg-red-500 text-white hover:bg-red-400 active:scale-95 active:shadow-inner'}
+            `}
+          >
+            {txt.setBtn}
           </button>
         </div>
       </div>
