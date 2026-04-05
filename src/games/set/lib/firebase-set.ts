@@ -1,7 +1,8 @@
 import { ref, set, get, update, remove, onValue, runTransaction, type Unsubscribe } from 'firebase/database';
 import { db } from '../../../lib/firebase';
 import type { SetRoomState, Theme, Lang, ResultType } from './types';
-import { generateSeed, shuffleWithSeed, dealInitialCards } from './game-engine';
+import { generateSeed, shuffleWithSeed, dealInitialCards, isValidGeniusSet, findAnyGeniusSet } from './game-engine';
+export { isValidGeniusSet, findAnyGeniusSet };
 
 const roomRef = (code: string) => ref(db, `set/${code}`);
 
@@ -44,9 +45,12 @@ export async function joinSetRoom(
   const snap = await get(roomRef(code));
   if (!snap.exists()) return { joined: false, error: 'not_found' };
   const room = snap.val() as SetRoomState;
-  if (room.phase !== 'lobby') return { joined: false, error: 'started' };
-
   const sanitized = sanitizeName(name);
+  if (room.phase !== 'lobby') {
+    const isExistingPlayer = !!(room.players?.[sanitized]);
+    if (!isExistingPlayer) return { joined: false, error: 'started' };
+    return { joined: true };
+  }
   const playersRef = ref(db, `set/${code}/players`);
   await runTransaction(playersRef, (current) => {
     const players = (current || {}) as Record<string, unknown>;
@@ -65,8 +69,11 @@ export async function joinSetRoom(
 }
 
 export async function startSetGame(code: string): Promise<void> {
+  const snap = await get(roomRef(code));
+  const room = snap.val() as SetRoomState;
+  const cardCount = room.theme === 'genius' ? 27 : 81;
   const seed = generateSeed();
-  const allCards = Array.from({ length: 27 }, (_, i) => i);
+  const allCards = Array.from({ length: cardCount }, (_, i) => i);
   const shuffled = shuffleWithSeed(allCards, seed);
   const { tableCards, deckCards } = dealInitialCards(shuffled);
   await update(roomRef(code), {
@@ -106,11 +113,17 @@ export async function resolveSetCorrect(
   const player = room.players[sanitized];
   const collectedCards = JSON.parse(player?.collectedCards ?? '[]') as number[];
 
-  const newTableCards = tableCards.filter((id) => !selectedCardIds.includes(id));
   const newCollectedCards = [...collectedCards, ...selectedCardIds];
-  const replenishCount = Math.min(3, deckCards.length);
-  const finalTableCards = [...newTableCards, ...deckCards.slice(0, replenishCount)];
+  const remaining = tableCards.length - selectedCardIds.length;
+  const replenishCount = Math.min(Math.max(0, 12 - remaining), deckCards.length);
+  const newDeckSlice = deckCards.slice(0, replenishCount);
   const newDeckCards = deckCards.slice(replenishCount);
+
+  // Replace removed cards in-place; if deck runs short, those slots are dropped
+  let ri = 0;
+  const finalTableCards = tableCards
+    .map((id) => selectedCardIds.includes(id) ? (ri < newDeckSlice.length ? newDeckSlice[ri++] : null) : id)
+    .filter((c): c is number => c !== null);
 
   await update(roomRef(code), {
     tableCards: JSON.stringify(finalTableCards),
@@ -225,7 +238,8 @@ export async function deleteSetRoom(code: string): Promise<void> {
 
 export async function resetSetRoom(code: string, room: SetRoomState): Promise<void> {
   const seed = generateSeed();
-  const allCards = Array.from({ length: 27 }, (_, i) => i);
+  const cardCount = room.theme === 'genius' ? 27 : 81;
+  const allCards = Array.from({ length: cardCount }, (_, i) => i);
   const shuffled = shuffleWithSeed(allCards, seed);
   const { tableCards, deckCards } = dealInitialCards(shuffled);
 

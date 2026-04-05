@@ -24,7 +24,9 @@ type Txt = {
   gameAlreadyStarted: string;
   waitingToStart: string;
   setBtn: string;
+  setBtnHint: string;
   gyulBtn: string;
+  gyulBtnHint: string;
   yourCards: (n: number) => string;
   bonusPoints: (n: number) => string;
   totalScore: (cards: number, bonus: number) => string;
@@ -45,6 +47,9 @@ type Txt = {
   tableCards: (n: number) => string;
   creatingRoom: string;
   scanQr: string;
+  readyHint: string;
+  flashCorrect: string;
+  flashWrong: string;
 };
 
 export const I18N: Record<Lang, Txt> = {
@@ -72,7 +77,9 @@ export const I18N: Record<Lang, Txt> = {
     gameAlreadyStarted: '게임이 이미 시작됐습니다',
     waitingToStart: '호스트가 게임을 시작할 때까지 기다리세요',
     setBtn: '셋!',
+    setBtnHint: '3장이 셋을 이룰 때',
     gyulBtn: '결',
+    gyulBtnHint: '테이블에 셋이 없을 때',
     yourCards: (n) => `${n}장`,
     bonusPoints: (n) => `+${n}점`,
     totalScore: (cards, bonus) => `${cards + bonus}점`,
@@ -101,6 +108,9 @@ export const I18N: Record<Lang, Txt> = {
     tableCards: (n) => `바닥 ${n}장`,
     creatingRoom: '방 생성 중...',
     scanQr: 'QR 스캔 후 이름을 입력하세요',
+    readyHint: '셋이 보이면 버튼을 누르세요',
+    flashCorrect: '정답',
+    flashWrong: '오답',
   },
   en: {
     title: 'Set',
@@ -126,7 +136,9 @@ export const I18N: Record<Lang, Txt> = {
     gameAlreadyStarted: 'Game already started',
     waitingToStart: 'Waiting for host to start',
     setBtn: 'SET!',
+    setBtnHint: 'when 3 cards form a set',
     gyulBtn: 'NO SET',
+    gyulBtnHint: 'when no set exists on table',
     yourCards: (n) => `${n} cards`,
     bonusPoints: (n) => `+${n}pts`,
     totalScore: (cards, bonus) => `${cards + bonus}pts`,
@@ -155,6 +167,9 @@ export const I18N: Record<Lang, Txt> = {
     tableCards: (n) => `Table: ${n}`,
     creatingRoom: 'Creating room...',
     scanQr: 'Scan QR then enter your name',
+    readyHint: 'Press the button when you see a Set',
+    flashCorrect: 'Correct!',
+    flashWrong: 'Wrong!',
   },
   zh: {
     title: '集合',
@@ -180,7 +195,9 @@ export const I18N: Record<Lang, Txt> = {
     gameAlreadyStarted: '游戏已开始',
     waitingToStart: '等待主持人开始游戏',
     setBtn: '集合！',
+    setBtnHint: '发现3张匹配时',
     gyulBtn: '无集合',
+    gyulBtnHint: '桌面没有集合时',
     yourCards: (n) => `${n}张`,
     bonusPoints: (n) => `+${n}分`,
     totalScore: (cards, bonus) => `${cards + bonus}分`,
@@ -209,5 +226,8 @@ export const I18N: Record<Lang, Txt> = {
     tableCards: (n) => `桌面: ${n}张`,
     creatingRoom: '正在创建房间...',
     scanQr: '扫码后输入名字',
+    readyHint: '看到集合时按按钮',
+    flashCorrect: '正确！',
+    flashWrong: '错误！',
   },
 };

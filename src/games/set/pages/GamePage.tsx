@@ -3,7 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useGameStore } from '../../codenames/store/game-store';
 import { useSetStore } from '../store/game-store';
 import { I18N } from '../lib/i18n';
-import { isValidSet, findAnySet } from '../lib/game-engine';
+import { isValidSet, findAnySet, isValidGeniusSet, findAnyGeniusSet } from '../lib/game-engine';
 import {
   subscribeSetRoom,
   startSetGame,
@@ -17,7 +17,7 @@ import {
 } from '../lib/firebase-set';
 import type { SetRoomState, Lang } from '../lib/types';
 import SetCard from '../components/SetCard';
-import { sfxClick, sfxGameStart, sfxVictory, sfxTimerTick, sfxTimerUp, sfxPlayerJoin } from '../../../lib/sound';
+import { sfxClick, sfxGameStart, sfxVictory, sfxTimerTick, sfxTimerUp, sfxPlayerJoin, sfxCardFlip } from '../../../lib/sound';
 
 const SET_TIMEOUT_SECS = 10;
 
@@ -35,11 +35,14 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   const [banner, setBanner] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
 
+  const [newCardIds, setNewCardIds] = useState<Map<number, number>>(new Map());
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const processedTurnRef = useRef<string | null>(null);
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevPlayerCountRef = useRef<number | null>(null);
   const lastResultTimestampRef = useRef<number | null>(null);
+  const prevTableCardsRef = useRef<number[] | null>(null);
 
   const lang = ((roomState?.lang ?? storeLang ?? globalLang) || 'ko') as Lang;
   const txt = I18N[lang];
@@ -69,6 +72,26 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     else sfxTimerUp();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomState?.lastResult]);
+
+  // Card flip animation when new cards are added to table
+  useEffect(() => {
+    if (!roomState || roomState.phase !== 'playing') return;
+    const current = JSON.parse(roomState.tableCards || '[]') as number[];
+    const prev = prevTableCardsRef.current;
+    if (prev !== null) {
+      const added = current.filter((id) => !prev.includes(id));
+      if (added.length > 0) {
+        setNewCardIds(new Map(added.map((id, i) => [id, i])));
+        added.forEach((_, i) => setTimeout(() => sfxCardFlip(), i * 120));
+        const clearDelay = added.length * 120 + 500;
+        const t = setTimeout(() => setNewCardIds(new Map()), clearDelay);
+        prevTableCardsRef.current = current;
+        return () => clearTimeout(t);
+      }
+    }
+    prevTableCardsRef.current = current;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomState?.tableCards]);
 
   // 10s countdown for set turns
   useEffect(() => {
@@ -121,7 +144,8 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
     const timeout = setTimeout(() => {
       const tableCards = JSON.parse(captured.tableCards) as number[];
-      const setExists = findAnySet(tableCards) !== null;
+      const isGenius = captured.theme === 'genius';
+      const setExists = (isGenius ? findAnyGeniusSet(tableCards) : findAnySet(tableCards)) !== null;
       const resolve = setExists
         ? resolveGyulWrong(roomCode, captured, capturedTurnPlayer)
         : resolveGyulCorrect(roomCode, captured, capturedTurnPlayer);
@@ -153,7 +177,9 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     setResolving(true);
     if (timerRef.current) clearInterval(timerRef.current);
 
-    const valid = isValidSet(selectedCards[0], selectedCards[1], selectedCards[2]);
+    const valid = roomState.theme === 'genius'
+      ? isValidGeniusSet(selectedCards[0], selectedCards[1], selectedCards[2])
+      : isValidSet(selectedCards[0], selectedCards[1], selectedCards[2]);
     if (valid) {
       sfxGameStart();
       await resolveSetCorrect(roomCode, roomState, playerName, selectedCards);
@@ -352,16 +378,23 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             )}
 
             {/* Cards */}
-            <div className="flex-1 grid grid-cols-4 gap-2 content-start overflow-auto">
-              {tableCards.map((cardId) => (
-                <SetCard
-                  key={cardId}
-                  cardId={cardId}
-                  theme={theme || roomState.theme}
-                  selected={selectedCards.includes(cardId)}
-                  onClick={isSetTurn && !resolving ? () => handleCardClick(cardId) : undefined}
-                />
-              ))}
+            <div className="flex-1 grid grid-cols-4 gap-2 content-start overflow-auto" style={{ perspective: '600px' }}>
+              {tableCards.map((cardId) => {
+                const delayIdx = newCardIds.get(cardId);
+                const isNew = delayIdx !== undefined;
+                return (
+                  <div key={cardId}
+                       className={isNew ? 'animate-flip-in' : ''}
+                       style={isNew ? { animationDelay: `${delayIdx * 120}ms` } : undefined}>
+                    <SetCard
+                      cardId={cardId}
+                      theme={theme || roomState.theme}
+                      selected={selectedCards.includes(cardId)}
+                      onClick={isSetTurn && !resolving ? () => handleCardClick(cardId) : undefined}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
 
