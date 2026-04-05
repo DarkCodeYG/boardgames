@@ -13,13 +13,17 @@ import type { SpecialRole } from './games/witnesses/lib/types';
 import FakeartHome from './games/fakeart/pages/HomePage';
 import FakeartGame from './games/fakeart/pages/GamePage';
 import FakeartPlayer from './games/fakeart/pages/PlayerPage';
+import SetHome from './games/set/pages/HomePage';
+import SetGame from './games/set/pages/GamePage';
+import SetPlayer from './games/set/pages/PlayerPage';
 
 type Page =
   | 'home'
   | 'codenames-home' | 'codenames-game' | 'spymaster'
   | 'spyfall-home' | 'spyfall-game' | 'spyfall-player'
   | 'witnesses-home' | 'witnesses-game' | 'witnesses-player'
-  | 'fakeart-home' | 'fakeart-game' | 'fakeart-player';
+  | 'fakeart-home' | 'fakeart-game' | 'fakeart-player'
+  | 'set-home' | 'set-game' | 'set-player';
 
 function App() {
   const [page, setPage] = useState<Page>('home');
@@ -35,6 +39,8 @@ function App() {
       setPage('witnesses-player');
     } else if (game === 'fakeart' && params.get('room')) {
       setPage('fakeart-player');
+    } else if (game === 'set' && params.get('room')) {
+      setPage('set-player');
     } else if (params.get('seed')) {
       setPage('spymaster');
     }
@@ -70,6 +76,12 @@ function App() {
       return <FakeartGame onGoHome={() => setPage('home')} />;
     case 'fakeart-home':
       return <FakeartHome onStartGame={() => setPage('fakeart-game')} onBack={() => setPage('home')} />;
+    case 'set-player':
+      return <SetPlayer />;
+    case 'set-game':
+      return <SetGame onGoHome={() => setPage('home')} />;
+    case 'set-home':
+      return <SetHome onStartGame={() => setPage('set-game')} onBack={() => setPage('home')} />;
     default:
       return (
         <Home onSelectGame={(id) => {
@@ -77,6 +89,7 @@ function App() {
           if (id === 'spyfall') setPage('spyfall-home');
           if (id === 'witnesses') setPage('witnesses-home');
           if (id === 'fakeart') setPage('fakeart-home');
+          if (id === 'set') setPage('set-home');
         }} />
       );
   }
