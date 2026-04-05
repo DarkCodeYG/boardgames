@@ -72,6 +72,29 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
           <p className="text-stone-500 mt-2 text-sm">{txt.subtitle}</p>
         </div>
 
+        {/* 게임 설명 */}
+        <div className="text-left bg-white rounded-xl p-5 shadow-sm mb-6">
+          <h3 className="font-bold text-stone-700 mb-3">📋 {txt.howToPlay}</h3>
+          <ol className="text-sm text-stone-500 space-y-2">
+            {[txt.rule1, txt.rule2, txt.rule3, txt.rule4, txt.rule5, txt.rule6].map((rule, i) => (
+              <li key={i}><strong>{i + 1}.</strong> {rule}</li>
+            ))}
+          </ol>
+          <div className="mt-4 pt-4 border-t border-stone-100">
+            <p className="font-bold text-stone-600 text-sm mb-2">💡 {txt.tipTitle}</p>
+            <ul className="text-sm text-stone-400 space-y-1">
+              <li>• {txt.tip1}</li>
+              <li>• {txt.tip2}</li>
+            </ul>
+          </div>
+          <div className="mt-4 pt-4 border-t border-stone-100">
+            <p className="font-bold text-stone-600 text-sm mb-2">🃏 {txt.attrTitle}</p>
+            <ul className="text-sm text-stone-400 space-y-1">
+              {txt.attrs.map((a, i) => <li key={i}>• {a}</li>)}
+            </ul>
+          </div>
+        </div>
+
         {/* Theme selection */}
         <p className="text-stone-600 font-bold mb-4 text-center text-lg">{txt.themeLabel}</p>
         <div className="grid grid-cols-2 gap-4">

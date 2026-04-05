@@ -50,6 +50,18 @@ type Txt = {
   readyHint: string;
   flashCorrect: string;
   flashWrong: string;
+  howToPlay: string;
+  rule1: string;
+  rule2: string;
+  rule3: string;
+  rule4: string;
+  rule5: string;
+  rule6: string;
+  tipTitle: string;
+  tip1: string;
+  tip2: string;
+  attrTitle: string;
+  attrs: string[];
 };
 
 export const I18N: Record<Lang, Txt> = {
@@ -111,6 +123,18 @@ export const I18N: Record<Lang, Txt> = {
     readyHint: '셋이 보이면 버튼을 누르세요',
     flashCorrect: '정답',
     flashWrong: '오답',
+    howToPlay: '게임 방법',
+    rule1: '바닥에 12장의 카드가 펼쳐집니다.',
+    rule2: '셋(Set): 3장을 골라 각 속성(개수·색상·모양·채우기)이 모두 같거나 모두 다른 조합.',
+    rule3: '셋이 보이면 가장 먼저 셋! 버튼을 누릅니다. 선점 성공 시 호스트 화면에서 10초 내에 3장을 선택하세요.',
+    rule4: '정답이면 3장을 획득. 오답·시간초과이면 보유 카드 1장을 바닥에 반납.',
+    rule5: '바닥에 셋이 없다고 판단되면 결 버튼을 눌러 선점. 맞으면 +2 부가점수, 틀리면 카드 1장 반납.',
+    rule6: '덱이 소진되고 더 이상 셋을 만들 수 없으면 게임 종료. 카드 수 + 부가점수 합계가 가장 높은 플레이어가 승리!',
+    tipTitle: '셋 판별 예시',
+    tip1: '빨강 1개·빨강 2개·빨강 3개 (개수 모두 다름, 색상 모두 같음) → 셋!',
+    tip2: '3장 중 어느 속성이라도 "2개 같고 1개 다름"이면 셋이 아닙니다.',
+    attrTitle: '속성 기준 (일반 테마)',
+    attrs: ['개수: 1 / 2 / 3개', '색상: 빨강 / 초록 / 보라', '모양: 마름모 / 타원 / 물결', '채우기: 단색 / 빗금 / 빈칸'],
   },
   en: {
     title: 'Set',
@@ -170,6 +194,18 @@ export const I18N: Record<Lang, Txt> = {
     readyHint: 'Press the button when you see a Set',
     flashCorrect: 'Correct!',
     flashWrong: 'Wrong!',
+    howToPlay: 'How to Play',
+    rule1: '12 cards are laid face-up on the table.',
+    rule2: 'A Set: 3 cards where each attribute (count·color·shape·fill) is all-same or all-different.',
+    rule3: 'Spot a Set? Press SET! first to claim your turn. Select 3 cards on the host screen within 10 seconds.',
+    rule4: 'Correct → keep the 3 cards. Wrong or timeout → return 1 card from your hand.',
+    rule5: 'Think no Set exists? Press NO SET first. Correct → +2 bonus points. Wrong → return 1 card.',
+    rule6: 'Game ends when the deck runs out and no more Sets can be formed. Most cards + bonus wins!',
+    tipTitle: 'Set Example',
+    tip1: 'Red 1 · Red 2 · Red 3 (count all different, color all same) → Set!',
+    tip2: 'If any attribute has exactly 2 matching and 1 different across the 3 cards → Not a Set.',
+    attrTitle: 'Attributes (Standard Theme)',
+    attrs: ['Count: 1 / 2 / 3', 'Color: Red / Green / Purple', 'Shape: Diamond / Oval / Squiggle', 'Fill: Solid / Striped / Open'],
   },
   zh: {
     title: '集合',
@@ -229,5 +265,17 @@ export const I18N: Record<Lang, Txt> = {
     readyHint: '看到集合时按按钮',
     flashCorrect: '正确！',
     flashWrong: '错误！',
+    howToPlay: '游戏方法',
+    rule1: '桌面摆放12张牌。',
+    rule2: '集合(Set)：选3张牌，每项属性（数量·颜色·形状·填充）全相同或全不同。',
+    rule3: '发现集合？最先按集合！按钮抢占回合。在主持人屏幕上10秒内选择3张牌。',
+    rule4: '答对→获得3张牌。答错或超时→将手中1张牌归还桌面。',
+    rule5: '认为桌面无集合？最先按无集合按钮抢占。答对→+2奖励分，答错→归还1张牌。',
+    rule6: '牌堆耗尽且无法再组成集合时游戏结束。牌数+奖励分合计最高的玩家获胜！',
+    tipTitle: '集合示例',
+    tip1: '红1·红2·红3（数量全不同，颜色全相同）→ 集合！',
+    tip2: '若任意属性在3张牌中出现"2张相同1张不同"→ 不是集合。',
+    attrTitle: '属性说明（标准主题）',
+    attrs: ['数量：1 / 2 / 3个', '颜色：红 / 绿 / 紫', '形状：菱形 / 椭圆 / 波浪', '填充：实心 / 条纹 / 空心'],
   },
 };
