@@ -70,8 +70,8 @@ type Txt = {
 
 export const I18N: Record<Lang, Txt> = {
   ko: {
-    title: 'SET',
-    subtitle: '각 속성이 모두 같거나 모두 다르면 셋!',
+    title: 'Set',
+    subtitle: '각 속성이 모두 같거나 모두 다르면 Set!',
     standard: '일반',
     standardDesc: '개수 · 색상 · 모양',
     genius: '지니어스',

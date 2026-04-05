@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGameStore } from '../../codenames/store/game-store';
 import { useSetStore } from '../store/game-store';
 import { I18N } from '../lib/i18n';
@@ -18,6 +18,13 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
   const globalLang = useGameStore((s) => s.lang);
   const { lang, setRoom, setLang } = useSetStore();
   const [creating, setCreating] = useState(false);
+
+  // Sync global lang into Set store on mount so home screen language selection carries over
+  useEffect(() => {
+    setLang(globalLang);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const activeLang = lang || globalLang;
   const txt = I18N[activeLang];
 

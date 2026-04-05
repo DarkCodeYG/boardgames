@@ -11,7 +11,7 @@ const TEXTS = {
         spyfall: '스파이폴', spyfallDesc: '스파이를 찾아라! 질문으로 정체를 밝혀내세요', spyfallPlayers: '3+ 명',
         witnesses: '중국의 증인들', witnessesDesc: '증인과 공안의 심리전! 봉사구역을 완수하라', witnessesPlayers: '5~12 명',
         fakeart: '가짜 화가', fakeartDesc: '가짜 화가를 찾아라! 그림으로 숨어라', fakeartPlayers: '4+ 명',
-        set: 'SET', setDesc: '속성이 모두 같거나 모두 다르면 SET! 결합을 찾아라', setPlayers: '2+ 명' },
+        set: 'Set', setDesc: '속성이 모두 같거나 모두 다르면 Set! 결합을 찾아라', setPlayers: '2+ 명' },
   en: { title: '🎲 Board Games', subtitle: 'Choose a game to play', more: 'More games coming soon!',
         codenames: 'Codenames', codenamesDesc: 'Give clues, find your agents!', codenamesPlayers: '4+ players',
         spyfall: 'Spyfall', spyfallDesc: 'Find the spy! Ask questions to reveal them', spyfallPlayers: '3+ players',
