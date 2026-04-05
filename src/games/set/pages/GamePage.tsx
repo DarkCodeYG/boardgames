@@ -39,6 +39,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   const [showHintConfirm, setShowHintConfirm] = useState(false);
   const [hintCards, setHintCards] = useState<number[] | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
+  const [turnAnnounce, setTurnAnnounce] = useState<{ playerName: string; type: 'set' | 'gyul' } | null>(null);
   const hintIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -47,6 +48,8 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   const prevPlayerCountRef = useRef<number | null>(null);
   const lastResultTimestampRef = useRef<number | null>(null);
   const prevTableCardsRef = useRef<number[] | null>(null);
+  const lastTurnAnnounceKeyRef = useRef<string | null>(null);
+  const turnAnnounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const lang = ((roomState?.lang ?? storeLang ?? globalLang) || 'ko') as Lang;
   const txt = I18N[lang];
@@ -123,6 +126,19 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   useEffect(() => {
     setSelectedCards([]);
     setResolving(false);
+  }, [roomState?.currentTurn?.playerName, roomState?.currentTurn?.startedAt]);
+
+  // Turn announcement overlay
+  useEffect(() => {
+    const turn = roomState?.currentTurn;
+    if (!turn) return;
+    const key = `${turn.playerName}-${turn.startedAt}`;
+    if (lastTurnAnnounceKeyRef.current === key) return;
+    lastTurnAnnounceKeyRef.current = key;
+    if (turnAnnounceTimerRef.current) clearTimeout(turnAnnounceTimerRef.current);
+    setTurnAnnounce({ playerName: turn.playerName, type: turn.type });
+    turnAnnounceTimerRef.current = setTimeout(() => setTurnAnnounce(null), 2000);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomState?.currentTurn?.playerName, roomState?.currentTurn?.startedAt]);
 
   // Auto-handle set timeout
@@ -389,16 +405,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
                   {isGyulTurn && (
                     <span className="text-sm font-bold text-blue-600">{txt.checkingGyul}</span>
                   )}
-                  {isSetTurn && selectedCards.length === 3 && !resolving && (
-                    <button
-                      onClick={handleConfirmSet}
-                      className="bg-stone-800 text-white font-black px-4 py-1.5 rounded-xl text-sm
-                                 hover:bg-stone-700 active:scale-95 transition-all"
-                    >
-                      {txt.confirm}
-                    </button>
-                  )}
-                </div>
+                  </div>
               </div>
             )}
 
@@ -480,6 +487,35 @@ export default function GamePage({ onGoHome }: GamePageProps) {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Turn announcement overlay */}
+        {turnAnnounce && (
+          <div className="fixed inset-0 flex items-center justify-center z-40 pointer-events-none">
+            <div className={`flex flex-col items-center justify-center rounded-3xl px-16 py-10 shadow-2xl
+              ${turnAnnounce.type === 'set' ? 'bg-orange-500' : 'bg-blue-600'}
+              animate-turn-announce`}>
+              <div className="text-white/80 text-2xl font-bold mb-2">
+                {turnAnnounce.type === 'set' ? '🃏 SET!' : '결!'}
+              </div>
+              <div className="text-white font-black text-7xl leading-tight">
+                {turnAnnounce.playerName}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Big confirm button */}
+        {isSetTurn && selectedCards.length === 3 && !resolving && (
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-30 animate-pop-in">
+            <button
+              onClick={handleConfirmSet}
+              className="bg-emerald-600 text-white font-black text-3xl px-16 py-5 rounded-3xl shadow-2xl
+                         hover:bg-emerald-500 active:scale-95 transition-all border-4 border-white"
+            >
+              ✓ {txt.confirm}
+            </button>
           </div>
         )}
 

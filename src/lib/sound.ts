@@ -12,20 +12,23 @@ function getCtx(): AudioContext {
 }
 
 // iOS Safari는 사용자 인터랙션 없이 AudioContext를 시작하지 못함.
-// 첫 터치/클릭에서 무음 버퍼로 AudioContext를 미리 unlock해둠.
+// 또한 백그라운드 복귀 시 AudioContext를 다시 suspend시키므로,
+// 리스너를 제거하지 않고 매 터치마다 suspended 여부를 확인해 재unlock.
 if (typeof window !== 'undefined') {
   const unlock = () => {
     try {
       if (!ctx) ctx = new AudioContext();
-      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-      const buf = ctx.createBuffer(1, 1, 22050);
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.start(0);
+      if (ctx.state !== 'running') {
+        ctx.resume().catch(() => {});
+        const buf = ctx.createBuffer(1, 1, 22050);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        src.start(0);
+      }
     } catch {}
-    window.removeEventListener('touchstart', unlock, true);
-    window.removeEventListener('pointerdown', unlock, true);
+    // ※ 리스너 제거 안 함: iOS는 백그라운드 복귀/일정 시간 비활성 후
+    //   AudioContext를 다시 suspend시키므로 다음 터치에서 재unlock 필요.
   };
   window.addEventListener('touchstart', unlock, true);
   window.addEventListener('pointerdown', unlock, true);

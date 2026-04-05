@@ -104,6 +104,11 @@ boardgames/
 7. `App.tsx`에 import + Page 타입 + switch case 추가
 8. `src/pages/Home.tsx`에 게임 카드 + 텍스트(ko/en/zh) 추가
 
+### 새 게임 추가 시 체크리스트
+- **소리 (iOS 포함):** 반드시 `src/lib/sound.ts`의 sfx 함수만 사용. 게임 내에서 직접 `AudioContext`를 생성하지 않는다.
+  - iOS AudioContext unlock 및 짧은 소리 150ms 오프셋 수정이 `sound.ts` 모듈 레벨에 적용되어 있어, import만 하면 자동 적용됨.
+  - 직접 AudioContext 쓸 경우 iOS에서 소리 안 나는 버그 재발 가능성 있음.
+
 ## 개발 명령어
 
 ```bash
