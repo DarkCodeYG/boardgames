@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useGameStore } from '../games/codenames/store/game-store';
 import { LANG_LABELS, type Lang } from '../games/codenames/lib/i18n';
-import { sfxToggle, sfxGameSelect } from '../lib/sound';
+import { sfxToggle, sfxGameSelect, sfxClick } from '../lib/sound';
 
 const LANGS: Lang[] = ['ko', 'en', 'zh'];
 
@@ -25,13 +26,41 @@ const TEXTS = {
         set: '集合', setDesc: '全相同或全不同即为集合！快速找到组合', setPlayers: '2+ 人' },
 };
 
+const QUIZ_POOL = [
+  { q: '왕국설립년도?', a: '1914' },
+  { q: 'RP의 1년 요구시간?', a: '600' },
+  { q: '큰무리발표년도?', a: '1935' },
+];
+
 interface HomeProps {
   onSelectGame: (gameId: string) => void;
 }
 
 export default function Home({ onSelectGame }: HomeProps) {
-  const { lang, setLang } = useGameStore();
+  const { lang, setLang, hiddenMode, setHiddenMode } = useGameStore();
   const txt = TEXTS[lang];
+
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quiz] = useState(() => QUIZ_POOL[Math.floor(Math.random() * QUIZ_POOL.length)]);
+  const [answer, setAnswer] = useState('');
+
+  const handleHiddenToggle = () => {
+    sfxClick();
+    if (hiddenMode) {
+      setHiddenMode(false);
+    } else {
+      setShowQuiz(true);
+      setAnswer('');
+    }
+  };
+
+  const handleQuizSubmit = () => {
+    if (answer.trim() === quiz.a) {
+      setHiddenMode(true);
+    }
+    setShowQuiz(false);
+    setAnswer('');
+  };
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-stone-100 to-stone-200 p-6 flex flex-col items-center justify-center">
@@ -100,20 +129,22 @@ export default function Home({ onSelectGame }: HomeProps) {
           </div>
         </button>
 
-        <button
-          onClick={() => { sfxGameSelect(); onSelectGame('witnesses'); }}
-          className="bg-white rounded-2xl p-5 shadow-md text-left
-                     hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <span className="text-4xl">📖</span>
-            <div>
-              <h2 className="text-xl font-bold text-stone-800">{txt.witnesses}</h2>
-              <p className="text-sm text-stone-500">{txt.witnessesDesc}</p>
-              <p className="text-xs text-stone-400 mt-1">{txt.witnessesPlayers}</p>
+        {hiddenMode && (
+          <button
+            onClick={() => { sfxGameSelect(); onSelectGame('witnesses'); }}
+            className="bg-white rounded-2xl p-5 shadow-md text-left
+                       hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
+          >
+            <div className="flex items-center gap-4">
+              <span className="text-4xl">📖</span>
+              <div>
+                <h2 className="text-xl font-bold text-stone-800">{txt.witnesses}</h2>
+                <p className="text-sm text-stone-500">{txt.witnessesDesc}</p>
+                <p className="text-xs text-stone-400 mt-1">{txt.witnessesPlayers}</p>
+              </div>
             </div>
-          </div>
-        </button>
+          </button>
+        )}
 
         <button
           onClick={() => { sfxGameSelect(); onSelectGame('set'); }}
@@ -132,6 +163,46 @@ export default function Home({ onSelectGame }: HomeProps) {
       </div>
 
       <p className="text-stone-400 text-xs mt-8">{txt.more}</p>
+
+      {/* 히든모드 토글 */}
+      <button
+        onClick={handleHiddenToggle}
+        className="mt-4 text-stone-300 hover:text-stone-400 transition-colors"
+      >
+        {hiddenMode ? <span className="text-sm">🔓 히든모드</span> : <span className="text-2xl">🔒</span>}
+      </button>
+
+      {/* 퀴즈 모달 */}
+      {showQuiz && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl">
+            <p className="text-stone-700 font-bold text-lg mb-4 text-center">{quiz.q}</p>
+            <input
+              type="text"
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleQuizSubmit()}
+              className="w-full border-2 border-stone-300 focus:border-stone-500 rounded-xl px-4 py-2 text-center text-lg font-bold outline-none transition-colors"
+              placeholder="답을 입력하세요"
+              autoFocus
+            />
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setShowQuiz(false)}
+                className="flex-1 py-2 rounded-xl bg-stone-100 text-stone-500 font-bold hover:bg-stone-200"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleQuizSubmit}
+                className="flex-1 py-2 rounded-xl bg-stone-800 text-white font-bold hover:bg-stone-700"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

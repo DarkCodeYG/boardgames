@@ -26,10 +26,15 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
     setCreating(true);
     sfxGameStart();
     try {
-      const code = await createSetRoom(theme, activeLang);
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 8000)
+      );
+      const code = await Promise.race([createSetRoom(theme, activeLang), timeout]);
       setRoom(code, theme, activeLang);
       onStartGame();
-    } finally {
+    } catch (err) {
+      console.error('방 생성 실패:', err);
+      alert('방 생성에 실패했습니다. 인터넷 연결을 확인해 주세요.');
       setCreating(false);
     }
   };
