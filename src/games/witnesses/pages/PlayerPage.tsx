@@ -3,7 +3,7 @@ import GameEndedModal from '../../../components/GameEndedModal';
 import { subscribeRoom, joinRoom, submitAction } from '../lib/firebase-room';
 import type { Lang } from '../../codenames/lib/i18n';
 import { wt } from '../lib/i18n';
-import { sfxClick, sfxToggle, sfxCorrect, sfxModalOpen, sfxModalClose, sfxRoleReveal } from '../../../lib/sound';
+import { sfxClick, sfxToggle, sfxCorrect, sfxModalOpen, sfxModalClose, sfxRoleReveal, sfxTimerTick } from '../../../lib/sound';
 
 type PlayerPhase = 'join' | 'lobby' | 'role-reveal' | 'waiting' | 'team-build' | 'vote' | 'mission' | 'vote-result' | 'mission-result' | 'finished' | 'ended' | 'not-participant';
 
@@ -34,6 +34,7 @@ export default function PlayerPage() {
   const [voteSecondsLeft, setVoteSecondsLeft] = useState<number | null>(null);
   const roomNullTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const voteTickRef = useRef<number | null>(null);
 
   // URL 파라미터 + localStorage 자동 재접속
   useEffect(() => {
@@ -311,12 +312,20 @@ export default function PlayerPage() {
   // ===== 투표 카운트다운 타이머 =====
   const voteDeadlineFromRoom = phase === 'vote' ? (room?.voteDeadline as number | undefined) : undefined;
   useEffect(() => {
-    if (!voteDeadlineFromRoom) { setVoteSecondsLeft(null); return; }
+    if (!voteDeadlineFromRoom) { setVoteSecondsLeft(null); voteTickRef.current = null; return; }
     const update = () => setVoteSecondsLeft(Math.max(0, Math.ceil((voteDeadlineFromRoom - Date.now()) / 1000)));
     update();
     const id = setInterval(update, 500);
     return () => clearInterval(id);
   }, [voteDeadlineFromRoom]);
+
+  // 투표 5초 경고음 (중복 방지)
+  useEffect(() => {
+    if (voteSecondsLeft === null || voteSecondsLeft <= 0 || voteSecondsLeft > 5) return;
+    if (voteTickRef.current === voteSecondsLeft) return;
+    voteTickRef.current = voteSecondsLeft;
+    sfxTimerTick();
+  }, [voteSecondsLeft]);
 
   // 타임아웃 시 기권 자동제출 (반대로 처리)
   useEffect(() => {

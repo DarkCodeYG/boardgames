@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import GameEndedModal from '../../../components/GameEndedModal';
 import { I18N } from '../lib/i18n';
 import type { Lang } from '../lib/types';
-import { resolveGame } from '../lib/game-engine';
+import { resolveGame, getAccused } from '../lib/game-engine';
 import {
   subscribeFakeartRoom,
   joinFakeartRoom,
@@ -10,7 +10,7 @@ import {
   submitFakeGuess,
 } from '../lib/firebase-room';
 import type { RoomState } from '../lib/types';
-import { sfxClick, sfxRoleReveal, sfxVictory } from '../../../lib/sound';
+import { sfxClick, sfxRoleReveal, sfxVictory, sfxTimerTick } from '../../../lib/sound';
 import { PLAYER_COLORS } from '../lib/constants';
 
 type PlayerView = 'join' | 'waiting' | 'role' | 'roleConfirmed' | 'drawing' | 'voting' | 'guess' | 'result';
@@ -37,7 +37,12 @@ export default function PlayerPage() {
   const autoReconnectAttempted = useRef(false);
   const roomNullTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasReceivedRoomRef = useRef(false);
+  const playerIndexRef = useRef(-1);
+  const voteTickRef = useRef<number | null>(null);
   const [roomEndedByHost, setRoomEndedByHost] = useState(false);
+
+  // playerIndex 최신값을 ref에 동기화 (구독 클로저에서 stale 방지)
+  useEffect(() => { playerIndexRef.current = playerIndex; }, [playerIndex]);
 
   // Firebase 구독 (null 오탐지 방지: 3초 디바운스 후 게임 종료 처리)
   useEffect(() => {
@@ -50,7 +55,7 @@ export default function PlayerPage() {
           roomNullTimerRef.current = null;
         }
         setRoomState(state);
-      } else if (hasReceivedRoomRef.current && playerIndex !== -1) {
+      } else if (hasReceivedRoomRef.current && playerIndexRef.current !== -1) {
         if (!roomNullTimerRef.current) {
           roomNullTimerRef.current = setTimeout(() => setRoomEndedByHost(true), 3000);
         }
@@ -169,9 +174,13 @@ export default function PlayerPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, roomState?.votingStartedAt]);
 
-  // 투표 카운트다운 (1초마다)
+  // 투표 카운트다운 (1초마다, 5초 이하 경고음 — ref로 중복 방지)
   useEffect(() => {
     if (view !== 'voting' || hasVoted || voteTimeLeft <= 0) return;
+    if (voteTimeLeft <= 5 && voteTickRef.current !== voteTimeLeft) {
+      voteTickRef.current = voteTimeLeft;
+      sfxTimerTick();
+    }
     const id = setTimeout(() => setVoteTimeLeft((t) => t - 1), 1000);
     return () => clearTimeout(id);
   }, [view, hasVoted, voteTimeLeft]);
@@ -639,6 +648,7 @@ export default function PlayerPage() {
   if (view === 'result' && roomState) {
     const isFakeWin = roomState.winner === 'fake';
     const iWon = isFake ? isFakeWin : !isFakeWin;
+    const accused = getAccused(roomState.votes || {});
 
     return (
       <div
@@ -694,6 +704,19 @@ export default function PlayerPage() {
             <div>
               <p className="text-white/60 text-xs font-bold">{txt.theFake}</p>
               <p className="text-white font-black">{playerName(fakeIndex)}</p>
+            </div>
+            <div>
+              <p className="text-white/60 text-xs font-bold">{txt.voteResult}</p>
+              {accused === null ? (
+                <p className="text-white font-black">{txt.noVoteTie}</p>
+              ) : (
+                <>
+                  <p className="text-white font-black">{txt.accusedIs(playerName(accused))}</p>
+                  {accused !== fakeIndex && (
+                    <p className="text-white/70 text-xs">{txt.wrongAccused}</p>
+                  )}
+                </>
+              )}
             </div>
             {roomState.fakeGuess && (
               <div>

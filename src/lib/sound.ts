@@ -11,6 +11,26 @@ function getCtx(): AudioContext {
   return ctx;
 }
 
+// iOS Safari는 사용자 인터랙션 없이 AudioContext를 시작하지 못함.
+// 첫 터치/클릭에서 무음 버퍼로 AudioContext를 미리 unlock해둠.
+if (typeof window !== 'undefined') {
+  const unlock = () => {
+    try {
+      if (!ctx) ctx = new AudioContext();
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+    } catch {}
+    window.removeEventListener('touchstart', unlock, true);
+    window.removeEventListener('pointerdown', unlock, true);
+  };
+  window.addEventListener('touchstart', unlock, true);
+  window.addEventListener('pointerdown', unlock, true);
+}
+
 // ── 기본 음 생성 헬퍼 ──────────────────────────────────────
 
 type OscType = OscillatorType;
@@ -28,7 +48,10 @@ function note(
   const gain = ac.createGain();
   osc.type = type;
   osc.frequency.value = freq;
-  const t = ac.currentTime + start;
+  // iOS: resume()은 비동기(~50-150ms). 그 사이 예약된 짧은 소리는 currentTime이 이미
+  // 지나버려 재생되지 않음. running 상태가 아니면 150ms 여유를 추가해 resume 후 재생 보장.
+  const offset = ac.state !== 'running' ? 0.15 : 0;
+  const t = ac.currentTime + start + offset;
   gain.gain.setValueAtTime(0, t);
   gain.gain.linearRampToValueAtTime(vol, t + 0.015);
   gain.gain.setValueAtTime(vol, t + dur * 0.6);
@@ -50,7 +73,8 @@ function noise(ac: AudioContext, start: number, dur: number, vol: number, hipass
   hp.type = 'highpass';
   hp.frequency.value = hipass;
   const gain = ac.createGain();
-  const t = ac.currentTime + start;
+  const offset = ac.state !== 'running' ? 0.15 : 0;
+  const t = ac.currentTime + start + offset;
   gain.gain.setValueAtTime(vol, t);
   gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
   src.connect(hp);
@@ -255,6 +279,30 @@ export function sfxModalClose() {
     const ac = getCtx();
     note(ac, 700, 0, 0.06, 0.06, 'sine');
     note(ac, 500, 0.04, 0.1, 0.05, 'sine');
+  } catch {}
+}
+
+/** 턴 전환 — 길고 확실한 턴오버 */
+export function sfxTurnOver() {
+  try {
+    const ac = getCtx();
+    // 초기 임팩트 노이즈
+    noise(ac, 0, 0.1, 0.1, 3000);
+    // 하강 3음 (A5 → E5 → C5)
+    note(ac, 880, 0, 0.18, 0.28, 'sine');
+    note(ac, 660, 0.15, 0.22, 0.30, 'sine');
+    note(ac, 523, 0.32, 0.40, 0.26, 'sine');
+    // 하모닉 레이어
+    note(ac, 523, 0.32, 0.40, 0.08, 'triangle');
+  } catch {}
+}
+
+/** 참가자 입장 — 경쾌한 핑 */
+export function sfxPlayerJoin() {
+  try {
+    const ac = getCtx();
+    note(ac, 660, 0, 0.08, 0.1, 'sine');
+    note(ac, 880, 0.07, 0.12, 0.12, 'sine');
   } catch {}
 }
 

@@ -177,12 +177,13 @@ export default function DrawCanvas({
     <div className="relative w-full h-full">
       <canvas
         ref={canvasRef}
-        className="w-full h-full bg-white rounded-xl touch-none"
-        style={{ touchAction: 'none', cursor: cursorStyle }}
+        className="w-full h-full bg-white rounded-xl touch-none select-none"
+        style={{ touchAction: 'none', cursor: cursorStyle, WebkitUserSelect: 'none', userSelect: 'none' }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onContextMenu={(e) => e.preventDefault()}
       />
       {!disabled && (
         <div className="absolute bottom-3 right-3 flex gap-2">

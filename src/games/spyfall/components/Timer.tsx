@@ -16,8 +16,8 @@ export default function Timer({ startedAt, durationMinutes, onTimeUp }: TimerPro
       const elapsed = Math.floor((Date.now() - startedAt) / 1000);
       const left = Math.max(0, durationMinutes * 60 - elapsed);
       setRemaining(left);
-      // 마지막 10초 틱 사운드
-      if (left <= 10 && left > 0 && left !== prevRef.current) {
+      // 마지막 5초 틱 사운드
+      if (left <= 5 && left > 0 && left !== prevRef.current) {
         sfxTimerTick();
       }
       prevRef.current = left;

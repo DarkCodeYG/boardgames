@@ -10,10 +10,11 @@ import {
   setWinner,
   resetFakeartRoomForNewGame,
   deleteFakeartRoom,
+  submitVote,
 } from '../lib/firebase-room';
 import type { RoomState } from '../lib/types';
 import DrawCanvas from '../components/DrawCanvas';
-import { sfxClick, sfxGameStart, sfxVictory, sfxDefeat, sfxTimerTick, sfxTimerUp, sfxRoleReveal } from '../../../lib/sound';
+import { sfxClick, sfxGameStart, sfxVictory, sfxDefeat, sfxTimerTick, sfxTimerUp, sfxRoleReveal, sfxPlayerJoin, sfxTurnOver } from '../../../lib/sound';
 import { PLAYER_COLORS } from '../lib/constants';
 
 interface GamePageProps {
@@ -27,11 +28,15 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [timer, setTimer] = useState(drawTime);
   const [baselineSnapshot, setBaselineSnapshot] = useState<ImageData | null>(null);
+  const [hostVoteTimer, setHostVoteTimer] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hostVoteTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const processedVotesRef = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isMountedRef = useRef(true);
   const isNextProcessingRef = useRef(false);
+  const hostVoteTickRef = useRef<number | null>(null);
+  const prevLobbyPlayerCountRef = useRef<number | null>(null);
 
   const lang = ((roomState?.lang ?? storeLang ?? globalLang) || 'ko') as NonNullable<typeof storeLang>;
   const txt = I18N[lang];
@@ -57,6 +62,20 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     return () => { isMountedRef.current = false; };
   }, []);
 
+  // 로비 참가자 입장 효과음
+  useEffect(() => {
+    if (roomState?.phase !== 'lobby') {
+      prevLobbyPlayerCountRef.current = null;
+      return;
+    }
+    const currentCount = Object.keys(roomState.players || {}).length;
+    if (prevLobbyPlayerCountRef.current !== null && currentCount > prevLobbyPlayerCountRef.current) {
+      sfxPlayerJoin();
+    }
+    prevLobbyPlayerCountRef.current = currentCount;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomState?.players, roomState?.phase]);
+
   // Firebase 구독
   useEffect(() => {
     if (!roomCode) return;
@@ -76,7 +95,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
           clearInterval(timerRef.current!);
           return 0;
         }
-        if (prev <= 10) sfxTimerTick();
+        if (prev <= 5) sfxTimerTick();
         return prev - 1;
       });
     }, 1000);
@@ -110,6 +129,43 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     setBaselineSnapshot(ctx.getImageData(0, 0, canvas.width, canvas.height));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomState?.currentDrawerIndex, roomState?.phase]);
+
+  // 호스트 투표 카운트다운 (60초, 500ms 간격 업데이트)
+  useEffect(() => {
+    if (roomState?.phase !== 'voting' || !roomState.votingStartedAt) {
+      if (hostVoteTimerRef.current) clearInterval(hostVoteTimerRef.current);
+      setHostVoteTimer(null);
+      hostVoteTickRef.current = null;
+      return;
+    }
+    const startedAt = roomState.votingStartedAt;
+    const update = () => {
+      const left = Math.max(0, Math.ceil((startedAt + 60000 - Date.now()) / 1000));
+      setHostVoteTimer(left);
+    };
+    update();
+    hostVoteTimerRef.current = setInterval(update, 500);
+    return () => { if (hostVoteTimerRef.current) clearInterval(hostVoteTimerRef.current); };
+  }, [roomState?.phase, roomState?.votingStartedAt]);
+
+  // 호스트 투표 5초 경고음 (중복 방지)
+  useEffect(() => {
+    if (hostVoteTimer === null || hostVoteTimer <= 0 || hostVoteTimer > 5) return;
+    if (hostVoteTickRef.current === hostVoteTimer) return;
+    hostVoteTickRef.current = hostVoteTimer;
+    sfxTimerTick();
+  }, [hostVoteTimer]);
+
+  // 호스트 투표 타임아웃 → 미투표자 자동 기권
+  useEffect(() => {
+    if (hostVoteTimer !== 0 || roomState?.phase !== 'voting' || processedVotesRef.current) return;
+    const votes = roomState.votes || {};
+    for (let i = 0; i < roomState.playerCount; i++) {
+      if (!(String(i) in votes)) {
+        submitVote(roomCode, i, -1).catch(console.error);
+      }
+    }
+  }, [hostVoteTimer, roomState, roomCode]);
 
   // 투표 완료 자동 처리 (phase 변경 시 ref 초기화 포함)
   useEffect(() => {
@@ -164,7 +220,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       sfxTimerUp();
       updateFakeartRoom(roomCode, { phase: 'voting', votingStartedAt: Date.now() }).catch(console.error);
     } else {
-      sfxClick();
+      sfxTurnOver();
       updateFakeartRoom(roomCode, { currentDrawerIndex: nextIndex }).catch(console.error);
     }
 
@@ -371,11 +427,11 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   // ===== DRAWING =====
   if (roomState.phase === 'drawing' && topic) {
     const isLastTurn = roomState.currentDrawerIndex >= playerCount - 1;
-    const timerColor = timer <= 10 ? 'text-red-500' : timer <= 20 ? 'text-amber-500' : 'text-stone-700';
+    const timerColor = timer <= 5 ? 'text-red-500' : timer <= 15 ? 'text-amber-500' : 'text-stone-700';
     const drawingQrUrl = `${origin}${pathname}?game=fakeart&room=${roomCode}&lang=${lang}`;
 
     return (
-      <div className="h-dvh bg-stone-100 flex flex-col px-3 pt-3 pb-2">
+      <div className="h-dvh bg-stone-100 flex flex-col px-3 pt-3 pb-2 overflow-hidden" style={{ touchAction: 'none' }}>
         {/* 상단 정보 바 */}
         <div className="relative flex items-center justify-between mb-2 shrink-0">
           {/* 좌측: 턴 순번 */}
@@ -405,7 +461,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
               </button>
             )}
             <button
-              onClick={() => { sfxClick(); handleNextTurn(); }}
+              onClick={handleNextTurn}
               className="bg-stone-800 text-white font-bold px-3 py-1.5 rounded-xl text-sm
                          hover:bg-stone-700 active:scale-95 transition-all"
             >
@@ -500,9 +556,18 @@ export default function GamePage({ onGoHome }: GamePageProps) {
           )}
 
           <div className="bg-white rounded-2xl p-6 shadow-md mb-4">
-            <p className="text-lg font-bold text-stone-700 mb-3">
-              {txt.waitingVotes(voteCount, playerCount)}
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-lg font-bold text-stone-700">
+                {txt.waitingVotes(voteCount, playerCount)}
+              </p>
+              {hostVoteTimer !== null && (
+                <span className={`text-2xl font-black tabular-nums ${
+                  hostVoteTimer <= 5 ? 'text-red-500' : hostVoteTimer <= 15 ? 'text-amber-500' : 'text-stone-500'
+                }`}>
+                  {hostVoteTimer}
+                </span>
+              )}
+            </div>
             <div className="flex gap-2 justify-center flex-wrap mb-4">
               {Array.from({ length: playerCount }, (_, i) => (
                 <span
@@ -604,7 +669,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             <p className="text-white/80 mb-4">{txt.noVoteTie}</p>
           )}
           {accused !== null && accused !== fakeIndex && (
-            <p className="text-white/80 mb-4">{txt.wrongAccused}</p>
+            <div className="mb-4">
+              <p className="text-white font-bold text-lg">{txt.accusedIs(playerName(accused))}</p>
+              <p className="text-white/70 text-sm">{txt.wrongAccused}</p>
+            </div>
           )}
 
           {/* 완성된 그림 + 색상 범례 */}
@@ -641,6 +709,14 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             <div>
               <p className="text-white/70 text-sm font-bold">{txt.theFake}</p>
               <p className="text-white text-xl font-black">{playerName(fakeIndex)}</p>
+            </div>
+            <div>
+              <p className="text-white/70 text-sm font-bold">{txt.voteResult}</p>
+              {accused === null ? (
+                <p className="text-white font-black">{txt.tieNoAccused}</p>
+              ) : (
+                <p className="text-white text-xl font-black">{playerName(accused)}</p>
+              )}
             </div>
             {roomState.fakeGuess && (
               <div>

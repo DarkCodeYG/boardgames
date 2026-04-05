@@ -22,9 +22,13 @@ export function resolveGame(seed: string, playerCount: number, pack: Pack) {
 }
 
 // 투표 결과로 지목된 플레이어 인덱스 반환. 동률이면 null (가짜 안전)
+// -1(기권)은 집계에서 제외
 export function getAccused(votes: Record<string, number>): number | null {
   const counts: Record<number, number> = {};
-  for (const v of Object.values(votes)) counts[v] = (counts[v] || 0) + 1;
+  for (const v of Object.values(votes)) {
+    if (v === -1) continue; // 기권 제외
+    counts[v] = (counts[v] || 0) + 1;
+  }
   let maxCount = 0, accused = -1, tie = false;
   for (const [p, c] of Object.entries(counts)) {
     if (c > maxCount) { maxCount = c; accused = Number(p); tie = false; }

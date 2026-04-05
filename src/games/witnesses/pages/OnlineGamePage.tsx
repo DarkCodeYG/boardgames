@@ -7,7 +7,7 @@ import { startGame as startGameEngine, getPlayerInfo, proceedAfterVote, nextRoun
 import { createGame, addPlayer } from '../lib/game-engine';
 import { TEAM_COMP } from '../lib/config';
 import type { GameState, SpecialRole } from '../lib/types';
-import { sfxGameStart, sfxVictory, sfxDefeat, sfxAssassin, sfxClick, sfxModalOpen, sfxTurnEnd, sfxToggle, sfxCardFlip } from '../../../lib/sound';
+import { sfxGameStart, sfxVictory, sfxDefeat, sfxAssassin, sfxClick, sfxModalOpen, sfxTurnEnd, sfxToggle, sfxCardFlip, sfxTimerTick } from '../../../lib/sound';
 
 interface Props {
   onGoHome: () => void;
@@ -51,6 +51,8 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
   const prevPhaseRef = useRef<string | null>(null);
   const roomCodeRef = useRef<string | null>(null);
   const hostPhaseRef = useRef(hostPhase);
+  const countdownTickRef = useRef<number | null>(null);
+  const voteTickRef = useRef<number | null>(null);
 
   // ref 동기화
   useEffect(() => { roomCodeRef.current = roomCode; }, [roomCode]);
@@ -154,9 +156,10 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
     });
   }, [roomCode, game?.players.length]);
 
-  // 카운트다운
+  // 카운트다운 (역할 확인 30초)
   useEffect(() => {
     if (hostPhase !== 'role-reveal') return;
+    countdownTickRef.current = null;
     const endAt = Date.now() + 30000;
     const timer = setInterval(() => {
       const left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
@@ -165,15 +168,31 @@ export default function OnlineGamePage({ onGoHome, enabledRoles }: Props) {
     return () => clearInterval(timer);
   }, [hostPhase]);
 
+  // 역할 확인 카운트다운 5초 경고음 (중복 방지)
+  useEffect(() => {
+    if (hostPhase !== 'role-reveal' || countdown <= 0 || countdown > 5) return;
+    if (countdownTickRef.current === countdown) return;
+    countdownTickRef.current = countdown;
+    sfxTimerTick();
+  }, [countdown, hostPhase]);
+
   // 투표 카운트다운 (호스트)
   const hostVoteDeadline = hostPhase === 'waiting-vote' ? (roomData?.voteDeadline as number | undefined) : undefined;
   useEffect(() => {
-    if (!hostVoteDeadline) { setHostVoteSecondsLeft(null); return; }
+    if (!hostVoteDeadline) { setHostVoteSecondsLeft(null); voteTickRef.current = null; return; }
     const update = () => setHostVoteSecondsLeft(Math.max(0, Math.ceil((hostVoteDeadline - Date.now()) / 1000)));
     update();
     const id = setInterval(update, 500);
     return () => clearInterval(id);
   }, [hostVoteDeadline]);
+
+  // 호스트 투표 타이머 5초 경고음 (중복 방지)
+  useEffect(() => {
+    if (hostVoteSecondsLeft === null || hostVoteSecondsLeft <= 0 || hostVoteSecondsLeft > 5) return;
+    if (voteTickRef.current === hostVoteSecondsLeft) return;
+    voteTickRef.current = hostVoteSecondsLeft;
+    sfxTimerTick();
+  }, [hostVoteSecondsLeft]);
 
   // 투표 타임아웃 시 미투표자 기권 자동제출 (호스트 안전망)
   useEffect(() => {
