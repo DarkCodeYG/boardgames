@@ -108,6 +108,7 @@ boardgames/
 - **소리 (iOS 포함):** 반드시 `src/lib/sound.ts`의 sfx 함수만 사용. 게임 내에서 직접 `AudioContext`를 생성하지 않는다.
   - iOS AudioContext unlock 및 짧은 소리 150ms 오프셋 수정이 `sound.ts` 모듈 레벨에 적용되어 있어, import만 하면 자동 적용됨.
   - 직접 AudioContext 쓸 경우 iOS에서 소리 안 나는 버그 재발 가능성 있음.
+  - **주의 — iOS 백그라운드 복귀 문제:** iOS Safari는 앱이 백그라운드로 가거나 소리가 ~30초 없으면 AudioContext를 자동으로 다시 suspend시킨다. unlock 리스너를 첫 터치 후 제거하면 이후 Firebase 콜백/타이머에서 소리를 낼 때 user gesture 밖이므로 `resume()`이 무시되어 소리가 안 난다. `sound.ts`에는 이미 리스너를 영구 유지하는 방식으로 수정되어 있음 (removeEventListener 없음).
 
 ## 개발 명령어
 
