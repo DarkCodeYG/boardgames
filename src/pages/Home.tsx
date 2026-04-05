@@ -43,6 +43,7 @@ export default function Home({ onSelectGame }: HomeProps) {
   const [showQuiz, setShowQuiz] = useState(false);
   const [quiz] = useState(() => QUIZ_POOL[Math.floor(Math.random() * QUIZ_POOL.length)]);
   const [answer, setAnswer] = useState('');
+  const [showHiddenWarning, setShowHiddenWarning] = useState(false);
 
   const handleHiddenToggle = () => {
     sfxClick();
@@ -144,22 +145,37 @@ export default function Home({ onSelectGame }: HomeProps) {
           </div>
         </button>
 
-        {hiddenMode && (
-          <button
-            onClick={() => { sfxGameSelect(); onSelectGame('witnesses'); }}
-            className="bg-white rounded-2xl p-5 shadow-md text-left
-                       hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
-          >
-            <div className="flex items-center gap-4">
-              <span className="text-4xl">📖</span>
-              <div>
-                <h2 className="text-xl font-bold text-stone-800">{txt.witnesses}</h2>
-                <p className="text-sm text-stone-500">{txt.witnessesDesc}</p>
-                <p className="text-xs text-stone-400 mt-1">{txt.witnessesPlayers}</p>
-              </div>
+        <button
+          onClick={() => {
+            if (!hiddenMode) {
+              sfxClick();
+              setShowHiddenWarning(true);
+              setTimeout(() => setShowHiddenWarning(false), 2500);
+            } else {
+              sfxGameSelect();
+              onSelectGame('witnesses');
+            }
+          }}
+          className="bg-white rounded-2xl p-5 shadow-md text-left
+                     hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all relative"
+        >
+          <div className="flex items-center gap-4">
+            <span className={`text-4xl ${!hiddenMode ? 'grayscale opacity-50' : ''}`}>📖</span>
+            <div>
+              <h2 className={`text-xl font-bold ${!hiddenMode ? 'text-stone-400' : 'text-stone-800'}`}>{txt.witnesses}</h2>
+              <p className={`text-sm ${!hiddenMode ? 'text-stone-300' : 'text-stone-500'}`}>{txt.witnessesDesc}</p>
+              <p className={`text-xs mt-1 ${!hiddenMode ? 'text-stone-300' : 'text-stone-400'}`}>{txt.witnessesPlayers}</p>
             </div>
-          </button>
-        )}
+            {!hiddenMode && <span className="ml-auto text-stone-300 text-xl">🔒</span>}
+          </div>
+          {showHiddenWarning && (
+            <div className="absolute inset-0 bg-stone-800/90 rounded-2xl flex items-center justify-center">
+              <p className="text-white font-bold text-sm">
+                {{ ko: '🔒 히든모드를 해제하세요', en: '🔒 Unlock hidden mode first', zh: '🔒 请先解锁隐藏模式' }[lang]}
+              </p>
+            </div>
+          )}
+        </button>
       </div>
 
       <p className="text-stone-400 text-xs mt-8">{txt.more}</p>
