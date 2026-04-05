@@ -12,7 +12,7 @@ interface GamePageProps {
 }
 
 export default function GamePage({ onGoHome }: GamePageProps) {
-  const { game, lang, pack, newGame, start, selectCard, passTurn } = useGameStore();
+  const { game, lang, pack, newGame, start, selectCard, passTurn, setLang } = useGameStore();
   const [showQR, setShowQR] = useState(false);
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [showGoHomeConfirm, setShowGoHomeConfirm] = useState(false);
@@ -32,12 +32,26 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     setShowQR(false);
   };
 
+  const LangToggle = () => (
+    <div className="flex gap-0.5 bg-stone-200 rounded-lg p-0.5">
+      {(['ko', 'en', 'zh'] as const).map((l) => (
+        <button key={l} onClick={() => { sfxClick(); setLang(l); }}
+          className={`px-2 py-1 rounded-md text-xs font-black transition-all ${
+            lang === l ? 'bg-white text-stone-800 shadow' : 'text-stone-500 hover:text-stone-700'
+          }`}>
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="h-dvh bg-stone-100 flex flex-col overflow-hidden">
       {/* QR 확인 후 게임 시작 */}
       {game.phase === 'setup' && (
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="bg-white rounded-2xl p-6 shadow-md text-center max-w-sm w-full">
+            <div className="flex justify-end mb-3"><LangToggle /></div>
             <h2 className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'qrTitle')}</h2>
             <p className="text-stone-500 text-sm mb-4">{t(lang, 'qrDesc')}</p>
             <div className="flex justify-center mb-4">
@@ -76,6 +90,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
           <div className="border-t border-stone-200 bg-white">
             <div className="flex items-center justify-center gap-2 p-3">
+              <LangToggle />
               <button
                 onClick={() => { sfxToggle(); setShowQR(!showQR); }}
                 className="bg-stone-200 text-stone-700 px-3 py-2 rounded-lg font-bold

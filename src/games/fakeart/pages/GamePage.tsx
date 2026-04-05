@@ -12,6 +12,7 @@ import {
 import type { RoomState } from '../lib/types';
 import DrawCanvas from '../components/DrawCanvas';
 import { sfxClick, sfxGameStart, sfxVictory, sfxDefeat, sfxTimerTick, sfxTimerUp, sfxRoleReveal } from '../../../lib/sound';
+import { PLAYER_COLORS } from '../lib/constants';
 
 interface GamePageProps {
   onGoHome: () => void;
@@ -20,13 +21,15 @@ interface GamePageProps {
 export default function GamePage({ onGoHome }: GamePageProps) {
   const globalLang = useGameStore((s) => s.lang);
   const { roomCode, pack, lang: storeLang, drawTime } = useFakeartStore();
-  const lang = storeLang || globalLang;
-  const txt = I18N[lang];
 
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [timer, setTimer] = useState(drawTime);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const processedVotesRef = useRef(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const lang = ((roomState?.lang ?? storeLang ?? globalLang) || 'ko') as NonNullable<typeof storeLang>;
+  const txt = I18N[lang];
 
   // 게임 시작 후 freeze된 playerCount와 seed를 roomState에서 가져옴
   const playerCount = roomState?.playerCount ?? 0;
@@ -131,9 +134,13 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     if (!roomState) return;
     const nextIndex = roomState.currentDrawerIndex + 1;
     if (nextIndex >= roomState.playerCount) {
-      // 모두 완료 → voting
+      // 모두 완료 → 캔버스 캡처 후 voting
       sfxTimerUp();
-      await updateFakeartRoom(roomCode, { phase: 'voting' });
+      const canvas = canvasRef.current;
+      const canvasImage = canvas
+        ? canvas.toDataURL('image/jpeg', 0.6)
+        : undefined;
+      await updateFakeartRoom(roomCode, { phase: 'voting', ...(canvasImage ? { canvasImage } : {}) });
     } else {
       sfxClick();
       await updateFakeartRoom(roomCode, { currentDrawerIndex: nextIndex });
@@ -151,6 +158,27 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     }
   };
 
+  const handleLangChange = async (newLang: NonNullable<typeof storeLang>) => {
+    sfxClick();
+    await updateFakeartRoom(roomCode, { lang: newLang });
+  };
+
+  const LangToggle = () => (
+    <div className="flex gap-0.5 bg-stone-200 rounded-lg p-0.5">
+      {(['ko', 'en', 'zh'] as const).map((l) => (
+        <button
+          key={l}
+          onClick={() => handleLangChange(l)}
+          className={`px-2 py-1 rounded-md text-xs font-black transition-all ${
+            lang === l ? 'bg-white text-stone-800 shadow' : 'text-stone-500 hover:text-stone-700'
+          }`}
+        >
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+
   const handlePlayAgain = async () => {
     sfxClick();
     await updateFakeartRoom(roomCode, {
@@ -161,6 +189,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       fakeGuess: '',
       winner: null,
       playerCount: 0,
+      canvasImage: undefined,
     });
   };
 
@@ -189,9 +218,12 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     return (
       <div className="min-h-dvh bg-gradient-to-b from-stone-100 to-stone-200 p-6 flex flex-col items-center">
         <div className="w-full max-w-md">
-          <button onClick={() => { sfxClick(); onGoHome(); }} className="mb-4 text-stone-500 hover:text-stone-700 font-bold text-sm">
-            ← {txt.goHome}
-          </button>
+          <div className="flex items-center justify-between mb-4">
+            <button onClick={() => { sfxClick(); onGoHome(); }} className="text-stone-500 hover:text-stone-700 font-bold text-sm">
+              ← {txt.goHome}
+            </button>
+            <LangToggle />
+          </div>
 
           <div className="text-center mb-6">
             <h1 className="text-4xl font-black text-stone-800">🎨 {txt.title}</h1>
@@ -261,6 +293,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     return (
       <div className="min-h-dvh bg-gradient-to-b from-stone-100 to-stone-200 p-6 flex flex-col items-center justify-center">
         <div className="w-full max-w-md text-center">
+          <div className="flex justify-end mb-3"><LangToggle /></div>
           <div className="text-5xl mb-4">📋</div>
           <h2 className="text-3xl font-black text-stone-800 mb-2">{txt.rolesChecking}</h2>
           <p className="text-stone-500 mb-6">{txt.rolesCheckingHint}</p>
@@ -296,70 +329,69 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     const drawingQrUrl = `${origin}${pathname}?game=fakeart&room=${roomCode}&lang=${lang}`;
 
     return (
-      <div className="min-h-dvh bg-stone-100 flex flex-col p-4">
+      <div className="h-dvh bg-stone-100 flex flex-col px-3 pt-3 pb-2">
         {/* 상단 정보 바 */}
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="text-sm text-stone-500 font-bold">
+        <div className="flex items-center justify-between mb-2 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-black text-stone-800">
               {txt.drawingTurn(playerName(currentDrawerPlayerIndex))}
-            </p>
-            <p className="text-xs text-stone-400">
-              ({roomState.currentDrawerIndex + 1}/{playerCount})
-            </p>
-          </div>
-          <div className="text-center">
-            <p className={`text-4xl font-black tabular-nums ${timerColor}`}>{timer}</p>
-            <p className="text-xs text-stone-400">{txt.timerLabel}</p>
-          </div>
-          <button
-            onClick={() => { sfxClick(); handleNextTurn(); }}
-            className="bg-stone-800 text-white font-bold px-4 py-2 rounded-xl text-sm
-                       hover:bg-stone-700 active:scale-95 transition-all"
-          >
-            {isLastTurn ? txt.voting : txt.nextTurn} →
-          </button>
-        </div>
-
-        {/* 현재 차례 크게 표시 */}
-        <div className="text-center mb-3">
-          <p className="text-3xl font-black text-stone-800">
-            {txt.drawingTurn(playerName(currentDrawerPlayerIndex))}
-          </p>
-        </div>
-
-        {/* 캔버스 영역 */}
-        <div className="flex-1 min-h-0 rounded-2xl overflow-hidden shadow-xl border-2 border-stone-300">
-          <DrawCanvas disabled={false} undoLabel={txt.undo} />
-        </div>
-
-        {/* 그리기 순서 표시 */}
-        <div className="mt-3 flex gap-2 justify-center flex-wrap">
-          {drawOrder.map((playerIdx, orderIdx) => (
-            <span
-              key={orderIdx}
-              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
-                orderIdx < roomState.currentDrawerIndex
-                  ? 'bg-stone-300 text-stone-500'
-                  : orderIdx === roomState.currentDrawerIndex
-                  ? 'bg-amber-500 text-white scale-110'
-                  : 'bg-stone-200 text-stone-600'
-              }`}
-            >
-              {playerName(playerIdx)}
             </span>
-          ))}
+            <span className="text-xs text-stone-400">
+              ({roomState.currentDrawerIndex + 1}/{playerCount})
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={`text-3xl font-black tabular-nums ${timerColor}`}>{timer}</span>
+            <button
+              onClick={() => { sfxClick(); handleNextTurn(); }}
+              className="bg-stone-800 text-white font-bold px-3 py-1.5 rounded-xl text-sm
+                         hover:bg-stone-700 active:scale-95 transition-all"
+            >
+              {isLastTurn ? txt.voting : txt.nextTurn} →
+            </button>
+          </div>
         </div>
 
-        {/* 재접속 QR + 링크 */}
-        <div className="mt-2 flex items-center justify-center gap-3 border-t border-stone-200 pt-2">
-          <QRCodeSVG value={drawingQrUrl} size={64} />
-          <div>
-            <p className="text-xs text-stone-400 mb-0.5">{txt.lostLink}</p>
+        {/* 캔버스 영역 — 최대 크기 */}
+        <div
+          className="flex-1 min-h-0 rounded-2xl overflow-hidden shadow-xl border-4 transition-colors"
+          style={{ borderColor: PLAYER_COLORS[currentDrawerPlayerIndex % PLAYER_COLORS.length] }}
+        >
+          <DrawCanvas
+            disabled={false}
+            undoLabel={txt.undo}
+            canvasRef={canvasRef}
+            strokeColor={PLAYER_COLORS[currentDrawerPlayerIndex % PLAYER_COLORS.length]}
+          />
+        </div>
+
+        {/* 그리기 순서 + QR 한 줄로 */}
+        <div className="mt-2 shrink-0 flex items-center justify-between gap-2">
+          <div className="flex gap-1.5 flex-wrap">
+            {drawOrder.map((playerIdx, orderIdx) => (
+              <span
+                key={orderIdx}
+                className={`px-2 py-0.5 rounded-full text-xs font-bold transition-all text-white ${
+                  orderIdx < roomState.currentDrawerIndex ? 'opacity-40' : ''
+                }`}
+                style={{
+                  backgroundColor: PLAYER_COLORS[playerIdx % PLAYER_COLORS.length],
+                  transform: orderIdx === roomState.currentDrawerIndex ? 'scale(1.15)' : undefined,
+                  outline: orderIdx === roomState.currentDrawerIndex ? '2px solid white' : undefined,
+                  outlineOffset: '1px',
+                }}
+              >
+                {playerName(playerIdx)}
+              </span>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <LangToggle />
             <a
               href={drawingQrUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-mono font-black text-blue-500 underline"
+              className="text-xs font-mono font-black text-blue-500 underline"
             >
               {roomCode}
             </a>
@@ -376,9 +408,32 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
         <div className="text-center max-w-md w-full">
+          <div className="flex justify-end mb-3"><LangToggle /></div>
           <div className="text-6xl mb-4">🗳️</div>
           <h2 className="text-3xl font-black text-stone-800 mb-2">{txt.voting}</h2>
           <p className="text-stone-500 mb-4">{txt.voteWho}</p>
+
+          {/* 완성된 그림 + 색상 범례 */}
+          {roomState.canvasImage && (
+            <div className="bg-white rounded-2xl p-3 shadow-md mb-4">
+              <img
+                src={roomState.canvasImage}
+                alt="completed drawing"
+                className="w-full rounded-xl border border-stone-200 mb-3"
+              />
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                {playersByIndex.map((name, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                    style={{ backgroundColor: PLAYER_COLORS[idx % PLAYER_COLORS.length] }}
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="bg-white rounded-2xl p-6 shadow-md mb-4">
             <p className="text-lg font-bold text-stone-700 mb-3">
@@ -428,6 +483,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
         <div className="text-center max-w-md w-full">
+          <div className="flex justify-end mb-3"><LangToggle /></div>
           <div className="text-5xl mb-4">🎭</div>
           {accused !== null && (
             <p className="text-lg text-stone-600 mb-2">{txt.accusedIs(playerName(accused))}</p>
@@ -487,6 +543,28 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             <p className="text-white/80 mb-4">{txt.wrongAccused}</p>
           )}
 
+          {/* 완성된 그림 + 색상 범례 */}
+          {roomState.canvasImage && (
+            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3 mt-4">
+              <img
+                src={roomState.canvasImage}
+                alt="completed drawing"
+                className="w-full rounded-xl mb-3"
+              />
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                {playersByIndex.map((name, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                    style={{ backgroundColor: PLAYER_COLORS[idx % PLAYER_COLORS.length] }}
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-5 mt-4 text-left space-y-3">
             <div>
               <p className="text-white/70 text-sm font-bold">{txt.category}</p>
@@ -508,7 +586,9 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             )}
           </div>
 
-          <div className="flex gap-3 mt-6">
+          <div className="flex justify-center mt-4"><LangToggle /></div>
+
+          <div className="flex gap-3 mt-4">
             <button
               onClick={handlePlayAgain}
               className="flex-1 bg-white text-stone-800 font-black py-3 rounded-2xl

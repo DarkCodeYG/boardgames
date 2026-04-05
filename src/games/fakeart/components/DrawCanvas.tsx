@@ -4,13 +4,17 @@ import { sfxClick } from '../../../lib/sound';
 interface DrawCanvasProps {
   disabled?: boolean;
   undoLabel?: string;
+  canvasRef?: React.RefObject<HTMLCanvasElement | null>;
+  strokeColor?: string;
 }
 
-export default function DrawCanvas({ disabled = false, undoLabel = 'Undo' }: DrawCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export default function DrawCanvas({ disabled = false, undoLabel = 'Undo', canvasRef: externalRef, strokeColor = '#000000' }: DrawCanvasProps) {
+  const internalRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = externalRef ?? internalRef;
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const [undoStack, setUndoStack] = useState<ImageData[]>([]);
+  const hasDrawnRef = useRef(false); // 실제로 그린 적 있는지 추적
 
   // 캔버스를 부모 크기에 맞게 리사이즈
   useEffect(() => {
@@ -21,17 +25,18 @@ export default function DrawCanvas({ disabled = false, undoLabel = 'Undo' }: Dra
       const parent = canvas.parentElement;
       if (!parent) return;
       const rect = parent.getBoundingClientRect();
-      // 현재 그림 내용 보존
+      if (rect.width === 0 || rect.height === 0) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      // 실제로 그린 내용이 있을 때만 복원 (기본 캔버스 검정 픽셀 복원 방지)
+      const imageData = hasDrawnRef.current
+        ? ctx.getImageData(0, 0, canvas.width, canvas.height)
+        : null;
       canvas.width = rect.width;
       canvas.height = rect.height;
-      // 리사이즈 후 배경 흰색 채우기
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // 이전 내용 복원 (크기가 달라질 수 있으니 최선 노력)
-      ctx.putImageData(imageData, 0, 0);
+      if (imageData) ctx.putImageData(imageData, 0, 0);
     };
 
     resize();
@@ -60,6 +65,7 @@ export default function DrawCanvas({ disabled = false, undoLabel = 'Undo' }: Dra
     if (!ctx) return;
 
     // 획 시작 전 현재 상태 저장 (undo용)
+    hasDrawnRef.current = true;
     const snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
     setUndoStack((prev) => [...prev, snapshot]);
 
@@ -68,15 +74,15 @@ export default function DrawCanvas({ disabled = false, undoLabel = 'Undo' }: Dra
     lastPointRef.current = pos;
 
     // 점 찍기 (클릭만 했을 때)
-    ctx.strokeStyle = '#000000';
+    ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 4;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
-    ctx.fillStyle = '#000000';
+    ctx.fillStyle = strokeColor;
     ctx.fill();
-  }, [disabled]);
+  }, [disabled, strokeColor]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawingRef.current || disabled) return;
@@ -89,7 +95,7 @@ export default function DrawCanvas({ disabled = false, undoLabel = 'Undo' }: Dra
     const last = lastPointRef.current;
     if (!last) return;
 
-    ctx.strokeStyle = '#000000';
+    ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 4;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -99,7 +105,7 @@ export default function DrawCanvas({ disabled = false, undoLabel = 'Undo' }: Dra
     ctx.stroke();
 
     lastPointRef.current = pos;
-  }, [disabled]);
+  }, [disabled, strokeColor]);
 
   const handlePointerUp = useCallback(() => {
     isDrawingRef.current = false;

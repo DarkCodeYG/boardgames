@@ -92,9 +92,22 @@ export default function SpyfallPlayerPage() {
     setRoomCode(code);
     const urlLang = params.get('lang') as Lang | null;
     if (urlLang && ['ko', 'en', 'zh'].includes(urlLang)) setLang(urlLang);
+
     if (code) {
+      // sessionStorage: 이 탭에서 직접 참가한 경우만 자동 재접속 (새 탭·새 스캔은 빈 sessionStorage)
+      const sessionName = sessionStorage.getItem(`spyfall_session_${code}`);
+      if (sessionName) {
+        setName(sessionName);
+        joinSpyfallRoom(code, sessionName).then((result) => {
+          if (result.ok) { justJoinedRef.current = true; setStep('lobby'); }
+          // 실패 시 join 화면 (이름은 pre-fill됨)
+        }).catch(() => {});
+        return;
+      }
+
+      // localStorage: 이름 pre-fill만 (join 화면 유지)
       const savedName = localStorage.getItem(`spyfall_name_${code}`);
-      if (savedName) { setName(savedName); setStep('lobby'); }
+      if (savedName) setName(savedName);
     }
   }, []);
 
@@ -172,6 +185,8 @@ export default function SpyfallPlayerPage() {
       const result = await Promise.race([joinSpyfallRoom(roomCode, name.trim()), timeout]);
       if (result.ok) {
         justJoinedRef.current = true;
+        sessionStorage.setItem(`spyfall_session_${roomCode}`, name.trim());
+        localStorage.setItem(`spyfall_name_${roomCode}`, name.trim());
         setStep('lobby');
       } else {
         switch (result.error) {

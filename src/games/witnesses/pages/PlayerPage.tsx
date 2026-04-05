@@ -31,14 +31,43 @@ export default function PlayerPage() {
   const [joining, setJoining] = useState(false);
   const roleRevealedRef = useRef(false);
 
-  // URL 파라미터
+  // URL 파라미터 + localStorage 자동 재접속
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const r = params.get('room');
     const l = params.get('lang') as Lang | null;
-    console.log('🔍 URL 파라미터:', { room: r, lang: l });
     if (r) setRoomCode(r);
     if (l && ['ko', 'en', 'zh'].includes(l)) setLang(l);
+
+    // 자동 재접속: sessionStorage(탭 독립) → 새로고침 복구 / localStorage → 이름 pre-fill만
+    if (r) {
+      // sessionStorage: 이 탭에서 직접 참가한 경우만 자동 재접속 (새 탭·새 스캔은 빈 sessionStorage)
+      const sessionRaw = sessionStorage.getItem(`witnesses_session_${r}`);
+      if (sessionRaw) {
+        try {
+          const { pid: sPid, name: sName } = JSON.parse(sessionRaw) as { pid: string; name: string };
+          if (sPid && sName) {
+            setName(sName);
+            joinRoom(r, sName).then((result) => {
+              if ('error' in result && result.error === 'reconnect' && result.pid === sPid) {
+                setMyPid(result.pid);
+                setPhase('lobby');
+              }
+            }).catch(() => {});
+            return; // sessionStorage로 처리, localStorage 체크 불필요 (early return from useEffect)
+          }
+        } catch { /* ignore */ }
+      }
+
+      // localStorage: 이름 pre-fill만 (join 화면 유지)
+      const localRaw = localStorage.getItem(`witnesses_${r}`);
+      if (localRaw) {
+        try {
+          const { name: savedName } = JSON.parse(localRaw) as { pid: string; name: string };
+          if (savedName) setName(savedName);
+        } catch { /* ignore */ }
+      }
+    }
   }, []);
 
   // 역할 공개 효과음 (hooks 규칙: 모든 useEffect는 early return 전 최상단에)
@@ -58,6 +87,9 @@ export default function PlayerPage() {
     if (!roomCode || !myPid) return;
     const unsub = subscribeRoom(roomCode, (data) => {
       setRoom(data);
+      if (data?.lang && ['ko', 'en', 'zh'].includes(data.lang as string)) {
+        setLang(data.lang as Lang);
+      }
 
       if (!data) return;
       const serverPhase = data.phase as string;
@@ -120,7 +152,9 @@ export default function PlayerPage() {
       if (result.error === 'reconnect' && result.pid) {
         setMyPid(result.pid);
         setPhase('lobby');
-        localStorage.setItem(`witnesses_${roomCode}`, JSON.stringify({ pid: result.pid, name: trimmed }));
+        const data = JSON.stringify({ pid: result.pid, name: trimmed });
+        sessionStorage.setItem(`witnesses_session_${roomCode}`, data);
+        localStorage.setItem(`witnesses_${roomCode}`, data);
       } else if (result.error === 'duplicate') {
         setJoinError(wt(lang, 'duplicateName'));
         setJoining(false);
@@ -134,7 +168,9 @@ export default function PlayerPage() {
     } else {
       setMyPid(result.pid);
       setPhase('lobby');
-      localStorage.setItem(`witnesses_${roomCode}`, JSON.stringify({ pid: result.pid, name: trimmed }));
+      const data = JSON.stringify({ pid: result.pid, name: trimmed });
+      sessionStorage.setItem(`witnesses_session_${roomCode}`, data);
+      localStorage.setItem(`witnesses_${roomCode}`, data);
     }
   };
 

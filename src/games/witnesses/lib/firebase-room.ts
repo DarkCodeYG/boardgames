@@ -10,7 +10,7 @@ const roomRef = (code: string) => ref(db, `rooms/${code}`);
 const playerRef = (code: string, pid: string) => ref(db, `rooms/${code}/players/${pid}`);
 
 /** 호스트: 방 생성 (기존 방 충돌 방지) */
-export async function createRoom(enabledRoles: SpecialRole[], maxPlayers?: number): Promise<string> {
+export async function createRoom(enabledRoles: SpecialRole[], maxPlayers?: number, lang = 'ko'): Promise<string> {
   let code = generateRoomCode();
   let attempts = 0;
   while (attempts < 10) {
@@ -25,6 +25,7 @@ export async function createRoom(enabledRoles: SpecialRole[], maxPlayers?: numbe
     maxPlayers: maxPlayers || 12,
     players: {},
     createdAt: Date.now(),
+    lang,
   });
   return code;
 }

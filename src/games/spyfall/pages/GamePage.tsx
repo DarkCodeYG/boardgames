@@ -114,8 +114,7 @@ interface GamePageProps {
 
 export default function GamePage({ onGoHome }: GamePageProps) {
   const { pack, roundMinutes, setRoundMinutes } = useSpyfallStore();
-  const lang = useGameStore((s) => s.lang);
-  const txt = TEXTS[lang];
+  const globalLang = useGameStore((s) => s.lang);
 
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [room, setRoom] = useState<SpyfallRoom | null>(null);
@@ -145,6 +144,9 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       unsubscribe?.();
     };
   }, []);
+
+  const lang = (room?.lang ?? globalLang) as typeof globalLang;
+  const txt = TEXTS[lang];
 
   const players = room?.players
     ? Object.entries(room.players).sort(([, a], [, b]) => a.joinedAt - b.joinedAt)
@@ -178,6 +180,24 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     setRoundMinutes(m);
     if (roomCode) updateSpyfallSettings(roomCode, { roundMinutes: m }).catch(() => {});
   };
+
+  const handleLangChange = (newLang: typeof globalLang) => {
+    sfxClick();
+    if (roomCode) updateSpyfallSettings(roomCode, { lang: newLang }).catch(() => {});
+  };
+
+  const LangToggle = () => (
+    <div className="flex gap-0.5 bg-stone-200 rounded-lg p-0.5">
+      {(['ko', 'en', 'zh'] as const).map((l) => (
+        <button key={l} onClick={() => handleLangChange(l)}
+          className={`px-2 py-1 rounded-md text-xs font-black transition-all ${
+            lang === l ? 'bg-white text-stone-800 shadow' : 'text-stone-500 hover:text-stone-700'
+          }`}>
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
 
   const playerRoles = room?.seed && room.playerCount
     ? players.slice(0, room.playerCount).map(([name], i) => ({
@@ -214,6 +234,9 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       {(!room || room.phase === 'lobby') && (
         <div className="flex-1 overflow-auto p-4">
           <div className="max-w-sm mx-auto space-y-4">
+            {/* 언어 토글 */}
+            <div className="flex justify-end"><LangToggle /></div>
+
             {/* QR + Code */}
             <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-col items-center">
               <p className="text-xs text-stone-400 mb-3">{txt.scanQR}</p>
@@ -332,8 +355,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             </button>
           </div>
 
+          <div className="mt-4"><LangToggle /></div>
+
           {/* 재접속 QR + 링크 */}
-          <div className="mt-6 flex items-center gap-4 bg-white rounded-2xl px-5 py-3 shadow-sm">
+          <div className="mt-4 flex items-center gap-4 bg-white rounded-2xl px-5 py-3 shadow-sm">
             <QRCodeSVG value={joinUrl} size={64} />
             <div>
               <p className="text-xs text-stone-400 mb-1">링크를 잃었나요?</p>

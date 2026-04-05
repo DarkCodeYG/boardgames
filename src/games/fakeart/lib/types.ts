@@ -10,6 +10,7 @@ export interface Topic {
 export interface PlayerInfo {
   index: number;
   joinedAt: number;
+  deviceToken?: string;
 }
 
 export interface RoomState {
@@ -24,4 +25,5 @@ export interface RoomState {
   votes: Record<string, number>;         // voterIndex(string) → accusedIndex(number)
   fakeGuess: string;
   winner: 'fake' | 'others' | null;
+  canvasImage?: string;                   // 완성된 그림 base64 JPEG (투표/결과 단계)
 }

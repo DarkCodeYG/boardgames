@@ -10,6 +10,7 @@ import {
 } from '../lib/firebase-room';
 import type { RoomState } from '../lib/types';
 import { sfxClick, sfxRoleReveal, sfxVictory } from '../../../lib/sound';
+import { PLAYER_COLORS } from '../lib/constants';
 
 type PlayerView = 'join' | 'waiting' | 'role' | 'roleConfirmed' | 'drawing' | 'voting' | 'guess' | 'result';
 
@@ -30,6 +31,7 @@ export default function PlayerPage() {
   const [guessInput, setGuessInput] = useState('');
   const resultSoundPlayedRef = useRef(false);
   const roleSoundPlayedRef = useRef(false);
+  const autoReconnectAttempted = useRef(false);
 
   // Firebase 구독
   useEffect(() => {
@@ -37,11 +39,39 @@ export default function PlayerPage() {
     return subscribeFakeartRoom(roomCode, setRoomState);
   }, [roomCode]);
 
-  // localStorage 이름 자동 채우기 (직접 입장 스킵 없음)
+  // 자동 재접속: sessionStorage(탭 독립) → 새로고침 복구 / localStorage → 이름 pre-fill만
   useEffect(() => {
-    if (!roomCode) return;
-    const saved = localStorage.getItem(`fakeart_name_${roomCode}`);
-    if (saved) setNameInput(saved);
+    if (!roomCode || autoReconnectAttempted.current) return;
+    autoReconnectAttempted.current = true;
+
+    // sessionStorage: 이 탭에서 직접 참가한 경우만 자동 재접속 (새 탭·새 스캔은 빈 sessionStorage)
+    const sessionRaw = sessionStorage.getItem(`fakeart_session_${roomCode}`);
+    if (sessionRaw) {
+      try {
+        const { name: sName, deviceToken: sToken } = JSON.parse(sessionRaw) as { name: string; deviceToken: string };
+        if (sName && sToken) {
+          setNameInput(sName);
+          joinFakeartRoom(roomCode, sName, sToken).then((result) => {
+            if ('error' in result || !result.reconnect) return;
+            setMyName(sName);
+            setPlayerIndex(result.index);
+            setView('waiting');
+          }).catch(() => {});
+          return; // sessionStorage로 처리, localStorage 체크 불필요
+        }
+      } catch { /* ignore */ }
+    }
+
+    // localStorage: 이름 pre-fill만 (join 화면 유지)
+    const localRaw = localStorage.getItem(`fakeart_name_${roomCode}`);
+    if (!localRaw) return;
+    try {
+      const { name: savedName } = JSON.parse(localRaw) as { name: string };
+      if (savedName) setNameInput(savedName);
+    } catch {
+      setNameInput(localRaw); // 구버전 단순 문자열 호환
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode]);
 
   // phase 변화 감지 → view 전환
@@ -136,7 +166,9 @@ export default function PlayerPage() {
       }
       setMyName(nameInput.trim());
       setPlayerIndex(result.index);
-      localStorage.setItem(`fakeart_name_${roomCode}`, nameInput.trim());
+      const sessionData = JSON.stringify({ name: nameInput.trim(), deviceToken: result.deviceToken });
+      sessionStorage.setItem(`fakeart_session_${roomCode}`, sessionData);
+      localStorage.setItem(`fakeart_name_${roomCode}`, JSON.stringify({ name: nameInput.trim(), deviceToken: result.deviceToken }));
       const currentPhase = roomState?.phase ?? 'lobby';
       if (currentPhase === 'lobby') {
         setView('waiting');
@@ -399,6 +431,28 @@ export default function PlayerPage() {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
         <NameBanner />
+        {/* 완성된 그림 + 색상 범례 */}
+        {roomState?.canvasImage && (
+          <div className="bg-white rounded-2xl p-3 max-w-xs w-full shadow-lg mb-3">
+            <img
+              src={roomState.canvasImage}
+              alt="completed drawing"
+              className="w-full rounded-xl border border-stone-200 mb-3"
+            />
+            <div className="flex flex-wrap gap-1.5 justify-center">
+              {playersByIndex.map((name, idx) => (
+                <span
+                  key={idx}
+                  className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                  style={{ backgroundColor: PLAYER_COLORS[idx % PLAYER_COLORS.length] }}
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-lg">
           <div className="text-4xl mb-3">🗳️</div>
           <h2 className="text-xl font-black text-stone-800 mb-2">{txt.voting}</h2>
@@ -501,6 +555,28 @@ export default function PlayerPage() {
           <p className={`text-lg font-black mb-4 ${iWon ? 'text-yellow-200' : 'text-white/70'}`}>
             {iWon ? '🏆 WIN!' : '😢 LOSE'}
           </p>
+
+          {/* 완성된 그림 + 색상 범례 */}
+          {roomState.canvasImage && (
+            <div className="bg-white/20 rounded-2xl p-3 mb-4">
+              <img
+                src={roomState.canvasImage}
+                alt="completed drawing"
+                className="w-full rounded-xl mb-3"
+              />
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                {playersByIndex.map((name, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                    style={{ backgroundColor: PLAYER_COLORS[idx % PLAYER_COLORS.length] }}
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="bg-white/20 rounded-2xl p-4 text-left space-y-3 mb-6">
             {topic && (

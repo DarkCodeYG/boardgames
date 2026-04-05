@@ -2,7 +2,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useGameStore } from '../../codenames/store/game-store';
 import { wt, TEXTS } from '../lib/i18n';
-import { createRoom, setGameState, subscribeRoom, submitAction, deleteRoom, resetRoomForNewGame, cleanupOldRooms } from '../lib/firebase-room';
+import { createRoom, setGameState, subscribeRoom, submitAction, deleteRoom, resetRoomForNewGame, cleanupOldRooms, updateGameState } from '../lib/firebase-room';
 import { startGame as startGameEngine, getPlayerInfo, proceedAfterVote, nextRound, assassinate } from '../lib/game-engine';
 import { createGame, addPlayer } from '../lib/game-engine';
 import type { GameState, SpecialRole } from '../lib/types';
@@ -32,7 +32,8 @@ type HostPhase =
   | 'finished';
 
 export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: Props) {
-  const lang = useGameStore((s) => s.lang);
+  const { lang: globalLang, setLang } = useGameStore((s) => ({ lang: s.lang, setLang: s.setLang }));
+  const lang = globalLang;
   const txt = TEXTS[lang];
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [roomError, setRoomError] = useState<string | null>(null);
@@ -70,7 +71,7 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
     const timer = setTimeout(() => {
       if (!roomCode) setRoomError('Firebase 연결 시간 초과. 네트워크를 확인하거나 Firebase 보안 규칙을 갱신하세요.');
     }, 8000);
-    createRoom(enabledRoles, playerCount).then((code) => {
+    createRoom(enabledRoles, playerCount, globalLang).then((code) => {
       clearTimeout(timer);
       setRoomCode(code);
     }).catch((err) => {
@@ -239,6 +240,25 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
     await submitAction(roomCode, `players/${pid}`, { name: trimmed, manual: true });
     setManualName('');
   };
+
+  const handleLangChange = (newLang: typeof globalLang) => {
+    sfxClick();
+    setLang(newLang);
+    if (roomCode) updateGameState(roomCode, { lang: newLang }).catch(() => {});
+  };
+
+  const LangToggle = () => (
+    <div className="flex gap-0.5 bg-stone-200 rounded-lg p-0.5">
+      {(['ko', 'en', 'zh'] as const).map((l) => (
+        <button key={l} onClick={() => handleLangChange(l)}
+          className={`px-2 py-1 rounded-md text-xs font-black transition-all ${
+            lang === l ? 'bg-white text-stone-800 shadow' : 'text-stone-500 hover:text-stone-700'
+          }`}>
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
 
   // 게임 시작
   const handleStart = async () => {
@@ -428,6 +448,9 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
       >
         🏠 {txt.goHomeBtn}
       </button>
+      <div className="bg-white rounded-xl p-1 shadow-lg opacity-80 hover:opacity-100 transition-opacity">
+        <LangToggle />
+      </div>
       <div className="bg-white rounded-xl p-2 shadow-lg opacity-80 hover:opacity-100 transition-opacity">
         <QRCodeSVG value={joinUrl} size={80} />
         <p className="text-[10px] text-stone-400 text-center mt-1">{wt(lang, 'reconnect')}</p>
@@ -598,12 +621,24 @@ export default function OnlineGamePage({ onGoHome, enabledRoles, playerCount }: 
     const overCapacity = playerList.length > playerCount;
     return (
       <div className="h-dvh bg-stone-100 flex flex-col items-center p-6 overflow-auto">
+        <div className="w-full max-w-sm flex justify-end mb-2"><LangToggle /></div>
         <h2 className="text-2xl font-black text-stone-800 mb-4">{wt(lang, 'title')}</h2>
 
         <div className="bg-white rounded-2xl p-6 shadow-md text-center max-w-sm w-full mb-4">
           <p className="text-stone-500 text-sm mb-3">{wt(lang, 'scanToJoin')}</p>
           <QRCodeSVG value={joinUrl} size={200} className="mx-auto mb-3" />
-          <p className="text-xs text-stone-400">방 코드: <strong className="font-mono text-lg text-stone-800">{roomCode}</strong></p>
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <span className="text-sm text-stone-500">방 코드:</span>
+            <span className="text-3xl font-black text-stone-800 tracking-widest">{roomCode}</span>
+          </div>
+          <a
+            href={joinUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full inline-block text-center bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-sm py-2 px-4 rounded-xl transition-colors"
+          >
+            🔗 {joinUrl.replace(/^https?:\/\//, '')}
+          </a>
         </div>
 
         {/* 참가자 현황 */}

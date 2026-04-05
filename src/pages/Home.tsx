@@ -68,6 +68,21 @@ export default function Home({ onSelectGame }: HomeProps) {
         </button>
 
         <button
+          onClick={() => { sfxGameSelect(); onSelectGame('fakeart'); }}
+          className="bg-white rounded-2xl p-5 shadow-md text-left
+                     hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
+        >
+          <div className="flex items-center gap-4">
+            <span className="text-4xl">🎨</span>
+            <div>
+              <h2 className="text-xl font-bold text-stone-800">{txt.fakeart}</h2>
+              <p className="text-sm text-stone-500">{txt.fakeartDesc}</p>
+              <p className="text-xs text-stone-400 mt-1">{txt.fakeartPlayers}</p>
+            </div>
+          </div>
+        </button>
+
+        <button
           onClick={() => { sfxGameSelect(); onSelectGame('spyfall'); }}
           className="bg-white rounded-2xl p-5 shadow-md text-left
                      hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
@@ -93,21 +108,6 @@ export default function Home({ onSelectGame }: HomeProps) {
               <h2 className="text-xl font-bold text-stone-800">{txt.witnesses}</h2>
               <p className="text-sm text-stone-500">{txt.witnessesDesc}</p>
               <p className="text-xs text-stone-400 mt-1">{txt.witnessesPlayers}</p>
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => { sfxGameSelect(); onSelectGame('fakeart'); }}
-          className="bg-white rounded-2xl p-5 shadow-md text-left
-                     hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <span className="text-4xl">🎨</span>
-            <div>
-              <h2 className="text-xl font-bold text-stone-800">{txt.fakeart}</h2>
-              <p className="text-sm text-stone-500">{txt.fakeartDesc}</p>
-              <p className="text-xs text-stone-400 mt-1">{txt.fakeartPlayers}</p>
             </div>
           </div>
         </button>

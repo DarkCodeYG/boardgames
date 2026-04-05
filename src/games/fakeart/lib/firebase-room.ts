@@ -40,41 +40,52 @@ export async function createFakeartRoom(
   return code;
 }
 
-/** 플레이어: 방 참가. 같은 이름이면 재접속(기존 index 반환) */
+/** 플레이어: 방 참가.
+ *  - 같은 이름 + 토큰 일치 → 재접속(reconnect: true)
+ *  - 같은 이름 + 토큰 불일치/없음 → pre-fill만 (reconnect: false)
+ *  - 새 이름 → 신규 참가, deviceToken 발급
+ */
 export async function joinFakeartRoom(
   code: string,
   name: string,
-): Promise<{ index: number } | { error: 'not_found' | 'started' }> {
+  deviceToken?: string,
+): Promise<{ index: number; deviceToken: string; reconnect: boolean } | { error: 'not_found' | 'started' }> {
   const snap = await get(roomRef(code));
   if (!snap.exists()) return { error: 'not_found' };
   const room = snap.val() as RoomState;
 
-  // 기존 플레이어 재접속 (phase 무관)
+  // 기존 플레이어 → 토큰 일치 여부로 진짜 재접속 판단
   if (room.players?.[name]) {
-    return { index: room.players[name].index };
+    const stored = room.players[name].deviceToken;
+    const isReconnect = !!deviceToken && !!stored && deviceToken === stored;
+    return {
+      index: room.players[name].index,
+      deviceToken: stored ?? deviceToken ?? '',
+      reconnect: isReconnect,
+    };
   }
 
   // 새 참가자는 로비에서만 가능
   if (room.phase !== 'lobby') return { error: 'started' };
 
+  const newToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
   const playersRef = ref(db, `fakeart/${code}/players`);
   let resultIndex = -1;
 
   await runTransaction(playersRef, (current) => {
-    const players = (current || {}) as Record<string, { index: number; joinedAt: number }>;
+    const players = (current || {}) as Record<string, { index: number; joinedAt: number; deviceToken?: string }>;
 
-    // 재접속
     if (players[name]) {
       resultIndex = players[name].index;
-      return players; // no change
+      return players; // no change (race condition 방어)
     }
 
     const nextIndex = Object.keys(players).length;
     resultIndex = nextIndex;
-    return { ...players, [name]: { index: nextIndex, joinedAt: Date.now() } };
+    return { ...players, [name]: { index: nextIndex, joinedAt: Date.now(), deviceToken: newToken } };
   });
 
-  return { index: resultIndex };
+  return { index: resultIndex, deviceToken: newToken, reconnect: false };
 }
 
 export async function updateFakeartRoom(code: string, data: Partial<RoomState>): Promise<void> {
