@@ -34,7 +34,8 @@ export default function HomePage({ onStartGame, onBack }: HomePageProps) {
       onStartGame();
     } catch (err) {
       console.error('방 생성 실패:', err);
-      alert('방 생성에 실패했습니다. 인터넷 연결을 확인해 주세요.');
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`방 생성 실패: ${msg}`);
       setCreating(false);
     }
   };
