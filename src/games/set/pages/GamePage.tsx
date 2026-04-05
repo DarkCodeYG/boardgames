@@ -138,6 +138,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     if (turnAnnounceTimerRef.current) clearTimeout(turnAnnounceTimerRef.current);
     setTurnAnnounce({ playerName: turn.playerName, type: turn.type });
     turnAnnounceTimerRef.current = setTimeout(() => setTurnAnnounce(null), 2000);
+    return () => { if (turnAnnounceTimerRef.current) clearTimeout(turnAnnounceTimerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomState?.currentTurn?.playerName, roomState?.currentTurn?.startedAt]);
 
@@ -508,7 +509,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
         {/* Big confirm button */}
         {isSetTurn && selectedCards.length === 3 && !resolving && (
-          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-30 animate-pop-in">
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-45 animate-pop-in">
             <button
               onClick={handleConfirmSet}
               className="bg-emerald-600 text-white font-black text-3xl px-16 py-5 rounded-3xl shadow-2xl
