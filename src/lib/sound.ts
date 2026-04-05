@@ -18,17 +18,17 @@ if (typeof window !== 'undefined') {
   const unlock = () => {
     try {
       if (!ctx) ctx = new AudioContext();
-      if (ctx.state !== 'running') {
-        ctx.resume().catch(() => {});
-        const buf = ctx.createBuffer(1, 1, 22050);
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        src.connect(ctx.destination);
-        src.start(0);
-      }
+      if (ctx.state !== 'running') ctx.resume().catch(() => {});
+      // iOS는 running 상태여도 무음 버퍼 재생 없이는 실제 소리가 안 나는 경우 있음.
+      // 매 터치마다 무음 버퍼로 워밍업 (1샘플 = 무시할 수준의 비용).
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
     } catch {}
-    // ※ 리스너 제거 안 함: iOS는 백그라운드 복귀/일정 시간 비활성 후
-    //   AudioContext를 다시 suspend시키므로 다음 터치에서 재unlock 필요.
+    // 리스너 유지: iOS는 백그라운드 복귀/비활성 후 AudioContext를 재suspend하므로
+    // 다음 터치에서 재unlock 가능하도록 제거하지 않음.
   };
   window.addEventListener('touchstart', unlock, true);
   window.addEventListener('pointerdown', unlock, true);
