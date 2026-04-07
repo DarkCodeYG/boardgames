@@ -1,5 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Board from '../components/Board';
 import GameHeader from '../components/GameHeader';
 import GameOverModal from '../components/GameOverModal';
@@ -16,6 +16,16 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   const [showQR, setShowQR] = useState(false);
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [showGoHomeConfirm, setShowGoHomeConfirm] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (showGoHomeConfirm) { sfxModalClose(); setShowGoHomeConfirm(false); }
+      else if (showRestartConfirm) { sfxModalClose(); setShowRestartConfirm(false); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showGoHomeConfirm, showRestartConfirm]);
 
   if (!game) return (
     <div className="min-h-dvh flex items-center justify-center bg-stone-100">
@@ -149,8 +159,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
       {/* 홈 이동 확인 다이얼로그 */}
       {showGoHomeConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+             onClick={() => { sfxModalClose(); setShowGoHomeConfirm(false); }}>
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
+               onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'goHomeTitle')}</h3>
             <p className="text-stone-500 mb-5">{t(lang, 'goHomeMsg')}</p>
             <div className="flex gap-3 justify-center">
@@ -175,8 +187,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
       {/* 재시작 확인 다이얼로그 */}
       {showRestartConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+             onClick={() => { sfxModalClose(); setShowRestartConfirm(false); }}>
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
+               onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'restartTitle')}</h3>
             <p className="text-stone-500 mb-5">{t(lang, 'restartMsg')}</p>
             <div className="flex gap-3 justify-center">

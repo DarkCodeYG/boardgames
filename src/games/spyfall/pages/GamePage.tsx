@@ -45,6 +45,7 @@ const TEXTS = {
     role: '역할',
     creating: '방 만드는 중...',
     player: '플레이어',
+    reconnectHint: '링크를 잃었나요?',
   },
   en: {
     roomCode: 'Room Code',
@@ -75,6 +76,7 @@ const TEXTS = {
     role: 'Role',
     creating: 'Creating room...',
     player: 'Player',
+    reconnectHint: 'Lost your link?',
   },
   zh: {
     roomCode: '房间码',
@@ -105,6 +107,7 @@ const TEXTS = {
     role: '角色',
     creating: '正在创建房间...',
     player: '玩家',
+    reconnectHint: '链接丢失了吗？',
   },
 };
 
@@ -123,6 +126,17 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   const [showResultsConfirm, setShowResultsConfirm] = useState(false);
   const [showResults, setShowResults] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (showResults) { sfxModalClose(); setShowResults(false); }
+      else if (showResultsConfirm) { sfxModalClose(); setShowResultsConfirm(false); }
+      else if (showHomeConfirm) { sfxModalClose(); setShowHomeConfirm(false); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showHomeConfirm, showResultsConfirm, showResults]);
 
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
@@ -377,8 +391,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
       {/* Confirm Home */}
       {showHomeConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+             onClick={() => { sfxModalClose(); setShowHomeConfirm(false); }}>
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
+               onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-stone-800 mb-2">{txt.confirmHomeTitle}</h3>
             <p className="text-stone-500 mb-5">{txt.confirmHomeMsg}</p>
             <div className="flex gap-3 justify-center">
