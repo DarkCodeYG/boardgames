@@ -442,7 +442,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             {/* Cards */}
             <div className="flex-1 min-h-0 overflow-hidden">
               <div
-                className="h-full grid grid-cols-3 sm:grid-cols-4 gap-2 p-2"
+                className={`h-full grid grid-cols-3 sm:grid-cols-4 gap-2 py-2 ${(theme || roomState.theme) === 'genius' ? 'px-[10%]' : 'px-2'}`}
                 style={{ perspective: '600px', gridAutoRows: '1fr' }}
               >
                 {tableCards.map((cardId) => {
