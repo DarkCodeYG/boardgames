@@ -90,15 +90,14 @@ export default function SetCard({ cardId, theme, selected, correct, onClick, dis
         disabled={disabled || !onClick}
         style={{ backgroundColor: GENIUS_BG_COLORS[bc] }}
         className={`
-          rounded-xl shadow-md overflow-hidden ${borderClass}
+          w-full h-full rounded-xl shadow-md overflow-hidden ${borderClass}
           transition-all duration-150
           ${onClick && !disabled ? 'hover:shadow-lg hover:scale-[1.03] active:scale-95 cursor-pointer' : 'cursor-default'}
           ${selected ? 'scale-[1.03] shadow-lg' : ''}
-          ${small ? '' : ''}
           flex items-center justify-center
         `}
       >
-        <div className={small ? 'w-12 h-8' : 'w-full h-full aspect-square'}>
+        <div className={small ? 'w-12 h-8' : 'w-full h-full'}>
           <GeniusCardSvg shapeColor={GENIUS_SHAPE_COLORS[sc]} shape={shape} />
         </div>
       </button>
@@ -111,7 +110,7 @@ export default function SetCard({ cardId, theme, selected, correct, onClick, dis
       onClick={onClick}
       disabled={disabled || !onClick}
       className={`
-        bg-white rounded-xl shadow-md ${borderClass}
+        w-full h-full bg-white rounded-xl shadow-md ${borderClass}
         transition-all duration-150
         ${onClick && !disabled ? 'hover:shadow-lg hover:scale-[1.03] active:scale-95 cursor-pointer' : 'cursor-default'}
         ${selected ? 'scale-[1.03] shadow-lg' : ''}
@@ -119,7 +118,7 @@ export default function SetCard({ cardId, theme, selected, correct, onClick, dis
         flex items-center justify-center
       `}
     >
-      <div className={small ? 'w-12 h-8' : 'w-full h-full aspect-[3/2]'}>
+      <div className={small ? 'w-12 h-8' : 'w-full h-full'}>
         <StandardCardSvg count={count} color={STD_COLORS[color]} shape={shape} fillType={fillType} cardId={cardId} />
       </div>
     </button>

@@ -434,21 +434,24 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
             {/* Selection hint */}
             {isSetTurn && !resolving && (
-              <p className="text-xs text-stone-500 text-center">
+              <p className="shrink-0 text-xs text-stone-500 text-center">
                 {txt.selectCards} ({selectedCards.length}/3)
               </p>
             )}
 
             {/* Cards */}
-            <div className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto">
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 p-3 content-start" style={{ perspective: '600px' }}>
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <div
+                className="h-full grid grid-cols-3 sm:grid-cols-4 gap-2 p-2"
+                style={{ perspective: '600px', gridAutoRows: '1fr' }}
+              >
                 {tableCards.map((cardId) => {
                   const delayIdx = newCardIds.get(cardId);
                   const isNew = delayIdx !== undefined;
                   const isHint = hintCards?.includes(cardId) && hintVisible;
                   return (
                     <div key={cardId}
-                         className={`${isNew ? 'animate-flip-in' : ''} ${isHint ? 'ring-4 ring-yellow-400 rounded-xl scale-105 z-10 relative transition-all duration-150' : ''}`}
+                         className={`h-full min-h-0 ${isNew ? 'animate-flip-in' : ''} ${isHint ? 'ring-4 ring-yellow-400 rounded-xl scale-105 z-10 relative transition-all duration-150' : ''}`}
                          style={isNew ? { animationDelay: `${delayIdx * 120}ms` } : undefined}>
                       <SetCard
                         cardId={cardId}
@@ -491,6 +494,19 @@ export default function GamePage({ onGoHome }: GamePageProps) {
           </div>
         </div>
 
+        {/* Confirm zone — always reserved so cards never go behind the button */}
+        <div className="h-20 shrink-0 flex items-center justify-center px-6">
+          {isSetTurn && selectedCards.length === 3 && !resolving && (
+            <button
+              onClick={handleConfirmSet}
+              className="w-full max-w-sm bg-emerald-600 text-white font-black text-2xl py-4 rounded-3xl shadow-2xl
+                         hover:bg-emerald-500 active:scale-95 transition-all border-4 border-white animate-pop-in"
+            >
+              ✓ {txt.confirm}
+            </button>
+          )}
+        </div>
+
         {/* Hint confirm modal */}
         {showHintConfirm && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6"
@@ -531,19 +547,6 @@ export default function GamePage({ onGoHome }: GamePageProps) {
                 {turnAnnounce.playerName}
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Big confirm button */}
-        {isSetTurn && selectedCards.length === 3 && !resolving && (
-          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-45 animate-pop-in">
-            <button
-              onClick={handleConfirmSet}
-              className="bg-emerald-600 text-white font-black text-3xl px-16 py-5 rounded-3xl shadow-2xl
-                         hover:bg-emerald-500 active:scale-95 transition-all border-4 border-white"
-            >
-              ✓ {txt.confirm}
-            </button>
           </div>
         )}
 
