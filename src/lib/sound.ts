@@ -11,25 +11,47 @@ function getCtx(): AudioContext {
   return ctx;
 }
 
+function warmup() {
+  if (!ctx) return;
+  try {
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start();
+  } catch {}
+}
+
 // iOS Safari 오디오 unlock:
-// - user gesture 밖에서는 AudioContext를 시작/재개할 수 없음
-// - 백그라운드 복귀 또는 ~30초 비활성 후 AudioContext를 자동 suspend시킴
-// → 리스너를 유지해 매 터치마다 재unlock, 항상 무음 버퍼로 워밍업.
-//   (iOS 13+는 running 상태여도 첫 버퍼 재생 없이 소리 안 나는 경우 있음)
+// - touchend: touchstart보다 안정적 (iOS 9+에서 gesture로 더 확실히 인정)
+// - resume().then(warmup): resume 완료 후 무음 버퍼 재생으로 audio pipeline 활성화
+// - visibilitychange: 백그라운드→포그라운드 복귀 시 자동 resume
+// - keep-alive: 20초마다 무음 버퍼로 iOS 30초 자동 suspend 방지
 if (typeof window !== 'undefined') {
   const unlock = () => {
     try {
       if (!ctx) ctx = new AudioContext();
-      if (ctx.state !== 'running') ctx.resume().catch(() => {});
-      const buf = ctx.createBuffer(1, 1, 22050);
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.start(); // suspended 상태에서도 resume 후 즉시 재생되도록 인자 없이 호출
+      if (ctx.state === 'running') {
+        warmup();
+      } else {
+        ctx.resume().then(warmup).catch(() => {});
+      }
     } catch {}
   };
-  window.addEventListener('touchstart', unlock, true);
-  window.addEventListener('pointerdown', unlock, true);
+  window.addEventListener('touchend', unlock, true);
+  window.addEventListener('mousedown', unlock, true);
+
+  // 백그라운드 → 포그라운드 복귀 시 resume
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+  });
+
+  // iOS 30초 자동 suspend 방지: running 상태일 때만 무음 버퍼 재생
+  setInterval(() => {
+    if (ctx && ctx.state === 'running') warmup();
+  }, 20000);
 }
 
 // ── 기본 음 생성 헬퍼 ──────────────────────────────────────
