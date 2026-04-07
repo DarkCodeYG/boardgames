@@ -17,6 +17,7 @@ import {
 } from '../lib/firebase-set';
 import type { SetRoomState, Lang } from '../lib/types';
 import SetCard from '../components/SetCard';
+import LangToggle from '../../../components/LangToggle';
 import { sfxClick, sfxToggle, sfxGameStart, sfxVictory, sfxTimerTick, sfxTimerUp, sfxPlayerJoin, sfxCardFlip } from '../../../lib/sound';
 
 const SET_TIMEOUT_SECS = 10;
@@ -53,6 +54,14 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
   const lang = ((roomState?.lang ?? storeLang ?? globalLang) || 'ko') as Lang;
   const txt = I18N[lang];
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showHintConfirm) setShowHintConfirm(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showHintConfirm]);
 
   // Firebase subscription
   useEffect(() => {
@@ -246,7 +255,6 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   };
 
   const handleLangChange = async (l: Lang) => {
-    sfxClick();
     await updateSetLang(roomCode, l);
   };
 
@@ -282,21 +290,6 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     return scoreB - scoreA;
   });
 
-  const LangToggle = () => (
-    <div className="flex gap-0.5 bg-stone-200 rounded-lg p-0.5">
-      {(['ko', 'en', 'zh'] as const).map((l) => (
-        <button
-          key={l}
-          onClick={() => handleLangChange(l)}
-          className={`px-2 py-1 rounded-md text-xs font-black transition-all
-            ${lang === l ? 'bg-white text-stone-800 shadow' : 'text-stone-500 hover:text-stone-700'}`}
-        >
-          {l.toUpperCase()}
-        </button>
-      ))}
-    </div>
-  );
-
   const origin = window.location.origin;
   const pathname = window.location.pathname;
   const qrUrl = `${origin}${pathname}?game=set&room=${roomCode}&lang=${lang}`;
@@ -313,7 +306,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             <button onClick={handleGoHome} className="text-stone-500 hover:text-stone-700 font-bold text-sm">
               ← {txt.goHome}
             </button>
-            <LangToggle />
+            <LangToggle lang={lang} onChange={handleLangChange} />
           </div>
 
           <div className="text-center mb-6">
@@ -393,7 +386,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             >
               💡 {txt.hintBtn}
             </button>
-            <LangToggle />
+            <LangToggle lang={lang} onChange={handleLangChange} />
           </div>
         </div>
 
@@ -447,7 +440,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
             {/* Cards */}
             <div className="flex-1 min-h-0 overflow-auto">
-              <div className="grid grid-cols-4 gap-2 p-2 content-start" style={{ perspective: '600px' }}>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 p-2 content-start" style={{ perspective: '600px' }}>
                 {tableCards.map((cardId) => {
                   const delayIdx = newCardIds.get(cardId);
                   const isNew = delayIdx !== undefined;
@@ -499,8 +492,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
         {/* Hint confirm modal */}
         {showHintConfirm && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl text-center">
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6"
+               onClick={() => setShowHintConfirm(false)}>
+            <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl text-center"
+                 onClick={(e) => e.stopPropagation()}>
               <div className="text-4xl mb-3">💡</div>
               <p className="text-stone-700 font-bold text-lg mb-5">{txt.hintConfirm}</p>
               <div className="flex gap-3">
