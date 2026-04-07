@@ -440,8 +440,8 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             )}
 
             {/* Cards */}
-            <div className="flex-1 min-h-0 overflow-auto">
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 p-2 content-start" style={{ perspective: '600px' }}>
+            <div className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 p-3 content-start" style={{ perspective: '600px' }}>
                 {tableCards.map((cardId) => {
                   const delayIdx = newCardIds.get(cardId);
                   const isNew = delayIdx !== undefined;
