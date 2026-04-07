@@ -400,7 +400,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
         {/* Main area */}
         <div className="flex-1 flex gap-3 p-3 min-h-0 overflow-hidden">
           {/* Card grid */}
-          <div className="flex-1 flex flex-col gap-2 min-w-0">
+          <div className="flex-1 flex flex-col gap-2 min-w-0 min-h-0">
             {/* Turn banner */}
             {(isSetTurn || isGyulTurn) && (
               <div className={`rounded-xl px-4 py-2 shrink-0
@@ -446,24 +446,26 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             )}
 
             {/* Cards */}
-            <div className="flex-1 grid grid-cols-4 gap-2 content-start overflow-auto" style={{ perspective: '600px' }}>
-              {tableCards.map((cardId) => {
-                const delayIdx = newCardIds.get(cardId);
-                const isNew = delayIdx !== undefined;
-                const isHint = hintCards?.includes(cardId) && hintVisible;
-                return (
-                  <div key={cardId}
-                       className={`${isNew ? 'animate-flip-in' : ''} ${isHint ? 'ring-4 ring-yellow-400 rounded-xl scale-110 z-10 relative transition-all duration-150' : ''}`}
-                       style={isNew ? { animationDelay: `${delayIdx * 120}ms` } : undefined}>
-                    <SetCard
-                      cardId={cardId}
-                      theme={theme || roomState.theme}
-                      selected={selectedCards.includes(cardId)}
-                      onClick={isSetTurn && !resolving ? () => handleCardClick(cardId) : undefined}
-                    />
-                  </div>
-                );
-              })}
+            <div className="flex-1 min-h-0 overflow-auto">
+              <div className="grid grid-cols-4 gap-2 p-2 content-start" style={{ perspective: '600px' }}>
+                {tableCards.map((cardId) => {
+                  const delayIdx = newCardIds.get(cardId);
+                  const isNew = delayIdx !== undefined;
+                  const isHint = hintCards?.includes(cardId) && hintVisible;
+                  return (
+                    <div key={cardId}
+                         className={`${isNew ? 'animate-flip-in' : ''} ${isHint ? 'ring-4 ring-yellow-400 rounded-xl scale-105 z-10 relative transition-all duration-150' : ''}`}
+                         style={isNew ? { animationDelay: `${delayIdx * 120}ms` } : undefined}>
+                      <SetCard
+                        cardId={cardId}
+                        theme={theme || roomState.theme}
+                        selected={selectedCards.includes(cardId)}
+                        onClick={isSetTurn && !resolving ? () => handleCardClick(cardId) : undefined}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
