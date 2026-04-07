@@ -115,6 +115,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
               </button>
               <button
                 onClick={() => { sfxModalOpen(); setShowGoHomeConfirm(true); }}
+                aria-label={t(lang, 'goHome')}
                 className="bg-stone-200 text-stone-700 px-3 py-2 rounded-lg font-bold
                            hover:bg-stone-300 transition-colors text-sm"
               >
@@ -149,9 +150,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       {showGoHomeConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
              onClick={() => { sfxModalClose(); setShowGoHomeConfirm(false); }}>
-          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
+          <div role="dialog" aria-modal="true" aria-labelledby="go-home-title"
+               className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
                onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'goHomeTitle')}</h3>
+            <h3 id="go-home-title" className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'goHomeTitle')}</h3>
             <p className="text-stone-500 mb-5">{t(lang, 'goHomeMsg')}</p>
             <div className="flex gap-3 justify-center">
               <button
@@ -177,9 +179,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       {showRestartConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
              onClick={() => { sfxModalClose(); setShowRestartConfirm(false); }}>
-          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
+          <div role="dialog" aria-modal="true" aria-labelledby="restart-title"
+               className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
                onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'restartTitle')}</h3>
+            <h3 id="restart-title" className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'restartTitle')}</h3>
             <p className="text-stone-500 mb-5">{t(lang, 'restartMsg')}</p>
             <div className="flex gap-3 justify-center">
               <button

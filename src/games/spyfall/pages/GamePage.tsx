@@ -380,9 +380,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       {showHomeConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
              onClick={() => { sfxModalClose(); setShowHomeConfirm(false); }}>
-          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
+          <div role="dialog" aria-modal="true" aria-labelledby="spy-home-title"
+               className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
                onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-bold text-stone-800 mb-2">{txt.confirmHomeTitle}</h3>
+            <h3 id="spy-home-title" className="text-xl font-bold text-stone-800 mb-2">{txt.confirmHomeTitle}</h3>
             <p className="text-stone-500 mb-5">{txt.confirmHomeMsg}</p>
             <div className="flex gap-3 justify-center">
               <button onClick={() => { sfxModalClose(); setShowHomeConfirm(false); }}
@@ -402,9 +403,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       {showResultsConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
              onClick={() => { sfxModalClose(); setShowResultsConfirm(false); }}>
-          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
+          <div role="dialog" aria-modal="true" aria-labelledby="spy-result-confirm-title"
+               className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
                onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-bold text-stone-800 mb-2">{txt.resultConfirmTitle}</h3>
+            <h3 id="spy-result-confirm-title" className="text-xl font-bold text-stone-800 mb-2">{txt.resultConfirmTitle}</h3>
             <p className="text-stone-500 mb-5">{txt.resultConfirmMsg}</p>
             <div className="flex gap-3 justify-center">
               <button onClick={() => { sfxModalClose(); setShowResultsConfirm(false); }}
@@ -424,11 +426,12 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       {showResults && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
              onClick={() => { sfxModalClose(); setShowResults(false); }}>
-          <div className="bg-white rounded-[2rem] p-6 max-w-2xl w-full shadow-2xl overflow-hidden"
+          <div role="dialog" aria-modal="true" aria-labelledby="spy-result-title"
+               className="bg-white rounded-[2rem] p-6 max-w-2xl w-full shadow-2xl overflow-hidden"
                onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-xl font-bold text-stone-900">{txt.resultTitle}</h3>
+                <h3 id="spy-result-title" className="text-xl font-bold text-stone-900">{txt.resultTitle}</h3>
                 <p className="text-sm text-stone-500">{txt.resultSubtitle}</p>
               </div>
               <button onClick={() => { sfxModalClose(); setShowResults(false); }}

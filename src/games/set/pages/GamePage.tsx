@@ -18,6 +18,7 @@ import {
 import type { SetRoomState, Lang } from '../lib/types';
 import SetCard from '../components/SetCard';
 import LangToggle from '../../../components/LangToggle';
+import Confetti from '../../../components/Confetti';
 import { sfxClick, sfxToggle, sfxGameStart, sfxVictory, sfxTimerTick, sfxTimerUp, sfxPlayerJoin, sfxCardFlip } from '../../../lib/sound';
 
 const SET_TIMEOUT_SECS = 10;
@@ -384,7 +385,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
               onClick={() => { sfxClick(); setShowHintConfirm(true); }}
               className="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm rounded-lg transition-colors"
             >
-              💡 {txt.hintBtn}
+              <span aria-hidden="true">💡</span> {txt.hintBtn}
             </button>
             <LangToggle lang={lang} onChange={handleLangChange} />
           </div>
@@ -494,10 +495,11 @@ export default function GamePage({ onGoHome }: GamePageProps) {
         {showHintConfirm && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6"
                onClick={() => setShowHintConfirm(false)}>
-            <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl text-center"
+            <div role="dialog" aria-modal="true" aria-labelledby="hint-confirm-title"
+                 className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl text-center"
                  onClick={(e) => e.stopPropagation()}>
-              <div className="text-4xl mb-3">💡</div>
-              <p className="text-stone-700 font-bold text-lg mb-5">{txt.hintConfirm}</p>
+              <div className="text-4xl mb-3" aria-hidden="true">💡</div>
+              <p id="hint-confirm-title" className="text-stone-700 font-bold text-lg mb-5">{txt.hintConfirm}</p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowHintConfirm(false)}
@@ -559,6 +561,8 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
   // ===== ENDED =====
   return (
+    <>
+    <Confetti />
     <div className="min-h-dvh bg-gradient-to-b from-stone-800 to-stone-900 p-6 flex flex-col items-center justify-center">
       <div className="w-full max-w-lg text-center">
         <div className="text-6xl mb-4">🏆</div>
@@ -609,5 +613,6 @@ export default function GamePage({ onGoHome }: GamePageProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }

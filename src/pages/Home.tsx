@@ -200,9 +200,10 @@ export default function Home({ onSelectGame }: HomeProps) {
       {showQuiz && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6"
              onClick={() => { setShowQuiz(false); setAnswer(''); }}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl"
+          <div role="dialog" aria-modal="true" aria-labelledby="quiz-question"
+               className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl"
                onClick={(e) => e.stopPropagation()}>
-            <p className="text-stone-700 font-bold text-lg mb-4 text-center">{quiz.q[lang]}</p>
+            <p id="quiz-question" className="text-stone-700 font-bold text-lg mb-4 text-center">{quiz.q[lang]}</p>
             <input
               type="text"
               value={answer}
