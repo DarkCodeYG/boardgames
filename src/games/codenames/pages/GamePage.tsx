@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react';
 import Board from '../components/Board';
 import GameHeader from '../components/GameHeader';
 import GameOverModal from '../components/GameOverModal';
+import LangToggle from '../../../components/LangToggle';
 import { useGameStore } from '../store/game-store';
 import { t } from '../lib/i18n';
-import { sfxClick, sfxToggle, sfxModalOpen, sfxModalClose } from '../../../lib/sound';
+import { sfxToggle, sfxModalOpen, sfxModalClose, sfxClick } from '../../../lib/sound';
 
 interface GamePageProps {
   onGoHome: () => void;
@@ -42,19 +43,6 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     setShowQR(false);
   };
 
-  const LangToggle = () => (
-    <div className="flex gap-0.5 bg-stone-200 rounded-lg p-0.5">
-      {(['ko', 'en', 'zh'] as const).map((l) => (
-        <button key={l} onClick={() => { sfxClick(); setLang(l); }}
-          className={`px-2 py-1 rounded-md text-xs font-black transition-all ${
-            lang === l ? 'bg-white text-stone-800 shadow' : 'text-stone-500 hover:text-stone-700'
-          }`}>
-          {l.toUpperCase()}
-        </button>
-      ))}
-    </div>
-  );
-
   return (
     <div className="h-dvh bg-stone-100 flex flex-col overflow-hidden">
       {/* QR 확인 후 게임 시작 */}
@@ -63,7 +51,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
           <div className="bg-white rounded-2xl p-6 shadow-md text-center max-w-sm w-full">
             <div className="flex justify-between items-center mb-3">
               <button onClick={() => { sfxModalOpen(); setShowGoHomeConfirm(true); }} className="text-stone-500 hover:text-stone-700 font-bold text-sm">← {t(lang, 'goHome')}</button>
-              <LangToggle />
+              <LangToggle lang={lang} onChange={setLang} />
             </div>
             <h2 className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'qrTitle')}</h2>
             <p className="text-stone-500 text-sm mb-4">{t(lang, 'qrDesc')}</p>
@@ -103,7 +91,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
           <div className="border-t border-stone-200 bg-white">
             <div className="flex items-center justify-center gap-2 p-3">
-              <LangToggle />
+              <LangToggle lang={lang} onChange={setLang} />
               <button
                 onClick={() => { sfxToggle(); setShowQR(!showQR); }}
                 className="bg-stone-200 text-stone-700 px-3 py-2 rounded-lg font-bold

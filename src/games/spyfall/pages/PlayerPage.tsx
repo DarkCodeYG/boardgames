@@ -33,6 +33,8 @@ const TEXTS = {
     gameEnded: '게임이 종료되었습니다',
     closeTab: '탭 닫기',
     closeTabHint: '탭을 직접 닫아주세요',
+    backHome: '← 홈',
+    connectionError: '연결에 실패했습니다. 다시 시도해 주세요.',
   },
   en: {
     enterName: 'Enter your name',
@@ -56,6 +58,8 @@ const TEXTS = {
     gameEnded: 'Game has ended',
     closeTab: 'Close Tab',
     closeTabHint: 'Please close this tab manually',
+    backHome: '← Home',
+    connectionError: 'Connection failed. Please try again.',
   },
   zh: {
     enterName: '请输入您的名字',
@@ -79,6 +83,8 @@ const TEXTS = {
     gameEnded: '游戏已结束',
     closeTab: '关闭标签页',
     closeTabHint: '请手动关闭此标签页',
+    backHome: '← 主页',
+    connectionError: '连接失败，请重试。',
   },
 };
 
@@ -217,7 +223,7 @@ export default function SpyfallPlayerPage() {
         }
       }
     } catch {
-      setError('연결에 실패했습니다. 다시 시도해 주세요.');
+      setError(txt.connectionError);
     } finally {
       setJoining(false);
     }
@@ -241,7 +247,7 @@ export default function SpyfallPlayerPage() {
     return (
       <div className="min-h-dvh flex flex-col bg-gradient-to-b from-stone-100 to-stone-200">
         <div className="p-4">
-          <a href="/" className="text-stone-400 hover:text-stone-600 text-sm font-bold">← 홈</a>
+          <a href="/" className="text-stone-400 hover:text-stone-600 text-sm font-bold">{txt.backHome}</a>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="bg-white rounded-2xl p-8 max-w-xs w-full shadow-lg">

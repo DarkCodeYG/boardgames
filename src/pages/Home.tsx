@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGameStore } from '../games/codenames/store/game-store';
 import { LANG_LABELS, type Lang } from '../games/codenames/lib/i18n';
 import { sfxToggle, sfxGameSelect, sfxClick } from '../lib/sound';
@@ -44,6 +44,14 @@ export default function Home({ onSelectGame }: HomeProps) {
   const [quiz] = useState(() => QUIZ_POOL[Math.floor(Math.random() * QUIZ_POOL.length)]);
   const [answer, setAnswer] = useState('');
   const [showHiddenWarning, setShowHiddenWarning] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showQuiz) { setShowQuiz(false); setAnswer(''); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showQuiz]);
 
   const handleHiddenToggle = () => {
     sfxClick();
@@ -190,8 +198,10 @@ export default function Home({ onSelectGame }: HomeProps) {
 
       {/* 퀴즈 모달 */}
       {showQuiz && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6"
+             onClick={() => { setShowQuiz(false); setAnswer(''); }}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl"
+               onClick={(e) => e.stopPropagation()}>
             <p className="text-stone-700 font-bold text-lg mb-4 text-center">{quiz.q[lang]}</p>
             <input
               type="text"

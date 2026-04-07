@@ -1,5 +1,6 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { useState, useEffect, useCallback } from 'react';
+import LangToggle from '../../../components/LangToggle';
 import { useSpyfallStore } from '../store/game-store';
 import { useGameStore } from '../../codenames/store/game-store';
 import Timer from '../components/Timer';
@@ -142,7 +143,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     let unsubscribe: (() => void) | null = null;
     let active = true;
 
-    createSpyfallRoom(pack, lang, roundMinutes)
+    createSpyfallRoom(pack, globalLang, roundMinutes)
       .then((code) => {
         if (!active) return;
         setRoomCode(code);
@@ -196,22 +197,8 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   };
 
   const handleLangChange = (newLang: typeof globalLang) => {
-    sfxClick();
     if (roomCode) updateSpyfallSettings(roomCode, { lang: newLang }).catch(() => {});
   };
-
-  const LangToggle = () => (
-    <div className="flex gap-0.5 bg-stone-200 rounded-lg p-0.5">
-      {(['ko', 'en', 'zh'] as const).map((l) => (
-        <button key={l} onClick={() => handleLangChange(l)}
-          className={`px-2 py-1 rounded-md text-xs font-black transition-all ${
-            lang === l ? 'bg-white text-stone-800 shadow' : 'text-stone-500 hover:text-stone-700'
-          }`}>
-          {l.toUpperCase()}
-        </button>
-      ))}
-    </div>
-  );
 
   const playerRoles = room?.seed && room.playerCount
     ? players.slice(0, room.playerCount).map(([name], i) => ({
@@ -249,7 +236,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
         <div className="flex-1 overflow-auto p-4">
           <div className="max-w-sm mx-auto space-y-4">
             {/* 언어 토글 */}
-            <div className="flex justify-end"><LangToggle /></div>
+            <div className="flex justify-end"><LangToggle lang={lang} onChange={handleLangChange} /></div>
 
             {/* QR + Code */}
             <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-col items-center">
@@ -369,13 +356,13 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             </button>
           </div>
 
-          <div className="mt-4"><LangToggle /></div>
+          <div className="mt-4"><LangToggle lang={lang} onChange={handleLangChange} /></div>
 
           {/* 재접속 QR + 링크 */}
           <div className="mt-4 flex items-center gap-4 bg-white rounded-2xl px-5 py-3 shadow-sm">
             <QRCodeSVG value={joinUrl} size={64} />
             <div>
-              <p className="text-xs text-stone-400 mb-1">링크를 잃었나요?</p>
+              <p className="text-xs text-stone-400 mb-1">{txt.reconnectHint}</p>
               <a
                 href={joinUrl}
                 target="_blank"
@@ -413,8 +400,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
       {/* Confirm Results */}
       {showResultsConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+             onClick={() => { sfxModalClose(); setShowResultsConfirm(false); }}>
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
+               onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-stone-800 mb-2">{txt.resultConfirmTitle}</h3>
             <p className="text-stone-500 mb-5">{txt.resultConfirmMsg}</p>
             <div className="flex gap-3 justify-center">
@@ -433,8 +422,10 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
       {/* Results */}
       {showResults && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[2rem] p-6 max-w-2xl w-full shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+             onClick={() => { sfxModalClose(); setShowResults(false); }}>
+          <div className="bg-white rounded-[2rem] p-6 max-w-2xl w-full shadow-2xl overflow-hidden"
+               onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-xl font-bold text-stone-900">{txt.resultTitle}</h3>
