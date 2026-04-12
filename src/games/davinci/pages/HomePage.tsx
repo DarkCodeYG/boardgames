@@ -37,12 +37,12 @@ export default function DavinciHome({ onStartGame, onBack }: Props) {
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-stone-100 to-stone-200 p-6 flex flex-col items-center">
-      <div className="w-full max-w-md flex justify-start mb-4">
+      <div className="w-full max-w-md flex justify-center mb-4">
         <button
           onClick={() => { sfxClick(); onBack(); }}
-          className="text-stone-500 hover:text-stone-700 font-bold transition-colors"
+          className="text-stone-500 hover:text-stone-700 font-bold text-sm"
         >
-          ← {txt.back}
+          ← {txt.home}
         </button>
       </div>
 

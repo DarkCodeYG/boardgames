@@ -32,7 +32,7 @@ export default function GomokuHome({ onStartGame, onBack }: Props) {
           onClick={() => { sfxClick(); onBack(); }}
           className="mb-4 text-stone-500 hover:text-stone-700 font-bold text-sm"
         >
-          ← {txt.back}
+          ← {txt.goHome}
         </button>
 
         <h1 className="text-5xl font-black text-stone-800 mb-2">{txt.title}</h1>
