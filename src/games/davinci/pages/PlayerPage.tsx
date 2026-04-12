@@ -1,0 +1,517 @@
+import { useEffect, useRef, useState } from 'react';
+import {
+  subscribeDavinciRoom,
+  joinDavinciRoom,
+  drawTile,
+  skipDraw,
+  submitGuess,
+  setPendingGuess,
+  clearPendingGuess,
+  continueGuessing,
+  endTurn,
+} from '../lib/firebase-room';
+import { formatTileNumber, JOKER_NUMBER } from '../lib/game-engine';
+import { I18N } from '../lib/i18n';
+import { DAVINCI_TILE } from '../../../lib/colors';
+import Modal from '../../../components/Modal';
+import { sfxClick, sfxCardFlip, sfxCorrect, sfxWrong, sfxTurnEnd, sfxModalClose, sfxVictory, sfxDefeat, sfxTimerTick } from '../../../lib/sound';
+
+import type { RoomState, Lang, LastResult } from '../lib/types';
+
+const GUESS_TIMEOUT = 30;
+
+export default function DavinciPlayer() {
+  const params = new URLSearchParams(window.location.search);
+  const roomCode = params.get('room') ?? '';
+  const urlLang = params.get('lang') ?? 'ko';
+  const lang = (['ko', 'en', 'zh'].includes(urlLang) ? urlLang : 'ko') as Lang;
+  const txt = I18N[lang];
+
+  const [name, setName] = useState(
+    () => sessionStorage.getItem(`davinci_session_${roomCode}`) ?? localStorage.getItem(`davinci_name_${roomCode}`) ?? '',
+  );
+  const [joined, setJoined] = useState(false);
+  const [error, setError] = useState('');
+  const [room, setRoom] = useState<RoomState | null>(null);
+  const [selectedTile, setSelectedTile] = useState<{ targetId: string; tileIndex: number } | null>(null);
+  const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
+  const [guessTimer, setGuessTimer] = useState(GUESS_TIMEOUT);
+  const prevTurnStateRef = useRef('');
+  const prevPhaseRef = useRef('');
+  const isMyTurnRef = useRef(false);
+  const autoEndedRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const sessionName = sessionStorage.getItem(`davinci_session_${roomCode}`);
+    if (sessionName) doJoin(sessionName);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!joined || !roomCode) return;
+    return subscribeDavinciRoom(roomCode, (state) => {
+      setRoom(state);
+
+      if (state?.turnState !== prevTurnStateRef.current) {
+        if (state?.turnState === 'result') {
+          if (state.lastResult?.correct) sfxCorrect(); else sfxWrong();
+        }
+        prevTurnStateRef.current = state?.turnState ?? '';
+      }
+
+      if (state?.phase !== prevPhaseRef.current) {
+        if (state?.phase === 'gameover') {
+          const myName = sessionStorage.getItem(`davinci_session_${roomCode}`);
+          if (state.winner === myName) sfxVictory();
+          else sfxDefeat();
+        }
+        prevPhaseRef.current = state?.phase ?? '';
+      }
+    });
+  }, [joined, roomCode]);
+
+  async function doJoin(joinName: string) {
+    const trimmed = joinName.trim();
+    if (!trimmed) { setError(txt.nameRequired); return; }
+    if (!roomCode) { setError(txt.codeRequired); return; }
+
+    const result = await joinDavinciRoom(roomCode, trimmed);
+    if ('error' in result) {
+      if (result.error === 'not_found') setError(txt.roomNotFound);
+      if (result.error === 'started') setError(txt.gameAlreadyStarted);
+      return;
+    }
+
+    localStorage.setItem(`davinci_name_${roomCode}`, trimmed);
+    sessionStorage.setItem(`davinci_session_${roomCode}`, trimmed);
+    setName(trimmed);
+    setJoined(true);
+    sfxClick();
+  }
+
+  const myName = sessionStorage.getItem(`davinci_session_${roomCode}`) ?? name;
+  const myPlayer = room?.players?.[myName];
+  const myTiles = myPlayer?.tiles ?? [];
+  const isMyTurn = room?.playerOrder?.[room.currentTurnIndex] === myName;
+  const isEliminated = myPlayer?.eliminated ?? false;
+  const currentTurnPlayer = room ? room.playerOrder?.[room.currentTurnIndex] : null;
+
+  // Keep ref in sync for use inside setInterval closure
+  isMyTurnRef.current = isMyTurn;
+
+  // Countdown — auto-end turn when timer hits 0 (only on my turn)
+  useEffect(() => {
+    if (room?.turnState !== 'guess' || !room.guessStartedAt) {
+      setGuessTimer(GUESS_TIMEOUT);
+      return;
+    }
+    const startedAt = room.guessStartedAt;
+    const tick = () => {
+      const remaining = Math.max(0, GUESS_TIMEOUT - (Date.now() - startedAt) / 1000);
+      const secs = Math.ceil(remaining);
+      setGuessTimer(secs);
+      if (secs <= 5 && secs > 0) sfxTimerTick();
+      if (remaining <= 0 && isMyTurnRef.current && autoEndedRef.current !== startedAt) {
+        autoEndedRef.current = startedAt;
+        endTurn(roomCode).catch(console.error);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  // room.guessStartedAt 변경 시마다 타이머 리셋
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.turnState, room?.guessStartedAt, roomCode]);
+
+  async function handleDrawTile() {
+    sfxCardFlip();
+    await drawTile(roomCode);
+  }
+
+  async function handleSkipDraw() {
+    sfxClick();
+    await skipDraw(roomCode);
+  }
+
+  async function handleTileClick(targetId: string, tileIndex: number) {
+    if (!isMyTurn || room?.turnState !== 'guess') return;
+    if (room.pendingGuess) return;
+    const tile = room.players[targetId]?.tiles?.[tileIndex];
+    if (!tile || tile.revealed || targetId === myName) return;
+    sfxCardFlip();
+    setSelectedTile({ targetId, tileIndex });
+    setSelectedNumber(null);
+    await setPendingGuess(roomCode, targetId, tileIndex);
+  }
+
+  async function handleCancelGuess() {
+    sfxModalClose();
+    setSelectedTile(null);
+    setSelectedNumber(null);
+    await clearPendingGuess(roomCode);
+  }
+
+  async function handleSubmitGuess() {
+    if (selectedNumber === null || !selectedTile) return;
+    sfxClick();
+    await submitGuess(roomCode, selectedTile.targetId, selectedTile.tileIndex, selectedNumber);
+    setSelectedTile(null);
+    setSelectedNumber(null);
+  }
+
+  async function handleContinueGuessing() {
+    sfxClick();
+    await continueGuessing(roomCode);
+  }
+
+  async function handleEndTurn() {
+    sfxTurnEnd();
+    await endTurn(roomCode);
+  }
+
+  // ── JOIN SCREEN ──
+  if (!joined) {
+    return (
+      <div className="min-h-dvh bg-gradient-to-b from-stone-100 to-stone-200 flex flex-col items-center justify-center p-6">
+        <div className="text-5xl mb-4" aria-hidden="true">🔢</div>
+        <h1 className="text-3xl font-black text-stone-800 mb-1">{txt.title}</h1>
+        <p className="text-stone-500 text-sm mb-6">
+          {txt.roomCodeLabel}: <span className="font-mono font-bold">{roomCode}</span>
+        </p>
+
+        <div className="w-full max-w-xs space-y-3">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && doJoin(name)}
+            placeholder={txt.enterName}
+            maxLength={12}
+            autoFocus
+            className="w-full border-2 border-stone-300 focus:border-stone-500 rounded-xl px-4 py-3
+                       text-center text-lg font-bold outline-none transition-colors"
+          />
+          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+          <button
+            onClick={() => doJoin(name)}
+            className="w-full py-3 rounded-xl bg-stone-800 text-white font-bold hover:bg-stone-700 active:scale-95 transition-all"
+          >
+            {txt.join}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── LOBBY ──
+  if (!room || room.phase === 'lobby') {
+    return (
+      <div className="min-h-dvh bg-stone-900 flex flex-col items-center justify-center p-6 text-white">
+        <div className="text-5xl mb-4" aria-hidden="true">🔢</div>
+        <h1 className="text-2xl font-black mb-2">{txt.title}</h1>
+        <p className="text-emerald-400 font-bold text-xl mb-1">{myName}</p>
+        <p className="text-stone-400">{txt.waiting}</p>
+        <p className="text-stone-500 text-sm mt-6">
+          {txt.roomCodeLabel}: <span className="font-mono font-bold text-stone-300">{roomCode}</span>
+        </p>
+        {room && (
+          <div className="mt-4 space-y-1 text-sm">
+            {Object.keys(room.players ?? {}).map((p) => (
+              <div key={p} className={p === myName ? 'text-white font-bold' : 'text-stone-500'}>
+                {p === myName ? '▶ ' : '  '}{p}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── GAMEOVER ──
+  if (room.phase === 'gameover') {
+    const iWon = room.winner === myName;
+    return (
+      <div
+        className={`min-h-dvh flex flex-col items-center justify-center p-6 text-white ${
+          iWon ? 'bg-yellow-900' : 'bg-stone-900'
+        }`}
+      >
+        <div className="text-6xl mb-4" aria-hidden="true">{iWon ? '🏆' : '💀'}</div>
+        <h2 className="text-3xl font-black mb-1">{iWon ? txt.winner : txt.eliminated}</h2>
+        <p className="text-stone-300 mb-8">{room.winner}{txt.winnerIs}</p>
+
+        <p className="text-stone-400 text-sm mb-3">{txt.yourTiles}</p>
+        <div className="flex gap-2 flex-wrap justify-center">
+          {myTiles.map((tile, idx) => {
+            const colorClasses = tile.color === 'black'
+              ? DAVINCI_TILE.black.unrevealed
+              : DAVINCI_TILE.white.unrevealed;
+            return (
+              <div
+                key={idx}
+                className={`w-12 h-16 rounded-lg flex items-center justify-center text-xl font-black border-2 ${colorClasses}`}
+              >
+                {formatTileNumber(tile.number)}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ── PLAYING ──
+  const canAct = isMyTurn && !isEliminated;
+
+  return (
+    <div className="min-h-dvh bg-stone-900 text-white flex flex-col p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3 shrink-0">
+        <span className="font-bold">{myName}</span>
+        <span className="text-stone-400 font-mono text-sm">{roomCode}</span>
+      </div>
+
+      {/* Turn banner */}
+      <div
+        className={`rounded-xl px-4 py-2 mb-3 text-center text-sm font-bold shrink-0 transition-colors duration-300 ${
+          isMyTurn ? 'bg-emerald-800 text-emerald-200' : 'bg-stone-800 text-stone-400'
+        }`}
+      >
+        {isMyTurn
+          ? `▶ ${txt.currentTurn}!`
+          : `${currentTurnPlayer ?? ''} ${txt.currentTurn}`}
+      </div>
+
+      {/* My tiles */}
+      <div className="mb-4 shrink-0">
+        <p className="text-stone-400 text-xs mb-2">{txt.yourTiles}</p>
+        <div className="flex gap-2 flex-wrap">
+          {myTiles.map((tile, idx) => {
+            const isDrawnTile = isMyTurn && room.drawnTileIndex === idx;
+            const colorClasses = tile.color === 'black'
+              ? (tile.revealed ? DAVINCI_TILE.black.revealed : DAVINCI_TILE.black.unrevealed)
+              : (tile.revealed ? DAVINCI_TILE.white.revealed : DAVINCI_TILE.white.unrevealed);
+            return (
+              <div
+                key={idx}
+                className={`w-12 h-16 rounded-lg flex items-center justify-center text-xl font-black border-2 relative
+                  ${colorClasses}
+                  ${isDrawnTile ? 'ring-2 ring-blue-400' : ''}
+                `}
+              >
+                {formatTileNumber(tile.number)}
+                {tile.revealed && (
+                  <span className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center text-xs">
+                    ✓
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {isEliminated && (
+          <p className="text-red-400 text-sm mt-2 font-bold">✕ {txt.eliminated}</p>
+        )}
+      </div>
+
+      {/* Other players */}
+      <div className="flex-1 overflow-y-auto px-1 pt-1 min-h-0">
+        <p className="text-stone-400 text-xs mb-2">{txt.playerCount}</p>
+        {room.turnState === 'guess' && (
+          <div className="flex items-center justify-between mb-2">
+            <p className={`text-xs font-bold ${canAct ? 'text-amber-300' : 'text-stone-500'}`}>
+              {canAct ? txt.selectTarget : `${currentTurnPlayer} ${txt.guessOf}...`}
+            </p>
+            <span
+              className={`font-black text-2xl tabular-nums transition-colors duration-300 ${
+                guessTimer <= 10 ? 'text-red-400' : 'text-stone-300'
+              }`}
+            >
+              {guessTimer}
+            </span>
+          </div>
+        )}
+        <div className="space-y-2 pb-2">
+          {(room.playerOrder ?? [])
+            .filter((p) => p !== myName)
+            .map((p) => {
+              const player = room.players[p];
+              const isTheirTurn = p === currentTurnPlayer;
+              return (
+                <div
+                  key={p}
+                  className={`rounded-xl p-3 transition-all duration-300 ${
+                    player.eliminated
+                      ? 'bg-stone-800 opacity-40'
+                      : isTheirTurn
+                        ? 'bg-stone-700 ring-1 ring-emerald-500'
+                        : 'bg-stone-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-bold">{p}</span>
+                    {isTheirTurn && <span className="text-emerald-400 text-xs">▶</span>}
+                    {player.eliminated && <span className="text-red-400 text-xs">✕</span>}
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(player.tiles ?? []).map((tile, idx) => {
+                      const isPending =
+                        room.pendingGuess?.targetId === p && room.pendingGuess?.tileIndex === idx;
+                      const isSelectedByMe = selectedTile?.targetId === p && selectedTile?.tileIndex === idx;
+                      const isGuessable =
+                        canAct && room.turnState === 'guess' && !tile.revealed && !player.eliminated;
+                      const colorClasses = tile.color === 'black'
+                        ? (tile.revealed ? DAVINCI_TILE.black.revealed : DAVINCI_TILE.black.opaque)
+                        : (tile.revealed ? DAVINCI_TILE.white.revealed : DAVINCI_TILE.white.opaque);
+
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => handleTileClick(p, idx)}
+                          disabled={!isGuessable}
+                          className={`
+                            w-10 h-14 rounded-lg flex items-center justify-center text-sm font-black border-2
+                            transition-all duration-150 shrink-0
+                            ${colorClasses}
+                            ${isPending || isSelectedByMe ? 'ring-2 ring-yellow-400 scale-110' : ''}
+                            ${isGuessable ? 'cursor-pointer hover:scale-110 hover:ring-2 hover:ring-yellow-300 active:scale-95' : 'cursor-default'}
+                          `}
+                        >
+                          {tile.revealed ? formatTileNumber(tile.number) : '?'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+
+      {/* Action area — 내 차례일 때만 표시 */}
+      {canAct && (
+        <div className="shrink-0 mt-3 pt-3 border-t border-stone-700">
+          {room.turnState === 'draw' && (
+            <div className="flex gap-2">
+              {(room.deck?.length ?? 0) > 0 ? (
+                <button
+                  onClick={handleDrawTile}
+                  className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 active:scale-95 transition-all"
+                >
+                  {txt.drawTile} ({room.deck?.length ?? 0})
+                </button>
+              ) : (
+                <button
+                  onClick={handleSkipDraw}
+                  className="flex-1 py-3 rounded-xl bg-stone-600 text-white font-bold hover:bg-stone-500 active:scale-95 transition-all"
+                >
+                  {txt.skipDraw} ({txt.deckEmpty})
+                </button>
+              )}
+            </div>
+          )}
+
+          {room.turnState === 'result' && room.lastResult && (
+            <div className={`rounded-2xl p-4 ${room.lastResult.correct ? 'bg-emerald-900' : 'bg-red-900'}`}>
+              <ResultCard result={room.lastResult} guesser={myName} txt={txt} />
+              <div className="flex gap-2 mt-3">
+                {room.lastResult.correct && !room.winner && (
+                  <button
+                    onClick={handleContinueGuessing}
+                    className="flex-1 py-2 rounded-xl bg-emerald-700 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all text-sm"
+                  >
+                    {txt.continueGuess}
+                  </button>
+                )}
+                <button
+                  onClick={handleEndTurn}
+                  className="flex-1 py-2 rounded-xl bg-stone-600 text-white font-bold hover:bg-stone-500 active:scale-95 transition-all text-sm"
+                >
+                  {txt.endTurn}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 내 차례 아닐 때 result 알림 */}
+      {!canAct && room.turnState === 'result' && room.lastResult && (
+        <ResultCard result={room.lastResult} guesser={currentTurnPlayer ?? ''} txt={txt} />
+      )}
+
+      {/* Number picker modal */}
+      {selectedTile && (
+        <Modal
+          titleId="player-number-picker"
+          onClose={handleCancelGuess}
+          maxWidth="max-w-sm"
+        >
+          <h3 id="player-number-picker" className="text-stone-800 font-bold mb-3 text-center">
+            {selectedTile.targetId} — {txt.selectNumber}
+          </h3>
+
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, JOKER_NUMBER].map((n) => (
+              <button
+                key={n}
+                onClick={() => setSelectedNumber(n)}
+                className={`py-3 rounded-xl font-black text-lg transition-all active:scale-95 ${
+                  selectedNumber === n
+                    ? 'bg-yellow-500 text-stone-900 scale-105'
+                    : 'bg-stone-200 text-stone-800 hover:bg-stone-300'
+                }`}
+              >
+                {formatTileNumber(n)}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleCancelGuess}
+              className="flex-1 py-2 rounded-xl bg-stone-200 text-stone-700 font-bold hover:bg-stone-300"
+            >
+              {txt.cancel}
+            </button>
+            <button
+              onClick={handleSubmitGuess}
+              disabled={selectedNumber === null}
+              className="flex-1 py-2 rounded-xl bg-yellow-500 text-stone-900 font-black hover:bg-yellow-400 disabled:opacity-40 active:scale-95 transition-all"
+            >
+              {txt.guess}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── 공통 결과 카드 ──────────────────────────────────────────
+function ResultCard({
+  result,
+  guesser,
+  txt,
+}: {
+  result: LastResult;
+  guesser: string;
+  txt: (typeof I18N)[keyof typeof I18N];
+}) {
+  return (
+    <div className="text-center text-sm space-y-0.5">
+      <p className={`font-black text-xl mb-1 ${result.correct ? 'text-emerald-300' : 'text-red-300'}`}>
+        {result.correct ? txt.correct : txt.wrong}
+      </p>
+      <p className="text-stone-300">
+        <span className="text-white font-bold">{guesser}</span>
+        {' → '}
+        <span className="text-white font-bold">{result.targetId}</span>
+        {txt.targetTileOf}
+      </p>
+      <p className="text-stone-300">
+        {txt.guessLabel}: <span className="font-black text-yellow-300">{formatTileNumber(result.guessedNumber)}</span>
+      </p>
+    </div>
+  );
+}

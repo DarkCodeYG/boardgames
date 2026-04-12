@@ -16,6 +16,11 @@ import FakeartPlayer from './games/fakeart/pages/PlayerPage';
 import SetHome from './games/set/pages/HomePage';
 import SetGame from './games/set/pages/GamePage';
 import SetPlayer from './games/set/pages/PlayerPage';
+import GomokuHome from './games/gomoku/pages/HomePage';
+import GomokuGame from './games/gomoku/pages/GamePage';
+import DavinciHome from './games/davinci/pages/HomePage';
+import DavinciGame from './games/davinci/pages/GamePage';
+import DavinciPlayer from './games/davinci/pages/PlayerPage';
 
 type Page =
   | 'home'
@@ -23,7 +28,9 @@ type Page =
   | 'spyfall-home' | 'spyfall-game' | 'spyfall-player'
   | 'witnesses-home' | 'witnesses-game' | 'witnesses-player'
   | 'fakeart-home' | 'fakeart-game' | 'fakeart-player'
-  | 'set-home' | 'set-game' | 'set-player';
+  | 'set-home' | 'set-game' | 'set-player'
+  | 'gomoku-home' | 'gomoku-game'
+  | 'davinci-home' | 'davinci-game' | 'davinci-player';
 
 function App() {
   const [page, setPage] = useState<Page>('home');
@@ -41,6 +48,8 @@ function App() {
       setPage('fakeart-player');
     } else if (game === 'set' && params.get('room')) {
       setPage('set-player');
+    } else if (game === 'davinci' && params.get('room')) {
+      setPage('davinci-player');
     } else if (params.get('seed')) {
       setPage('spymaster');
     }
@@ -82,6 +91,16 @@ function App() {
       return <SetGame onGoHome={() => setPage('home')} />;
     case 'set-home':
       return <SetHome onStartGame={() => setPage('set-game')} onBack={() => setPage('home')} />;
+    case 'gomoku-game':
+      return <GomokuGame onGoHome={() => setPage('home')} />;
+    case 'gomoku-home':
+      return <GomokuHome onStartGame={() => setPage('gomoku-game')} onBack={() => setPage('home')} />;
+    case 'davinci-player':
+      return <DavinciPlayer />;
+    case 'davinci-game':
+      return <DavinciGame onGoHome={() => setPage('home')} />;
+    case 'davinci-home':
+      return <DavinciHome onStartGame={() => setPage('davinci-game')} onBack={() => setPage('home')} />;
     default:
       return (
         <Home onSelectGame={(id) => {
@@ -90,6 +109,8 @@ function App() {
           if (id === 'witnesses') setPage('witnesses-home');
           if (id === 'fakeart') setPage('fakeart-home');
           if (id === 'set') setPage('set-home');
+          if (id === 'gomoku') setPage('gomoku-home');
+          if (id === 'davinci') setPage('davinci-home');
         }} />
       );
   }
