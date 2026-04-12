@@ -1,13 +1,15 @@
 import { cardAttrs, geniusCardAttrs } from '../lib/game-engine';
 import type { Theme } from '../lib/types';
+import {
+  SET_STD_COLORS as STD_COLORS,
+  SET_GENIUS_SHAPE_COLORS as GENIUS_SHAPE_COLORS,
+  SET_GENIUS_BG_COLORS as GENIUS_BG_COLORS,
+  SET_CARD_BORDER,
+} from '../../../lib/colors';
 
 // Standard: attr1=count(0→1,1→2,2→3), attr2=color(0=red,1=green,2=purple),
 //           attr3=shape(0=diamond,1=oval,2=squiggle), attr4=fill(0=solid,1=striped,2=open)
-// Genius:   shapeColor(0=blue,1=red,2=yellow), bgColor(0=white,1=gray,2=black), shape(0=circle,1=triangle,2=square)
-
-const STD_COLORS = ['#ef4444', '#22c55e', '#a855f7'];
-const GENIUS_SHAPE_COLORS = ['#2a74d1', '#bf3030', '#d4a800'];  // 파랑, 빨강, 노랑
-const GENIUS_BG_COLORS    = ['#f0f0f0', '#787878', '#1e1e1e'];  // 흰색, 회색, 검정색
+// Genius:   shapeColor(0=blue,1=red,2=yellow), bgColor(0=white,1=gray,2=black), shape(0=circle,1=triangle,2=square), fillType(0=solid,1=outline,2=striped)
 
 function StdShape({ shape, cx, cy, fill, stroke, strokeWidth, patternId }: {
   shape: number; cx: number; cy: number;
@@ -55,20 +57,28 @@ function StandardCardSvg({ count, color, shape, fillType, cardId }: {
   );
 }
 
-function GeniusCardSvg({ shapeColor, shape, size }: {
-  shapeColor: string; shape: number; size: number;
+function GeniusCardSvg({ shapeColor, shape, fillType, cardId }: {
+  shapeColor: string; shape: number; fillType: number; cardId: number;
 }) {
-  // size: 0=small, 1=medium, 2=large
-  const s = [0.62, 1.0, 1.38][size];
-  const r = 17 * s;
-  const hw = 19 * s; // half-width of triangle base
-  const th = 18 * s; // half-height of triangle
-  const sq = 17 * s; // half-side of square
+  // fillType: 0=solid, 1=outline, 2=striped — shape size is always the same
+  const patternId = fillType === 2 ? `gsp-${cardId}` : undefined;
+  const fill = fillType === 0 ? shapeColor : patternId ? `url(#${patternId})` : 'none';
+  const stroke = fillType !== 0 ? shapeColor : 'none';
+  const sw = 3;
+  // Fixed size for all cards
+  const r = 18, hw = 21, th = 19, sq = 18;
   return (
     <svg viewBox="0 0 80 80" className="w-full h-full">
-      {shape === 0 && <circle cx="40" cy="40" r={r} fill={shapeColor} />}
-      {shape === 1 && <polygon points={`40,${40 - th} ${40 + hw},${40 + th} ${40 - hw},${40 + th}`} fill={shapeColor} />}
-      {shape === 2 && <rect x={40 - sq} y={40 - sq} width={sq * 2} height={sq * 2} rx="3" fill={shapeColor} />}
+      {patternId && (
+        <defs>
+          <pattern id={patternId} patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="4" stroke={shapeColor} strokeWidth="2" />
+          </pattern>
+        </defs>
+      )}
+      {shape === 0 && <circle cx="40" cy="40" r={r} fill={fill} stroke={stroke} strokeWidth={sw} />}
+      {shape === 1 && <polygon points={`40,${40 - th} ${40 + hw},${40 + th} ${40 - hw},${40 + th}`} fill={fill} stroke={stroke} strokeWidth={sw} />}
+      {shape === 2 && <rect x={40 - sq} y={40 - sq} width={sq * 2} height={sq * 2} rx="3" fill={fill} stroke={stroke} strokeWidth={sw} />}
     </svg>
   );
 }
@@ -84,12 +94,12 @@ interface SetCardProps {
 }
 
 export default function SetCard({ cardId, theme, selected, correct, onClick, disabled, small }: SetCardProps) {
-  let borderClass = 'border-2 border-stone-200';
-  if (selected) borderClass = 'border-4 border-blue-500 ring-2 ring-blue-300';
-  if (correct) borderClass = 'border-4 border-green-500 ring-2 ring-green-300';
+  let borderClass: string = SET_CARD_BORDER.default;
+  if (selected) borderClass = SET_CARD_BORDER.selected;
+  if (correct) borderClass = SET_CARD_BORDER.correct;
 
   if (theme === 'genius') {
-    const [sc, bc, shape, size] = geniusCardAttrs(cardId);
+    const [sc, bc, shape, fillType] = geniusCardAttrs(cardId);
     return (
       <button
         onClick={onClick}
@@ -104,7 +114,7 @@ export default function SetCard({ cardId, theme, selected, correct, onClick, dis
         `}
       >
         <div className={small ? 'w-12 h-8' : 'w-full h-full'}>
-          <GeniusCardSvg shapeColor={GENIUS_SHAPE_COLORS[sc]} shape={shape} size={size} />
+          <GeniusCardSvg shapeColor={GENIUS_SHAPE_COLORS[sc]} shape={shape} fillType={fillType} cardId={cardId} />
         </div>
       </button>
     );

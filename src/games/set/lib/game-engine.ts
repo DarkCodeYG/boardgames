@@ -23,8 +23,8 @@ export function findAnySet(cards: number[]): [number, number, number] | null {
   return null;
 }
 
-// Genius encoding: id = shapeColor*27 + bgColor*9 + shape*3 + size  (81 cards)
-// shapeColor(0=blue,1=red,2=yellow), bgColor(0=white,1=gray,2=black), shape(0=circle,1=triangle,2=square), size(0=small,1=medium,2=large)
+// Genius encoding: id = shapeColor*27 + bgColor*9 + shape*3 + fillType  (81 cards)
+// shapeColor(0=blue,1=red,2=yellow), bgColor(0=white,1=gray,2=black), shape(0=circle,1=triangle,2=square), fillType(0=solid,1=outline,2=striped)
 export function geniusCardAttrs(id: number): [number, number, number, number] {
   return [Math.floor(id / 27), Math.floor((id % 27) / 9), Math.floor((id % 9) / 3), id % 3];
 }

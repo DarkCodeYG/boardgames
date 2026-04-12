@@ -1,34 +1,12 @@
 import type { Card as CardType } from '../lib/types';
 import type { Lang } from '../lib/i18n';
 import { getPinyin } from '../lib/pinyin';
-
-const COLOR_MAP = {
-  red: 'bg-red-500 text-white',
-  blue: 'bg-blue-500 text-white',
-  neutral: 'bg-amber-100 text-amber-900',
-  assassin: 'bg-gray-900 text-white',
-};
-
-const INVERTED_TEXT_COLOR = {
-  red: 'text-red-200/50',
-  blue: 'text-blue-200/50',
-  neutral: 'text-amber-700/30',
-  assassin: 'text-gray-500/50',
-};
-
-const DIVIDER_COLOR = {
-  red: 'bg-red-300/30',
-  blue: 'bg-blue-300/30',
-  neutral: 'bg-amber-600/20',
-  assassin: 'bg-gray-600/30',
-};
-
-const SPYMASTER_BORDER = {
-  red: 'ring-4 ring-red-400',
-  blue: 'ring-4 ring-blue-400',
-  neutral: 'ring-4 ring-amber-300',
-  assassin: 'ring-4 ring-gray-700',
-};
+import {
+  CODENAMES_COLOR_MAP as COLOR_MAP,
+  CODENAMES_INVERTED_TEXT as INVERTED_TEXT_COLOR,
+  CODENAMES_DIVIDER as DIVIDER_COLOR,
+  CODENAMES_SPYMASTER_BORDER as SPYMASTER_BORDER,
+} from '../../../lib/colors';
 
 interface CardProps {
   card: CardType;

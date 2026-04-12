@@ -4,6 +4,7 @@ import Board from '../components/Board';
 import GameHeader from '../components/GameHeader';
 import GameOverModal from '../components/GameOverModal';
 import LangToggle from '../../../components/LangToggle';
+import Modal from '../../../components/Modal';
 import { useGameStore } from '../store/game-store';
 import { t } from '../lib/i18n';
 import { sfxToggle, sfxModalOpen, sfxModalClose, sfxClick } from '../../../lib/sound';
@@ -119,7 +120,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
                 className="bg-stone-200 text-stone-700 px-3 py-2 rounded-lg font-bold
                            hover:bg-stone-300 transition-colors text-sm"
               >
-                🏠
+                <span aria-hidden="true">🏠</span>
               </button>
             </div>
 
@@ -148,60 +149,46 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
       {/* 홈 이동 확인 다이얼로그 */}
       {showGoHomeConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-             onClick={() => { sfxModalClose(); setShowGoHomeConfirm(false); }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="go-home-title"
-               className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
-               onClick={(e) => e.stopPropagation()}>
-            <h3 id="go-home-title" className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'goHomeTitle')}</h3>
-            <p className="text-stone-500 mb-5">{t(lang, 'goHomeMsg')}</p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => { sfxModalClose(); setShowGoHomeConfirm(false); }}
-                className="bg-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-bold
-                           hover:bg-stone-300 transition-colors"
-              >
-                {t(lang, 'cancel')}
-              </button>
-              <button
-                onClick={() => { sfxClick(); setShowGoHomeConfirm(false); onGoHome(); }}
-                className="bg-stone-800 text-white px-5 py-2.5 rounded-xl font-bold
-                           hover:bg-stone-700 transition-colors"
-              >
-                {t(lang, 'goHome')}
-              </button>
-            </div>
+        <Modal titleId="go-home-title" onClose={() => { sfxModalClose(); setShowGoHomeConfirm(false); }}>
+          <h3 id="go-home-title" className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'goHomeTitle')}</h3>
+          <p className="text-stone-500 mb-5">{t(lang, 'goHomeMsg')}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => { sfxModalClose(); setShowGoHomeConfirm(false); }}
+              className="bg-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-bold hover:bg-stone-300 transition-colors"
+            >
+              {t(lang, 'cancel')}
+            </button>
+            <button
+              onClick={() => { sfxClick(); setShowGoHomeConfirm(false); onGoHome(); }}
+              className="bg-stone-800 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-stone-700 transition-colors"
+            >
+              {t(lang, 'goHome')}
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* 재시작 확인 다이얼로그 */}
       {showRestartConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-             onClick={() => { sfxModalClose(); setShowRestartConfirm(false); }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="restart-title"
-               className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl"
-               onClick={(e) => e.stopPropagation()}>
-            <h3 id="restart-title" className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'restartTitle')}</h3>
-            <p className="text-stone-500 mb-5">{t(lang, 'restartMsg')}</p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => { sfxModalClose(); setShowRestartConfirm(false); }}
-                className="bg-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-bold
-                           hover:bg-stone-300 transition-colors"
-              >
-                {t(lang, 'cancel')}
-              </button>
-              <button
-                onClick={() => { sfxClick(); handleRestart(); }}
-                className="bg-stone-800 text-white px-5 py-2.5 rounded-xl font-bold
-                           hover:bg-stone-700 transition-colors"
-              >
-                {t(lang, 'restartConfirm')}
-              </button>
-            </div>
+        <Modal titleId="restart-title" onClose={() => { sfxModalClose(); setShowRestartConfirm(false); }}>
+          <h3 id="restart-title" className="text-xl font-bold text-stone-800 mb-2">{t(lang, 'restartTitle')}</h3>
+          <p className="text-stone-500 mb-5">{t(lang, 'restartMsg')}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => { sfxModalClose(); setShowRestartConfirm(false); }}
+              className="bg-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-bold hover:bg-stone-300 transition-colors"
+            >
+              {t(lang, 'cancel')}
+            </button>
+            <button
+              onClick={() => { sfxClick(); handleRestart(); }}
+              className="bg-stone-800 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-stone-700 transition-colors"
+            >
+              {t(lang, 'restartConfirm')}
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

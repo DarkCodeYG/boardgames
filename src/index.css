@@ -44,6 +44,11 @@ body {
 .animate-slide-up { animation: slideUp 0.4s ease-out both; }
 .animate-pop-in { animation: popIn 0.4s ease-out both; }
 
+/* Transition duration 표준
+   - duration-fast  (150ms): 카드 탭/클릭 인터랙션 (scale, shadow)
+   - duration-base  (300ms): 색상·텍스트 전환 (colors, opacity)
+   - duration-slow  (500ms): 화면 전환·애니메이션 */
+
 /* 키보드 포커스 링 복원 */
 button:focus-visible,
 a:focus-visible,

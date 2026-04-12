@@ -18,6 +18,7 @@ import {
 import type { SetRoomState, Lang } from '../lib/types';
 import SetCard from '../components/SetCard';
 import LangToggle from '../../../components/LangToggle';
+import Modal from '../../../components/Modal';
 import Confetti from '../../../components/Confetti';
 import { sfxClick, sfxToggle, sfxGameStart, sfxVictory, sfxTimerTick, sfxTimerUp, sfxPlayerJoin, sfxCardFlip } from '../../../lib/sound';
 
@@ -313,7 +314,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
           </div>
 
           <div className="text-center mb-6">
-            <h1 className="text-4xl font-black text-stone-800">🃏 {txt.title}</h1>
+            <h1 className="text-4xl font-black text-stone-800"><span aria-hidden="true">🃏</span> {txt.title}</h1>
             <p className="text-5xl font-black text-amber-600 mt-3 tracking-widest">{roomCode}</p>
             <p className="text-stone-500 text-sm mt-1">{txt.roomCode}</p>
           </div>
@@ -350,7 +351,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             className="w-full bg-stone-800 text-white text-2xl font-black py-5 rounded-2xl shadow-lg
                        hover:bg-stone-700 active:scale-95 transition-all disabled:opacity-40"
           >
-            🃏 {txt.startGame}
+            <span aria-hidden="true">🃏</span> {txt.startGame}
           </button>
           {!canStart && (
             <p className="text-center text-stone-400 text-sm mt-2">{txt.minPlayersHint}</p>
@@ -375,7 +376,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             <button onClick={handleGoHome} className="text-stone-400 hover:text-stone-600 font-bold text-sm">
               ← {txt.goHome}
             </button>
-            <span className="font-black text-stone-800 text-lg">🃏 {txt.title}</span>
+            <span className="font-black text-stone-800 text-lg"><span aria-hidden="true">🃏</span> {txt.title}</span>
             <span className="font-black text-amber-600 text-lg tracking-wider">{roomCode}</span>
           </div>
           <div className="flex items-center gap-3">
@@ -511,29 +512,24 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
         {/* Hint confirm modal */}
         {showHintConfirm && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6"
-               onClick={() => setShowHintConfirm(false)}>
-            <div role="dialog" aria-modal="true" aria-labelledby="hint-confirm-title"
-                 className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl text-center"
-                 onClick={(e) => e.stopPropagation()}>
-              <div className="text-4xl mb-3" aria-hidden="true">💡</div>
-              <p id="hint-confirm-title" className="text-stone-700 font-bold text-lg mb-5">{txt.hintConfirm}</p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowHintConfirm(false)}
-                  className="flex-1 py-3 rounded-xl bg-stone-100 text-stone-500 font-bold hover:bg-stone-200"
-                >
-                  {txt.hintNo}
-                </button>
-                <button
-                  onClick={handleHintConfirm}
-                  className="flex-1 py-3 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-400"
-                >
-                  {txt.confirm}
-                </button>
-              </div>
+          <Modal titleId="hint-confirm-title" onClose={() => setShowHintConfirm(false)}>
+            <div className="text-4xl mb-3" aria-hidden="true">💡</div>
+            <p id="hint-confirm-title" className="text-stone-700 font-bold text-lg mb-5">{txt.hintConfirm}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowHintConfirm(false)}
+                className="flex-1 py-3 rounded-xl bg-stone-100 text-stone-500 font-bold hover:bg-stone-200"
+              >
+                {txt.hintNo}
+              </button>
+              <button
+                onClick={handleHintConfirm}
+                className="flex-1 py-3 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-400"
+              >
+                {txt.confirm}
+              </button>
             </div>
-          </div>
+          </Modal>
         )}
 
         {/* Turn announcement overlay */}
@@ -570,7 +566,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     <Confetti />
     <div className="min-h-dvh bg-gradient-to-b from-stone-800 to-stone-900 p-6 flex flex-col items-center justify-center">
       <div className="w-full max-w-lg text-center">
-        <div className="text-6xl mb-4">🏆</div>
+        <div className="text-6xl mb-4" aria-hidden="true">🏆</div>
         <h1 className="text-4xl font-black text-white mb-2">{txt.gameOver}</h1>
         {sortedByScore[0] && (
           <p className="text-2xl font-bold text-amber-400 mb-6">

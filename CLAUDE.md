@@ -104,6 +104,19 @@ boardgames/
 7. `App.tsx`에 import + Page 타입 + switch case 추가
 8. `src/pages/Home.tsx`에 게임 카드 + 텍스트(ko/en/zh) 추가
 
+### 디자인 시스템 규칙
+- **색상:** 게임 컴포넌트에서 색상 문자열을 직접 쓰지 않는다. 반드시 `src/lib/colors.ts`에서 import해서 사용.
+  - Codenames: `CODENAMES_COLOR_MAP`, `CODENAMES_INVERTED_TEXT`, `CODENAMES_DIVIDER`, `CODENAMES_SPYMASTER_BORDER`
+  - Set: `SET_STD_COLORS`, `SET_GENIUS_SHAPE_COLORS`, `SET_GENIUS_BG_COLORS`, `SET_CARD_BORDER`
+  - 공통 상태 색상: `STATE_COLORS` (primary, secondary, danger, warning, success)
+- **모달:** 확인 다이얼로그나 팝업은 `src/components/Modal.tsx` 컴포넌트를 사용. 직접 `fixed inset-0` 구조를 만들지 않는다.
+  - Props: `titleId` (aria-labelledby 연결), `onClose` (배경 클릭 시), `children`, `maxWidth` (선택)
+- **이모지 접근성:** UI에서 장식용 이모지 요소에는 반드시 `aria-hidden="true"` 추가. 이모지가 텍스트와 혼합될 경우 `<span aria-hidden="true">🎲</span>` 으로 분리.
+- **Transition duration 기준:**
+  - `duration-150`: 카드 탭·클릭 인터랙션 (scale, shadow 변화)
+  - `duration-300`: 색상·텍스트 전환 (colors, opacity 변화)
+  - `duration-500`: 화면 전환·복잡한 애니메이션
+
 ### 새 게임 추가 시 체크리스트
 - **소리 (iOS 포함):** 반드시 `src/lib/sound.ts`의 sfx 함수만 사용. 게임 내에서 직접 `AudioContext`를 생성하지 않는다.
   - iOS AudioContext unlock 및 짧은 소리 150ms 오프셋 수정이 `sound.ts` 모듈 레벨에 적용되어 있어, import만 하면 자동 적용됨.
@@ -133,6 +146,6 @@ npx tsc --noEmit         # 타입 체크만
 - [ ] lang 전역 store를 codenames에서 분리 → 공용 `src/lib/` 로 이동
 - [ ] 코드네임/스파이폴도 Firebase 하이브리드 모드 옵션 추가 가능
 - [ ] Firebase 보안 규칙 프로덕션용으로 강화
-- [ ] 접근성 개선 (모달 ESC 닫기, focus trap, ARIA)
+- [ ] 접근성 추가 개선 (focus trap, 카드 aria-pressed 상태)
 - [ ] 긴 단어 오버플로우 처리 (카드 내 동적 폰트 크기)
 - [ ] 스파이폴 URL 보안 (player 인덱스 난독화)

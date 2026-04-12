@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useGameStore } from '../games/codenames/store/game-store';
 import { LANG_LABELS, type Lang } from '../games/codenames/lib/i18n';
+import Modal from '../components/Modal';
 import { sfxToggle, sfxGameSelect, sfxClick } from '../lib/sound';
 
 const LANGS: Lang[] = ['ko', 'en', 'zh'];
@@ -99,7 +100,7 @@ export default function Home({ onSelectGame }: HomeProps) {
                      hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
         >
           <div className="flex items-center gap-4">
-            <span className="text-4xl">🕵️</span>
+            <span className="text-4xl" aria-hidden="true">🕵️</span>
             <div>
               <h2 className="text-xl font-bold text-stone-800">{txt.codenames}</h2>
               <p className="text-sm text-stone-500">{txt.codenamesDesc}</p>
@@ -114,7 +115,7 @@ export default function Home({ onSelectGame }: HomeProps) {
                      hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
         >
           <div className="flex items-center gap-4">
-            <span className="text-4xl">🎨</span>
+            <span className="text-4xl" aria-hidden="true">🎨</span>
             <div>
               <h2 className="text-xl font-bold text-stone-800">{txt.fakeart}</h2>
               <p className="text-sm text-stone-500">{txt.fakeartDesc}</p>
@@ -129,7 +130,7 @@ export default function Home({ onSelectGame }: HomeProps) {
                      hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
         >
           <div className="flex items-center gap-4">
-            <span className="text-4xl">🔍</span>
+            <span className="text-4xl" aria-hidden="true">🔍</span>
             <div>
               <h2 className="text-xl font-bold text-stone-800">{txt.spyfall}</h2>
               <p className="text-sm text-stone-500">{txt.spyfallDesc}</p>
@@ -144,7 +145,7 @@ export default function Home({ onSelectGame }: HomeProps) {
                      hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
         >
           <div className="flex items-center gap-4">
-            <span className="text-4xl">🃏</span>
+            <span className="text-4xl" aria-hidden="true">🃏</span>
             <div>
               <h2 className="text-xl font-bold text-stone-800">{txt.set}</h2>
               <p className="text-sm text-stone-500">{txt.setDesc}</p>
@@ -168,13 +169,13 @@ export default function Home({ onSelectGame }: HomeProps) {
                      hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all relative"
         >
           <div className="flex items-center gap-4">
-            <span className={`text-4xl ${!hiddenMode ? 'grayscale opacity-50' : ''}`}>📖</span>
+            <span className={`text-4xl ${!hiddenMode ? 'grayscale opacity-50' : ''}`} aria-hidden="true">📖</span>
             <div>
               <h2 className={`text-xl font-bold ${!hiddenMode ? 'text-stone-400' : 'text-stone-800'}`}>{txt.witnesses}</h2>
               <p className={`text-sm ${!hiddenMode ? 'text-stone-300' : 'text-stone-500'}`}>{txt.witnessesDesc}</p>
               <p className={`text-xs mt-1 ${!hiddenMode ? 'text-stone-300' : 'text-stone-400'}`}>{txt.witnessesPlayers}</p>
             </div>
-            {!hiddenMode && <span className="ml-auto text-stone-300 text-xl">🔒</span>}
+            {!hiddenMode && <span className="ml-auto text-stone-300 text-xl" aria-hidden="true">🔒</span>}
           </div>
           {showHiddenWarning && (
             <div className="absolute inset-0 bg-stone-800/90 rounded-2xl flex items-center justify-center">
@@ -193,42 +194,39 @@ export default function Home({ onSelectGame }: HomeProps) {
         onClick={handleHiddenToggle}
         className="mt-4 text-stone-300 hover:text-stone-400 transition-colors"
       >
-        {hiddenMode ? <span className="text-sm">🔓 히든모드</span> : <span className="text-2xl">🔒</span>}
+        {hiddenMode
+          ? <span className="text-sm"><span aria-hidden="true">🔓</span> 히든모드</span>
+          : <span className="text-2xl" aria-hidden="true">🔒</span>}
       </button>
 
       {/* 퀴즈 모달 */}
       {showQuiz && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6"
-             onClick={() => { setShowQuiz(false); setAnswer(''); }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="quiz-question"
-               className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl"
-               onClick={(e) => e.stopPropagation()}>
-            <p id="quiz-question" className="text-stone-700 font-bold text-lg mb-4 text-center">{quiz.q[lang]}</p>
-            <input
-              type="text"
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleQuizSubmit()}
-              className="w-full border-2 border-stone-300 focus:border-stone-500 rounded-xl px-4 py-2 text-center text-lg font-bold outline-none transition-colors"
-              placeholder={{ ko: '답을 입력하세요', en: 'Enter answer', zh: '请输入答案' }[lang]}
-              autoFocus
-            />
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => setShowQuiz(false)}
-                className="flex-1 py-2 rounded-xl bg-stone-100 text-stone-500 font-bold hover:bg-stone-200"
-              >
-                {{ ko: '취소', en: 'Cancel', zh: '取消' }[lang]}
-              </button>
-              <button
-                onClick={handleQuizSubmit}
-                className="flex-1 py-2 rounded-xl bg-stone-800 text-white font-bold hover:bg-stone-700"
-              >
-                {{ ko: '확인', en: 'OK', zh: '确认' }[lang]}
-              </button>
-            </div>
+        <Modal titleId="quiz-question" onClose={() => { setShowQuiz(false); setAnswer(''); }}>
+          <p id="quiz-question" className="text-stone-700 font-bold text-lg mb-4 text-center">{quiz.q[lang]}</p>
+          <input
+            type="text"
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleQuizSubmit()}
+            className="w-full border-2 border-stone-300 focus:border-stone-500 rounded-xl px-4 py-2 text-center text-lg font-bold outline-none transition-colors"
+            placeholder={{ ko: '답을 입력하세요', en: 'Enter answer', zh: '请输入答案' }[lang]}
+            autoFocus
+          />
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={() => setShowQuiz(false)}
+              className="flex-1 py-2 rounded-xl bg-stone-100 text-stone-500 font-bold hover:bg-stone-200"
+            >
+              {{ ko: '취소', en: 'Cancel', zh: '取消' }[lang]}
+            </button>
+            <button
+              onClick={handleQuizSubmit}
+              className="flex-1 py-2 rounded-xl bg-stone-800 text-white font-bold hover:bg-stone-700"
+            >
+              {{ ko: '확인', en: 'OK', zh: '确认' }[lang]}
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
