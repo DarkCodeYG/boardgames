@@ -109,6 +109,17 @@ function noise(ac: AudioContext, start: number, dur: number, vol: number, hipass
 
 // ── 효과음 함수들 ──────────────────────────────────────────
 
+/** 바둑/오목 돌 놓기 — 나무판 위에 돌을 놓는 "딱" 소리 */
+export function sfxStonePlace() {
+  try {
+    const ac = getCtx();
+    noise(ac, 0, 0.04, 0.22, 4000);
+    note(ac, 190, 0, 0.12, 0.18, 'triangle');
+    note(ac, 340, 0, 0.07, 0.10, 'sine');
+    note(ac, 1500, 0, 0.025, 0.07, 'sine');
+  } catch {}
+}
+
 /** 카드 뒤집기 — 짧고 경쾌한 "틱" */
 export function sfxCardFlip() {
   try {

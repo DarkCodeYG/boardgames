@@ -49,6 +49,26 @@ export const SET_CARD_BORDER = {
   correct: 'border-4 border-green-500 ring-2 ring-green-300',
 } as const;
 
+// ── Gomoku 색상 ──────────────────────────────────────────
+export const GOMOKU_STONE_BLACK = 'bg-gradient-to-br from-stone-700 to-stone-900 shadow-md';
+export const GOMOKU_STONE_WHITE = 'bg-gradient-to-br from-white to-stone-100 border-2 border-stone-300 shadow-md';
+export const GOMOKU_WIN_RING = 'ring-2 ring-red-500 ring-offset-1 scale-110';
+export const GOMOKU_BOARD_BG = 'bg-amber-200';
+
+// ── Da Vinci Code 타일 색상 ──────────────────────────────
+export const DAVINCI_TILE = {
+  black: {
+    unrevealed: 'bg-stone-950 border-stone-700 text-white',
+    revealed:   'bg-stone-600 border-stone-500 text-stone-300',
+    opaque:     'bg-stone-950 border-stone-800 text-stone-700',
+  },
+  white: {
+    unrevealed: 'bg-white border-stone-300 text-stone-900',
+    revealed:   'bg-stone-300 border-stone-400 text-stone-500',
+    opaque:     'bg-stone-200 border-stone-300 text-stone-400',
+  },
+} as const;
+
 // ── 공통 UI 상태 색상 ─────────────────────────────────────
 export const STATE_COLORS = {
   primary: 'bg-stone-800 text-white hover:bg-stone-700',
