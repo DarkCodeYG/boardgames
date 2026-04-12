@@ -562,9 +562,8 @@ export default function GamePage({ onGoHome }: GamePageProps) {
 
   // ===== ENDED =====
   return (
-    <>
-    <Confetti />
     <div className="min-h-dvh bg-gradient-to-b from-stone-800 to-stone-900 p-6 flex flex-col items-center justify-center">
+      <Confetti />
       <div className="w-full max-w-lg text-center">
         <div className="text-6xl mb-4" aria-hidden="true">🏆</div>
         <h1 className="text-4xl font-black text-white mb-2">{txt.gameOver}</h1>
@@ -614,6 +613,5 @@ export default function GamePage({ onGoHome }: GamePageProps) {
         </div>
       </div>
     </div>
-    </>
   );
 }

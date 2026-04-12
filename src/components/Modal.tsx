@@ -10,9 +10,6 @@ interface ModalProps {
   maxWidth?: string;
 }
 
-/**
- * 공통 모달 래퍼 — 반투명 배경, 중앙 정렬, 배경 클릭으로 닫기, ARIA 지원
- */
 export default function Modal({ titleId, onClose, children, maxWidth = 'max-w-xs' }: ModalProps) {
   return (
     <div
