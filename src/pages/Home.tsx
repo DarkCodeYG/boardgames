@@ -199,6 +199,10 @@ export default function Home({ onSelectGame }: HomeProps) {
 
       <p className="text-stone-400 text-xs mt-8">{txt.more}</p>
 
+      <p className="text-stone-500 text-xs mt-3 text-center">
+        {{ ko: '📱 홈 화면에 추가: Safari → 공유(⬆) → 홈 화면에 추가', en: '📱 Add to Home Screen: Safari → Share(⬆) → Add to Home Screen', zh: '📱 添加到主屏幕：Safari → 分享(⬆) → 添加到主屏幕' }[lang]}
+      </p>
+
       {/* 히든모드 토글 */}
       <button
         onClick={handleHiddenToggle}
