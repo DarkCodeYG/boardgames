@@ -60,25 +60,24 @@ function StandardCardSvg({ count, color, shape, fillType, cardId }: {
 function GeniusCardSvg({ shapeColor, shape, fillType, cardId }: {
   shapeColor: string; shape: number; fillType: number; cardId: number;
 }) {
-  // fillType: 0=solid, 1=outline, 2=striped — shape size is always the same
-  const patternId = fillType === 2 ? `gsp-${cardId}` : undefined;
-  const fill = fillType === 0 ? shapeColor : patternId ? `url(#${patternId})` : 'none';
+  // fillType: 0=solid, 1=outline(속빈), 2=striped(빗금)
+  // cardId만으로는 DOM 전체에서 중복될 수 있으므로 shapeColor 해시 포함
+  const patternId = fillType === 2 ? `gsp-${cardId}-${shapeColor.replace('#', '')}` : undefined;
+  const fill = fillType === 0 ? shapeColor : fillType === 2 ? `url(#${patternId})` : 'none';
   const stroke = fillType !== 0 ? shapeColor : 'none';
   const sw = 3;
-  // Fixed size for all cards
-  const r = 18, hw = 21, th = 19, sq = 18;
   return (
     <svg viewBox="0 0 80 80" className="w-full h-full">
       {patternId && (
         <defs>
-          <pattern id={patternId} patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="4" stroke={shapeColor} strokeWidth="2" />
+          <pattern id={patternId} patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="5" stroke={shapeColor} strokeWidth="2.5" />
           </pattern>
         </defs>
       )}
-      {shape === 0 && <circle cx="40" cy="40" r={r} fill={fill} stroke={stroke} strokeWidth={sw} />}
-      {shape === 1 && <polygon points={`40,${40 - th} ${40 + hw},${40 + th} ${40 - hw},${40 + th}`} fill={fill} stroke={stroke} strokeWidth={sw} />}
-      {shape === 2 && <rect x={40 - sq} y={40 - sq} width={sq * 2} height={sq * 2} rx="3" fill={fill} stroke={stroke} strokeWidth={sw} />}
+      {shape === 0 && <circle cx="40" cy="40" r={18} fill={fill} stroke={stroke} strokeWidth={sw} />}
+      {shape === 1 && <polygon points="40,21 61,59 19,59" fill={fill} stroke={stroke} strokeWidth={sw} />}
+      {shape === 2 && <rect x="22" y="22" width="36" height="36" rx="3" fill={fill} stroke={stroke} strokeWidth={sw} />}
     </svg>
   );
 }
