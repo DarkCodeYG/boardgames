@@ -1,7 +1,7 @@
 import { ref, set, get, update, remove, onValue, runTransaction, type Unsubscribe } from 'firebase/database';
 import { db } from '../../../lib/firebase';
 import type { RoomState, PlayerState, Tile, Lang } from './types';
-import { createDeck, shuffleDeck, tileCompare, insertTileSorted, insertTileAt, getInitialTileCount } from './game-engine';
+import { createDeck, shuffleDeck, tileCompare, insertTileAt, getInitialTileCount } from './game-engine';
 
 const roomRef = (code: string) => ref(db, `davinci/${code}`);
 

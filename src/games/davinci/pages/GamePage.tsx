@@ -257,6 +257,13 @@ export default function DavinciGame({ onGoHome }: Props) {
           </div>
 
           {/* Turn state hint + countdown */}
+          {room.turnState === 'placing' && (
+            <div className="flex items-center mb-2 shrink-0">
+              <span className="text-amber-300 text-sm font-bold animate-pulse">
+                {currentPlayerName} {txt.opponentPlacing}
+              </span>
+            </div>
+          )}
           {room.turnState === 'guess' && (
             <div className="flex items-center justify-between mb-2 shrink-0">
               <span className="text-amber-300 text-sm font-bold">{txt.selectTarget}</span>

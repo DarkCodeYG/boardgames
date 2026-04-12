@@ -150,6 +150,11 @@ export default function DavinciPlayer() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.turnState, roomCode]);
 
+  // placing 상태 이탈 시 슬롯 선택 초기화
+  useEffect(() => {
+    if (room?.turnState !== 'placing') setSelectedSlot(null);
+  }, [room?.turnState]);
+
   // 내 차례 draw 단계 — 자동 뽑기 (0.8초 딜레이)
   useEffect(() => {
     if (!isMyTurn || room?.turnState !== 'draw' || !roomCode) return;
@@ -303,6 +308,10 @@ export default function DavinciPlayer() {
 
   // ── PLAYING ──
   const canAct = isMyTurn && !isEliminated;
+  const slotBtnCls = (selected: boolean) =>
+    `w-7 h-14 rounded-md border-2 border-dashed flex items-center justify-center shrink-0 transition-all duration-150 ${
+      selected ? 'border-yellow-400 bg-yellow-400/20 scale-110' : 'border-stone-600 hover:border-yellow-600'
+    }`;
 
   return (
     <div className="min-h-dvh bg-stone-900 text-white flex flex-col p-4">
@@ -444,6 +453,59 @@ export default function DavinciPlayer() {
             </div>
           )}
 
+          {room.turnState === 'placing' && room.pendingDrawnTile && (
+            <div className="bg-amber-950 border border-amber-700 rounded-2xl p-4">
+              {/* 뽑은 타일 */}
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-amber-300 text-xs font-bold shrink-0">{txt.placingTile}:</span>
+                <div
+                  className={`w-10 h-14 rounded-lg flex items-center justify-center text-lg font-black border-2 shrink-0 ${
+                    room.pendingDrawnTile.color === 'black'
+                      ? DAVINCI_TILE.black.unrevealed
+                      : DAVINCI_TILE.white.unrevealed
+                  }`}
+                >
+                  {formatTileNumber(room.pendingDrawnTile.number)}
+                </div>
+              </div>
+
+              <p className="text-stone-400 text-xs mb-2">{txt.placingHint}</p>
+
+              {/* 내 타일 + 슬롯 */}
+              <div className="flex items-center overflow-x-auto pb-2 gap-0.5">
+                <button onClick={() => setSelectedSlot(0)} className={slotBtnCls(selectedSlot === 0)}>
+                  {selectedSlot === 0 && <span className="text-yellow-400 text-xs font-bold">▼</span>}
+                </button>
+
+                {myTiles.map((tile, idx) => {
+                  const colorClasses = tile.color === 'black'
+                    ? (tile.revealed ? DAVINCI_TILE.black.revealed : DAVINCI_TILE.black.unrevealed)
+                    : (tile.revealed ? DAVINCI_TILE.white.revealed : DAVINCI_TILE.white.unrevealed);
+                  return (
+                    <div key={idx} className="flex items-center shrink-0">
+                      <div className={`w-10 h-14 rounded-lg flex items-center justify-center text-base font-black border-2 relative ${colorClasses}`}>
+                        {formatTileNumber(tile.number)}
+                        {tile.revealed && (
+                          <span className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center text-xs">✓</span>
+                        )}
+                      </div>
+                      <button onClick={() => setSelectedSlot(idx + 1)} className={slotBtnCls(selectedSlot === idx + 1)}>
+                        {selectedSlot === idx + 1 && <span className="text-yellow-400 text-xs font-bold">▼</span>}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={handleConfirmPlacement}
+                disabled={selectedSlot === null}
+                className="w-full mt-3 py-3 rounded-xl bg-yellow-500 text-stone-900 font-black hover:bg-yellow-400 disabled:opacity-40 active:scale-95 transition-all"
+              >
+                {txt.confirmPlacement}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
