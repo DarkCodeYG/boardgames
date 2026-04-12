@@ -11,6 +11,18 @@
     "spyfall": {
       ".read": true,
       ".write": true
+    },
+    "davinci": {
+      ".read": true,
+      ".write": true
+    },
+    "set": {
+      ".read": true,
+      ".write": true
+    },
+    "stats": {
+      ".read": true,
+      ".write": true
     }
   }
 }

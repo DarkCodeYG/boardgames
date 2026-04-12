@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useGameStore } from '../games/codenames/store/game-store';
 import { LANG_LABELS, type Lang } from '../games/codenames/lib/i18n';
 import Modal from '../components/Modal';
 import { sfxToggle, sfxGameSelect, sfxClick } from '../lib/sound';
+import { incrementPlayCount, fetchMonthlyStats } from '../lib/play-stats';
 
 const LANGS: Lang[] = ['ko', 'en', 'zh'];
 
@@ -12,20 +13,45 @@ const TEXTS = {
         spyfall: '스파이폴', spyfallDesc: '스파이를 찾아라! 질문으로 정체를 밝혀내세요', spyfallPlayers: '3+ 명',
         witnesses: '중국의 증인들', witnessesDesc: '증인과 공안의 심리전! 봉사구역을 완수하라', witnessesPlayers: '5~12 명',
         fakeart: '가짜 화가', fakeartDesc: '가짜 화가를 찾아라! 그림으로 숨어라', fakeartPlayers: '4+ 명',
-        set: 'Set', setDesc: '속성이 모두 같거나 모두 다르면 Set! 결합을 찾아라', setPlayers: '2+ 명' },
+        set: 'Set', setDesc: '속성이 모두 같거나 모두 다르면 Set! 결합을 찾아라', setPlayers: '2+ 명',
+        gomoku: '오목', gomokuDesc: '가로·세로·대각선으로 5개를 먼저 연결하면 승리!', gomokuPlayers: '2 명',
+        davinci: '다빈치 코드', davinciDesc: '상대의 비밀 타일을 추리하라!', davinciPlayers: '2~6 명' },
   en: { title: '🎲 Board Games', subtitle: 'Choose a game to play', more: 'More games coming soon!',
         codenames: 'Codenames', codenamesDesc: 'Give clues, find your agents!', codenamesPlayers: '4+ players',
         spyfall: 'Spyfall', spyfallDesc: 'Find the spy! Ask questions to reveal them', spyfallPlayers: '3+ players',
         witnesses: 'Witnesses of China', witnessesDesc: 'Witnesses vs Agents! Complete service territories', witnessesPlayers: '5-12 players',
         fakeart: 'Fake Painter', fakeartDesc: 'Find the fake painter! Hide with your strokes', fakeartPlayers: '4+ players',
-        set: 'Set', setDesc: 'All same or all different = Set! Find the combinations', setPlayers: '2+ players' },
+        set: 'Set', setDesc: 'All same or all different = Set! Find the combinations', setPlayers: '2+ players',
+        gomoku: 'Gomoku', gomokuDesc: 'Connect 5 in a row horizontally, vertically, or diagonally!', gomokuPlayers: '2 players',
+        davinci: 'Da Vinci Code', davinciDesc: "Deduce your opponent's secret tiles!", davinciPlayers: '2-6 players' },
   zh: { title: '🎲 桌游', subtitle: '选择要玩的游戏', more: '更多游戏即将推出！',
         codenames: '代号', codenamesDesc: '给出线索，找到特工！', codenamesPlayers: '4+ 人',
         spyfall: '间谍危机', spyfallDesc: '找出间谍！用提问揭露身份', spyfallPlayers: '3+ 人',
         witnesses: '中国的见证人', witnessesDesc: '见证人与公安的心理战！完成服务区域', witnessesPlayers: '5-12 人',
         fakeart: '假画家', fakeartDesc: '找出假画家！用画笔隐藏身份', fakeartPlayers: '4+ 人',
-        set: '集合', setDesc: '全相同或全不同即为集合！快速找到组合', setPlayers: '2+ 人' },
+        set: '集合', setDesc: '全相同或全不同即为集合！快速找到组合', setPlayers: '2+ 人',
+        gomoku: '五子棋', gomokuDesc: '横、竖、斜方向率先连成五子者获胜！', gomokuPlayers: '2 人',
+        davinci: '达芬奇密码', davinciDesc: '推理对手的秘密牌！', davinciPlayers: '2-6 人' },
 };
+
+type GameId = keyof typeof TEXTS.ko;
+
+interface GameEntry {
+  id: GameId;
+  icon: string;
+  hidden?: boolean;
+}
+
+// 새 게임 추가 시 이 배열에만 항목 추가 → 집계·정렬·표시 자동 적용
+const GAME_REGISTRY: GameEntry[] = [
+  { id: 'codenames', icon: '🕵️' },
+  { id: 'fakeart',   icon: '🎨' },
+  { id: 'spyfall',   icon: '🔍' },
+  { id: 'set',       icon: '🃏' },
+  { id: 'gomoku',    icon: '⚫' },
+  { id: 'davinci',   icon: '🔢' },
+  { id: 'witnesses', icon: '📖', hidden: true },
+];
 
 const QUIZ_POOL = [
   { q: { ko: '왕국설립년도?', en: 'Year the Kingdom was established?', zh: '王国建立年份？' }, a: '1914' },
@@ -44,7 +70,21 @@ export default function Home({ onSelectGame }: HomeProps) {
   const [showQuiz, setShowQuiz] = useState(false);
   const [quiz] = useState(() => QUIZ_POOL[Math.floor(Math.random() * QUIZ_POOL.length)]);
   const [answer, setAnswer] = useState('');
-  const [showHiddenWarning, setShowHiddenWarning] = useState(false);
+  const [showHiddenWarning, setShowHiddenWarning] = useState<string | null>(null);
+  const hiddenWarningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [playCounts, setPlayCounts] = useState<Record<string, number>>({});
+
+  const sortedGames = useMemo(
+    () => [...GAME_REGISTRY].sort((a, b) => (playCounts[b.id] ?? 0) - (playCounts[a.id] ?? 0)),
+    [playCounts],
+  );
+
+  useEffect(() => {
+    fetchMonthlyStats()
+      .then(setPlayCounts)
+      .catch(() => {/* Firebase 실패 시 기본 순서 유지 */});
+    return () => { if (hiddenWarningTimerRef.current) clearTimeout(hiddenWarningTimerRef.current); };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -65,11 +105,15 @@ export default function Home({ onSelectGame }: HomeProps) {
   };
 
   const handleQuizSubmit = () => {
-    if (answer.trim() === quiz.a) {
-      setHiddenMode(true);
-    }
+    if (answer.trim() === quiz.a) setHiddenMode(true);
     setShowQuiz(false);
     setAnswer('');
+  };
+
+  const handleSelectGame = (gameId: string) => {
+    sfxGameSelect();
+    incrementPlayCount(gameId).catch((err) => console.error('[play-stats] increment failed:', err));
+    onSelectGame(gameId);
   };
 
   return (
@@ -94,97 +138,63 @@ export default function Home({ onSelectGame }: HomeProps) {
       <p className="text-stone-500 mb-8">{txt.subtitle}</p>
 
       <div className="grid gap-4 max-w-md w-full">
-        <button
-          onClick={() => { sfxGameSelect(); onSelectGame('codenames'); }}
-          className="bg-white rounded-2xl p-5 shadow-md text-left
-                     hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <span className="text-4xl" aria-hidden="true">🕵️</span>
-            <div>
-              <h2 className="text-xl font-bold text-stone-800">{txt.codenames}</h2>
-              <p className="text-sm text-stone-500">{txt.codenamesDesc}</p>
-              <p className="text-xs text-stone-400 mt-1">{txt.codenamesPlayers}</p>
-            </div>
-          </div>
-        </button>
+        {sortedGames.map((game) => {
+          const isLocked = game.hidden && !hiddenMode;
+          const count = playCounts[game.id] ?? 0;
 
-        <button
-          onClick={() => { sfxGameSelect(); onSelectGame('fakeart'); }}
-          className="bg-white rounded-2xl p-5 shadow-md text-left
-                     hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <span className="text-4xl" aria-hidden="true">🎨</span>
-            <div>
-              <h2 className="text-xl font-bold text-stone-800">{txt.fakeart}</h2>
-              <p className="text-sm text-stone-500">{txt.fakeartDesc}</p>
-              <p className="text-xs text-stone-400 mt-1">{txt.fakeartPlayers}</p>
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => { sfxGameSelect(); onSelectGame('spyfall'); }}
-          className="bg-white rounded-2xl p-5 shadow-md text-left
-                     hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <span className="text-4xl" aria-hidden="true">🔍</span>
-            <div>
-              <h2 className="text-xl font-bold text-stone-800">{txt.spyfall}</h2>
-              <p className="text-sm text-stone-500">{txt.spyfallDesc}</p>
-              <p className="text-xs text-stone-400 mt-1">{txt.spyfallPlayers}</p>
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => { sfxGameSelect(); onSelectGame('set'); }}
-          className="bg-white rounded-2xl p-5 shadow-md text-left
-                     hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <span className="text-4xl" aria-hidden="true">🃏</span>
-            <div>
-              <h2 className="text-xl font-bold text-stone-800">{txt.set}</h2>
-              <p className="text-sm text-stone-500">{txt.setDesc}</p>
-              <p className="text-xs text-stone-400 mt-1">{txt.setPlayers}</p>
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => {
-            if (!hiddenMode) {
-              sfxClick();
-              setShowHiddenWarning(true);
-              setTimeout(() => setShowHiddenWarning(false), 2500);
-            } else {
-              sfxGameSelect();
-              onSelectGame('witnesses');
-            }
-          }}
-          className="bg-white rounded-2xl p-5 shadow-md text-left
-                     hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all relative"
-        >
-          <div className="flex items-center gap-4">
-            <span className={`text-4xl ${!hiddenMode ? 'grayscale opacity-50' : ''}`} aria-hidden="true">📖</span>
-            <div>
-              <h2 className={`text-xl font-bold ${!hiddenMode ? 'text-stone-400' : 'text-stone-800'}`}>{txt.witnesses}</h2>
-              <p className={`text-sm ${!hiddenMode ? 'text-stone-300' : 'text-stone-500'}`}>{txt.witnessesDesc}</p>
-              <p className={`text-xs mt-1 ${!hiddenMode ? 'text-stone-300' : 'text-stone-400'}`}>{txt.witnessesPlayers}</p>
-            </div>
-            {!hiddenMode && <span className="ml-auto text-stone-300 text-xl" aria-hidden="true">🔒</span>}
-          </div>
-          {showHiddenWarning && (
-            <div className="absolute inset-0 bg-stone-800/90 rounded-2xl flex items-center justify-center">
-              <p className="text-white font-bold text-sm">
-                {{ ko: '🔒 히든모드를 해제하세요', en: '🔒 Unlock hidden mode first', zh: '🔒 请先解锁隐藏模式' }[lang]}
-              </p>
-            </div>
-          )}
-        </button>
+          return (
+            <button
+              key={game.id}
+              onClick={() => {
+                if (isLocked) {
+                  sfxClick();
+                  if (hiddenWarningTimerRef.current) clearTimeout(hiddenWarningTimerRef.current);
+                  setShowHiddenWarning(game.id);
+                  hiddenWarningTimerRef.current = setTimeout(() => setShowHiddenWarning(null), 2500);
+                } else {
+                  handleSelectGame(game.id);
+                }
+              }}
+              className="bg-white rounded-2xl p-5 shadow-md text-left
+                         hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all relative"
+            >
+              <div className="flex items-center gap-4">
+                <span
+                  className={`text-4xl ${isLocked ? 'grayscale opacity-50' : ''}`}
+                  aria-hidden="true"
+                >
+                  {game.icon}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <h2 className={`text-xl font-bold ${isLocked ? 'text-stone-400' : 'text-stone-800'}`}>
+                    {txt[game.id]}
+                  </h2>
+                  <p className={`text-sm ${isLocked ? 'text-stone-300' : 'text-stone-500'}`}>
+                    {txt[`${game.id}Desc` as GameId]}
+                  </p>
+                  <p className={`text-xs mt-1 ${isLocked ? 'text-stone-300' : 'text-stone-400'}`}>
+                    {txt[`${game.id}Players` as GameId]}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  {isLocked && <span className="text-stone-300 text-xl" aria-hidden="true">🔒</span>}
+                  {count > 0 && (
+                    <span className={`text-xs font-medium ${isLocked ? 'text-stone-300' : 'text-stone-400'}`}>
+                      ✦ {count}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {isLocked && showHiddenWarning === game.id && (
+                <div className="absolute inset-0 bg-stone-800/90 rounded-2xl flex items-center justify-center">
+                  <p className="text-white font-bold text-sm">
+                    {{ ko: '🔒 히든모드를 해제하세요', en: '🔒 Unlock hidden mode first', zh: '🔒 请先解锁隐藏模式' }[lang]}
+                  </p>
+                </div>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <p className="text-stone-400 text-xs mt-8">{txt.more}</p>
@@ -202,7 +212,7 @@ export default function Home({ onSelectGame }: HomeProps) {
       {/* 퀴즈 모달 */}
       {showQuiz && (
         <Modal titleId="quiz-question" onClose={() => { setShowQuiz(false); setAnswer(''); }}>
-          <p id="quiz-question" className="text-stone-700 font-bold text-lg mb-4 text-center">{quiz.q[lang]}</p>
+          <p id="quiz-question" className="text-stone-700 font-bold text-lg mb-4">{quiz.q[lang]}</p>
           <input
             type="text"
             value={answer}
