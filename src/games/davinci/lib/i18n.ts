@@ -51,6 +51,8 @@ export const I18N = {
     actual: '실제',
     targetTileOf: '의 타일',
     guessLabel: '추측',
+    drawnRevealPrefix: '의 뽑은 카드\u00a0',
+    drawnRevealSuffix: '\u00a0이(가) 모두에게 공개됩니다',
   },
   en: {
     title: 'Da Vinci Code',
@@ -104,6 +106,8 @@ export const I18N = {
     actual: 'Actual',
     targetTileOf: '\'s tile',
     guessLabel: 'Guess',
+    drawnRevealPrefix: '\'s drawn tile\u00a0',
+    drawnRevealSuffix: '\u00a0is revealed to all',
   },
   zh: {
     title: '达芬奇密码',
@@ -157,6 +161,8 @@ export const I18N = {
     actual: '实际',
     targetTileOf: '的牌',
     guessLabel: '猜测',
+    drawnRevealPrefix: '抽到的牌\u00a0',
+    drawnRevealSuffix: '\u00a0对所有人公开',
   },
 } as const;
 

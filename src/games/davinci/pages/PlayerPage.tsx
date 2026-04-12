@@ -16,7 +16,7 @@ import { DAVINCI_TILE } from '../../../lib/colors';
 import Modal from '../../../components/Modal';
 import { sfxClick, sfxCardFlip, sfxCorrect, sfxWrong, sfxTurnEnd, sfxModalClose, sfxVictory, sfxDefeat, sfxTimerTick } from '../../../lib/sound';
 
-import type { RoomState, Lang, LastResult } from '../lib/types';
+import type { RoomState, Lang } from '../lib/types';
 
 const GUESS_TIMEOUT = 30;
 
@@ -36,10 +36,12 @@ export default function DavinciPlayer() {
   const [selectedTile, setSelectedTile] = useState<{ targetId: string; tileIndex: number } | null>(null);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [guessTimer, setGuessTimer] = useState(GUESS_TIMEOUT);
+  const [resultCountdown, setResultCountdown] = useState(10);
   const prevTurnStateRef = useRef('');
   const prevPhaseRef = useRef('');
   const isMyTurnRef = useRef(false);
   const autoEndedRef = useRef<number | null>(null);
+  const autoResultEndedRef = useRef(false);
 
   useEffect(() => {
     const sessionName = sessionStorage.getItem(`davinci_session_${roomCode}`);
@@ -122,6 +124,29 @@ export default function DavinciPlayer() {
   // room.guessStartedAt 변경 시마다 타이머 리셋
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.turnState, room?.guessStartedAt, roomCode]);
+
+  // Result phase 10-second countdown — auto-endTurn on my turn
+  useEffect(() => {
+    if (room?.turnState !== 'result') {
+      setResultCountdown(10);
+      autoResultEndedRef.current = false;
+      return;
+    }
+    setResultCountdown(10);
+    autoResultEndedRef.current = false;
+    const id = setInterval(() => {
+      setResultCountdown((prev) => {
+        const next = Math.max(0, prev - 1);
+        if (next === 0 && isMyTurnRef.current && !autoResultEndedRef.current) {
+          autoResultEndedRef.current = true;
+          endTurn(roomCode).catch(console.error);
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.turnState, roomCode]);
 
   async function handleDrawTile() {
     sfxCardFlip();
@@ -411,33 +436,96 @@ export default function DavinciPlayer() {
             </div>
           )}
 
-          {room.turnState === 'result' && room.lastResult && (
-            <div className={`rounded-2xl p-4 ${room.lastResult.correct ? 'bg-emerald-900' : 'bg-red-900'}`}>
-              <ResultCard result={room.lastResult} guesser={myName} txt={txt} />
-              <div className="flex gap-2 mt-3">
-                {room.lastResult.correct && !room.winner && (
-                  <button
-                    onClick={handleContinueGuessing}
-                    className="flex-1 py-2 rounded-xl bg-emerald-700 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all text-sm"
-                  >
-                    {txt.continueGuess}
-                  </button>
-                )}
-                <button
-                  onClick={handleEndTurn}
-                  className="flex-1 py-2 rounded-xl bg-stone-600 text-white font-bold hover:bg-stone-500 active:scale-95 transition-all text-sm"
-                >
-                  {txt.endTurn}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
-      {/* 내 차례 아닐 때 result 알림 */}
-      {!canAct && room.turnState === 'result' && room.lastResult && (
-        <ResultCard result={room.lastResult} guesser={currentTurnPlayer ?? ''} txt={txt} />
+      {/* ── RESULT POPUP ── */}
+      {room.phase === 'playing' && room.turnState === 'result' && room.lastResult && (
+        <>
+          <div className="fixed inset-0 bg-black/60 z-40" />
+          <div className="fixed left-0 right-0 bottom-0 z-50 px-4 pb-6">
+            <div className={`rounded-3xl p-5 shadow-2xl border ${
+              room.lastResult.correct
+                ? 'bg-emerald-950 border-emerald-600'
+                : 'bg-red-950 border-red-700'
+            }`}>
+              {/* Result header */}
+              <div className="text-center mb-4">
+                <div className="text-5xl mb-2" aria-hidden="true">
+                  {room.lastResult.correct ? '✅' : '❌'}
+                </div>
+                <div className={`text-3xl font-black ${room.lastResult.correct ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {room.lastResult.correct ? txt.correct : txt.wrong}
+                </div>
+              </div>
+
+              {/* Who guessed what */}
+              <div className="text-center mb-4">
+                <p className="text-stone-400 text-sm mb-3">
+                  <span className="text-white font-bold">{currentTurnPlayer}</span>
+                  {' → '}
+                  <span className="text-white font-bold">{room.lastResult.targetId}</span>
+                  {txt.targetTileOf}
+                </p>
+                <div className={`inline-flex items-center justify-center w-20 h-28 rounded-2xl border-4 font-black text-4xl shadow-lg ${
+                  room.lastResult.correct
+                    ? 'bg-emerald-900 border-emerald-400 text-emerald-200'
+                    : 'bg-red-900 border-red-400 text-red-200'
+                }`}>
+                  {formatTileNumber(room.lastResult.guessedNumber)}
+                </div>
+
+                {/* Wrong guess penalty notice */}
+                {!room.lastResult.correct && room.drawnTileIndex !== null && (() => {
+                  const drawnTile = room.players[currentTurnPlayer ?? '']?.tiles?.[room.drawnTileIndex!];
+                  if (!drawnTile) return null;
+                  return (
+                    <div className="mt-3 px-3 py-2 bg-amber-900/60 border border-amber-600 rounded-xl text-center text-sm text-amber-200">
+                      <span aria-hidden="true">⚠️ </span>
+                      <span className="font-bold">{currentTurnPlayer}</span>
+                      {txt.drawnRevealPrefix}
+                      <span className="font-black text-amber-100 text-base">{formatTileNumber(drawnTile.number)}</span>
+                      {txt.drawnRevealSuffix}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Countdown bar */}
+              <div className="mb-4">
+                <div className="h-1.5 bg-stone-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${
+                      resultCountdown <= 3 ? 'bg-red-400' : room.lastResult.correct ? 'bg-emerald-400' : 'bg-red-400'
+                    }`}
+                    style={{ width: `${resultCountdown * 10}%` }}
+                  />
+                </div>
+                <p className="text-xs text-stone-500 text-right mt-1">{resultCountdown}s</p>
+              </div>
+
+              {/* Buttons — canAct only */}
+              {canAct && (
+                <div className="flex gap-2">
+                  {room.lastResult.correct && !room.winner && (
+                    <button
+                      onClick={handleContinueGuessing}
+                      className="flex-1 py-3 rounded-2xl bg-emerald-700 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all"
+                    >
+                      {txt.continueGuess}
+                    </button>
+                  )}
+                  <button
+                    onClick={handleEndTurn}
+                    className="flex-1 py-3 rounded-2xl bg-stone-700 text-white font-bold hover:bg-stone-600 active:scale-95 transition-all"
+                  >
+                    {txt.endTurn}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Number picker modal */}
@@ -488,30 +576,3 @@ export default function DavinciPlayer() {
   );
 }
 
-// ── 공통 결과 카드 ──────────────────────────────────────────
-function ResultCard({
-  result,
-  guesser,
-  txt,
-}: {
-  result: LastResult;
-  guesser: string;
-  txt: (typeof I18N)[keyof typeof I18N];
-}) {
-  return (
-    <div className="text-center text-sm space-y-0.5">
-      <p className={`font-black text-xl mb-1 ${result.correct ? 'text-emerald-300' : 'text-red-300'}`}>
-        {result.correct ? txt.correct : txt.wrong}
-      </p>
-      <p className="text-stone-300">
-        <span className="text-white font-bold">{guesser}</span>
-        {' → '}
-        <span className="text-white font-bold">{result.targetId}</span>
-        {txt.targetTileOf}
-      </p>
-      <p className="text-stone-300">
-        {txt.guessLabel}: <span className="font-black text-yellow-300">{formatTileNumber(result.guessedNumber)}</span>
-      </p>
-    </div>
-  );
-}
