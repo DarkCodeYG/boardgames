@@ -69,9 +69,7 @@ export async function joinSetRoom(
 }
 
 export async function startSetGame(code: string): Promise<void> {
-  const snap = await get(roomRef(code));
-  const room = snap.val() as SetRoomState;
-  const cardCount = room.theme === 'genius' ? 27 : 81;
+  const cardCount = 81;
   const seed = generateSeed();
   const allCards = Array.from({ length: cardCount }, (_, i) => i);
   const shuffled = shuffleWithSeed(allCards, seed);
@@ -227,7 +225,7 @@ export async function deleteSetRoom(code: string): Promise<void> {
 
 export async function resetSetRoom(code: string, room: SetRoomState): Promise<void> {
   const seed = generateSeed();
-  const cardCount = room.theme === 'genius' ? 27 : 81;
+  const cardCount = 81;
   const allCards = Array.from({ length: cardCount }, (_, i) => i);
   const shuffled = shuffleWithSeed(allCards, seed);
   const { tableCards, deckCards } = dealInitialCards(shuffled);

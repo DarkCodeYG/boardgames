@@ -23,10 +23,10 @@ export function findAnySet(cards: number[]): [number, number, number] | null {
   return null;
 }
 
-// Genius encoding: id = shapeColor*9 + bgColor*3 + shape  (27 cards)
-// shapeColor(0=blue,1=red,2=yellow), bgColor(0=white,1=gray,2=black), shape(0=circle,1=triangle,2=square)
-export function geniusCardAttrs(id: number): [number, number, number] {
-  return [Math.floor(id / 9), Math.floor((id % 9) / 3), id % 3];
+// Genius encoding: id = shapeColor*27 + bgColor*9 + shape*3 + size  (81 cards)
+// shapeColor(0=blue,1=red,2=yellow), bgColor(0=white,1=gray,2=black), shape(0=circle,1=triangle,2=square), size(0=small,1=medium,2=large)
+export function geniusCardAttrs(id: number): [number, number, number, number] {
+  return [Math.floor(id / 27), Math.floor((id % 27) / 9), Math.floor((id % 9) / 3), id % 3];
 }
 
 export function isValidGeniusSet(a: number, b: number, c: number): boolean {
@@ -35,7 +35,7 @@ export function isValidGeniusSet(a: number, b: number, c: number): boolean {
   const cs = geniusCardAttrs(c);
   const ok = (x: number, y: number, z: number) =>
     (x === y && y === z) || (x !== y && y !== z && x !== z);
-  return ok(as[0], bs[0], cs[0]) && ok(as[1], bs[1], cs[1]) && ok(as[2], bs[2], cs[2]);
+  return ok(as[0], bs[0], cs[0]) && ok(as[1], bs[1], cs[1]) && ok(as[2], bs[2], cs[2]) && ok(as[3], bs[3], cs[3]);
 }
 
 export function findAnyGeniusSet(cards: number[]): [number, number, number] | null {

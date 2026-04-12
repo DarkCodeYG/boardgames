@@ -206,7 +206,9 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     if (hintIntervalRef.current) clearInterval(hintIntervalRef.current);
     hintIntervalRef.current = setInterval(() => {
       blinks++;
-      setHintVisible(blinks % 2 === 0);
+      const showing = blinks % 2 === 0;
+      setHintVisible(showing);
+      if (showing) sfxCardFlip();
       if (blinks >= 6) {
         clearInterval(hintIntervalRef.current!);
         setHintCards(null);
@@ -366,7 +368,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     const timerColor = timeLeft <= 3 ? 'text-red-500' : timeLeft <= 6 ? 'text-amber-500' : 'text-stone-700';
 
     return (
-      <div className="min-h-dvh bg-stone-100 flex flex-col overflow-hidden">
+      <div className="h-dvh bg-stone-100 flex flex-col overflow-hidden">
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 py-2 bg-white shadow-sm shrink-0">
           <div className="flex items-center gap-3">

@@ -55,14 +55,20 @@ function StandardCardSvg({ count, color, shape, fillType, cardId }: {
   );
 }
 
-function GeniusCardSvg({ shapeColor, shape }: {
-  shapeColor: string; shape: number;
+function GeniusCardSvg({ shapeColor, shape, size }: {
+  shapeColor: string; shape: number; size: number;
 }) {
+  // size: 0=small, 1=medium, 2=large
+  const s = [0.62, 1.0, 1.38][size];
+  const r = 17 * s;
+  const hw = 19 * s; // half-width of triangle base
+  const th = 18 * s; // half-height of triangle
+  const sq = 17 * s; // half-side of square
   return (
     <svg viewBox="0 0 80 80" className="w-full h-full">
-      {shape === 0 && <circle cx="40" cy="40" r="17" fill={shapeColor} />}
-      {shape === 1 && <polygon points="40,22 59,58 21,58" fill={shapeColor} />}
-      {shape === 2 && <rect x="23" y="23" width="34" height="34" rx="3" fill={shapeColor} />}
+      {shape === 0 && <circle cx="40" cy="40" r={r} fill={shapeColor} />}
+      {shape === 1 && <polygon points={`40,${40 - th} ${40 + hw},${40 + th} ${40 - hw},${40 + th}`} fill={shapeColor} />}
+      {shape === 2 && <rect x={40 - sq} y={40 - sq} width={sq * 2} height={sq * 2} rx="3" fill={shapeColor} />}
     </svg>
   );
 }
@@ -83,7 +89,7 @@ export default function SetCard({ cardId, theme, selected, correct, onClick, dis
   if (correct) borderClass = 'border-4 border-green-500 ring-2 ring-green-300';
 
   if (theme === 'genius') {
-    const [sc, bc, shape] = geniusCardAttrs(cardId);
+    const [sc, bc, shape, size] = geniusCardAttrs(cardId);
     return (
       <button
         onClick={onClick}
@@ -98,7 +104,7 @@ export default function SetCard({ cardId, theme, selected, correct, onClick, dis
         `}
       >
         <div className={small ? 'w-12 h-8' : 'w-full h-full'}>
-          <GeniusCardSvg shapeColor={GENIUS_SHAPE_COLORS[sc]} shape={shape} />
+          <GeniusCardSvg shapeColor={GENIUS_SHAPE_COLORS[sc]} shape={shape} size={size} />
         </div>
       </button>
     );
