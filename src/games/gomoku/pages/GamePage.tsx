@@ -17,9 +17,6 @@ import {
   GOMOKU_BOARD_BG,
 } from '../../../lib/colors';
 
-const CELL = 36;
-const BOARD_PX = BOARD_SIZE * CELL;
-const HALF = CELL / 2;
 const TURN_TIME = 60;
 
 const stoneClass = (p: Player) =>
@@ -38,6 +35,15 @@ export default function GomokuGame({ onGoHome }: Props) {
     undoCount,
   } = useGomokuStore();
   const txt = TEXTS[lang];
+
+  // p-2 outer(16) + p-3 board(24) = 40px, header + turn indicator + padding ≈ 180px
+  const [CELL] = useState(() => {
+    const availW = window.innerWidth - 40;
+    const availH = window.innerHeight - 180;
+    return Math.min(Math.floor(Math.min(availW, availH) / BOARD_SIZE), 60);
+  });
+  const BOARD_PX = BOARD_SIZE * CELL;
+  const HALF = CELL / 2;
 
   const [timeLeft, setTimeLeft] = useState(TURN_TIME);
   const [isTimeout, setIsTimeout] = useState(false);
@@ -133,9 +139,13 @@ export default function GomokuGame({ onGoHome }: Props) {
             <button
               onClick={handleUndo}
               disabled={isAITurn}
-              className="text-stone-400 hover:text-stone-600 text-sm font-medium transition-colors duration-150 disabled:opacity-30"
+              className="flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-600 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors duration-150 disabled:opacity-30 active:scale-95"
             >
-              ↩ {undoCount}
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 7v6h6"/>
+                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+              </svg>
+              {undoCount}
             </button>
           )}
           <button
@@ -184,7 +194,7 @@ export default function GomokuGame({ onGoHome }: Props) {
       </div>
 
       {/* 보드 */}
-      <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+      <div className="flex-1 flex items-center justify-center p-2">
         <div className={`${GOMOKU_BOARD_BG} p-3 rounded-xl shadow-lg`}>
           <div className="relative" style={{ width: BOARD_PX, height: BOARD_PX }}>
 

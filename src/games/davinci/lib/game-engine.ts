@@ -60,6 +60,23 @@ export function insertTileSorted(
   return { tiles: arr, insertedIndex: insertAt };
 }
 
+export type PlacementMode =
+  | { type: 'free' }                           // 조커: 모든 위치 선택 가능
+  | { type: 'forced'; index: number }          // 숫자 타일: 위치 자동 결정
+  | { type: 'conflict'; indices: [number, number] }; // 같은 숫자 보유: 좌/우 2가지 선택
+
+export function getPlacementMode(tiles: Tile[], newTile: Tile): PlacementMode {
+  if (newTile.number === JOKER_NUMBER) {
+    return { type: 'free' };
+  }
+  const sameNumIdx = tiles.findIndex((t) => t.number === newTile.number);
+  if (sameNumIdx !== -1) {
+    return { type: 'conflict', indices: [sameNumIdx, sameNumIdx + 1] };
+  }
+  const { insertedIndex } = insertTileSorted(tiles, newTile);
+  return { type: 'forced', index: insertedIndex };
+}
+
 export function getInitialTileCount(playerCount: number): number {
   return playerCount === 2 ? 4 : 3;
 }

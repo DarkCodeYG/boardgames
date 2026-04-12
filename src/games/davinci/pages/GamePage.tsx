@@ -291,8 +291,12 @@ export default function DavinciGame({ onGoHome }: Props) {
                     isEliminated
                       ? 'opacity-40 bg-stone-800'
                       : isCurrentTurn
-                        ? 'bg-stone-700 ring-2 ring-emerald-400'
-                        : 'bg-stone-800'
+                        ? room.turnState === 'guess'
+                          ? 'bg-stone-700'
+                          : 'bg-stone-700 ring-2 ring-emerald-400'
+                        : room.turnState === 'guess'
+                          ? 'bg-stone-800 ring-2 ring-amber-400'
+                          : 'bg-stone-800'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -310,6 +314,15 @@ export default function DavinciGame({ onGoHome }: Props) {
                       const isPending =
                         room.pendingGuess?.targetId === name && room.pendingGuess?.tileIndex === idx;
                       const isDrawnTile = isCurrentTurn && room.drawnTileIndex === idx;
+                      const isTargeted =
+                        room.turnState === 'result' &&
+                        room.lastResult?.targetId === name &&
+                        room.lastResult?.tileIndex === idx;
+                      const isRevealedByWrongGuess =
+                        room.turnState === 'result' &&
+                        !room.lastResult?.correct &&
+                        isCurrentTurn &&
+                        room.drawnTileIndex === idx;
                       const isGuessable =
                         room.turnState === 'guess' &&
                         !isCurrentTurn &&
@@ -330,7 +343,9 @@ export default function DavinciGame({ onGoHome }: Props) {
                             flex items-center justify-center shrink-0
                             ${colorClasses}
                             ${isPending ? 'ring-2 ring-yellow-400 scale-110' : ''}
-                            ${isDrawnTile ? 'ring-2 ring-blue-400' : ''}
+                            ${isDrawnTile && !isRevealedByWrongGuess ? 'ring-2 ring-blue-400' : ''}
+                            ${isTargeted ? (room.lastResult?.correct ? 'ring-4 ring-emerald-400 scale-110' : 'ring-4 ring-red-400 scale-110') : ''}
+                            ${isRevealedByWrongGuess ? 'ring-4 ring-amber-400 scale-105' : ''}
                             ${isGuessable ? 'hover:scale-110 cursor-pointer hover:ring-2 hover:ring-yellow-300 active:scale-95' : 'cursor-default'}
                           `}
                         >

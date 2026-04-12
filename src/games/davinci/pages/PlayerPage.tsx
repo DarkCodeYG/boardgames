@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   subscribeDavinciRoom,
   joinDavinciRoom,
@@ -12,13 +12,13 @@ import {
   endTurn,
   forfeitTurn,
 } from '../lib/firebase-room';
-import { formatTileNumber, JOKER_NUMBER } from '../lib/game-engine';
+import { formatTileNumber, JOKER_NUMBER, getPlacementMode } from '../lib/game-engine';
 import { I18N } from '../lib/i18n';
 import { DAVINCI_TILE } from '../../../lib/colors';
 import Modal from '../../../components/Modal';
 import { sfxClick, sfxCardFlip, sfxCorrect, sfxWrong, sfxTurnEnd, sfxModalClose, sfxVictory, sfxDefeat, sfxTimerTick } from '../../../lib/sound';
 
-import type { RoomState, Lang } from '../lib/types';
+import type { RoomState, Lang, Tile } from '../lib/types';
 import ResultPopup from '../components/ResultPopup';
 
 const GUESS_TIMEOUT = 30;
@@ -97,7 +97,7 @@ export default function DavinciPlayer() {
 
   const myName = sessionStorage.getItem(`davinci_session_${roomCode}`) ?? name;
   const myPlayer = room?.players?.[myName];
-  const myTiles = myPlayer?.tiles ?? [];
+  const myTiles = useMemo<Tile[]>(() => myPlayer?.tiles ?? [], [myPlayer?.tiles]);
   const isMyTurn = room?.playerOrder?.[room.currentTurnIndex] === myName;
   const isEliminated = myPlayer?.eliminated ?? false;
   const currentTurnPlayer = room ? room.playerOrder?.[room.currentTurnIndex] : null;
@@ -154,6 +154,13 @@ export default function DavinciPlayer() {
   useEffect(() => {
     if (room?.turnState !== 'placing') setSelectedSlot(null);
   }, [room?.turnState]);
+
+  // forced 모드: 위치 자동 선택
+  useEffect(() => {
+    if (room?.turnState !== 'placing' || !room.pendingDrawnTile) return;
+    const mode = getPlacementMode(myTiles, room.pendingDrawnTile);
+    if (mode.type === 'forced') setSelectedSlot(mode.index);
+  }, [room?.turnState, room?.pendingDrawnTile, myTiles]);
 
   // 내 차례 draw 단계 — 자동 뽑기 (0.8초 딜레이)
   useEffect(() => {
@@ -313,6 +320,17 @@ export default function DavinciPlayer() {
       selected ? 'border-yellow-400 bg-yellow-400/20 scale-110' : 'border-stone-600 hover:border-yellow-600'
     }`;
 
+  const placingPendingTile = (isMyTurn && room.turnState === 'placing') ? room.pendingDrawnTile : null;
+  const placingMode = placingPendingTile ? getPlacementMode(myTiles, placingPendingTile) : null;
+  const placingPendingColorCls = placingPendingTile
+    ? (placingPendingTile.color === 'black' ? DAVINCI_TILE.black.unrevealed : DAVINCI_TILE.white.unrevealed)
+    : '';
+  const placingConflictIndices = placingMode?.type === 'conflict' ? placingMode.indices : null;
+  const placingConflictTile = placingConflictIndices ? myTiles[placingConflictIndices[0]] : null;
+  const placingConflictColorCls = placingConflictTile
+    ? (placingConflictTile.color === 'black' ? DAVINCI_TILE.black.unrevealed : DAVINCI_TILE.white.unrevealed)
+    : '';
+
   return (
     <div className="min-h-dvh bg-stone-900 text-white flex flex-col p-4">
       {/* Header */}
@@ -342,6 +360,8 @@ export default function DavinciPlayer() {
         <div className="flex gap-2 flex-wrap">
           {myTiles.map((tile, idx) => {
             const isDrawnTile = isMyTurn && room.drawnTileIndex === idx;
+            const isRevealedByWrongGuess =
+              room.turnState === 'result' && !room.lastResult?.correct && isMyTurn && room.drawnTileIndex === idx;
             const colorClasses = tile.color === 'black'
               ? (tile.revealed ? DAVINCI_TILE.black.revealed : DAVINCI_TILE.black.unrevealed)
               : (tile.revealed ? DAVINCI_TILE.white.revealed : DAVINCI_TILE.white.unrevealed);
@@ -350,7 +370,8 @@ export default function DavinciPlayer() {
                 key={idx}
                 className={`w-12 h-16 rounded-lg flex items-center justify-center text-xl font-black border-2 relative
                   ${colorClasses}
-                  ${isDrawnTile ? 'ring-2 ring-blue-400' : ''}
+                  ${isDrawnTile && !isRevealedByWrongGuess ? 'ring-2 ring-blue-400' : ''}
+                  ${isRevealedByWrongGuess ? 'ring-4 ring-amber-400' : ''}
                 `}
               >
                 {formatTileNumber(tile.number)}
@@ -399,7 +420,9 @@ export default function DavinciPlayer() {
                       ? 'bg-stone-800 opacity-40'
                       : isTheirTurn
                         ? 'bg-stone-700 ring-1 ring-emerald-500'
-                        : 'bg-stone-800'
+                        : canAct && room.turnState === 'guess'
+                          ? 'bg-stone-800 ring-1 ring-amber-400'
+                          : 'bg-stone-800'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -412,6 +435,10 @@ export default function DavinciPlayer() {
                       const isPending =
                         room.pendingGuess?.targetId === p && room.pendingGuess?.tileIndex === idx;
                       const isSelectedByMe = selectedTile?.targetId === p && selectedTile?.tileIndex === idx;
+                      const isTargeted =
+                        room.turnState === 'result' &&
+                        room.lastResult?.targetId === p &&
+                        room.lastResult?.tileIndex === idx;
                       const isGuessable =
                         canAct && room.turnState === 'guess' && !tile.revealed && !player.eliminated;
                       const colorClasses = tile.color === 'black'
@@ -428,6 +455,7 @@ export default function DavinciPlayer() {
                             transition-all duration-150 shrink-0
                             ${colorClasses}
                             ${isPending || isSelectedByMe ? 'ring-2 ring-yellow-400 scale-110' : ''}
+                            ${isTargeted ? (room.lastResult?.correct ? 'ring-4 ring-emerald-400 scale-110' : 'ring-4 ring-red-400 scale-110') : ''}
                             ${isGuessable ? 'cursor-pointer hover:scale-110 hover:ring-2 hover:ring-yellow-300 active:scale-95' : 'cursor-default'}
                           `}
                         >
@@ -453,59 +481,78 @@ export default function DavinciPlayer() {
             </div>
           )}
 
-          {room.turnState === 'placing' && room.pendingDrawnTile && (
-            <div className="bg-amber-950 border border-amber-700 rounded-2xl p-4">
-              {/* 뽑은 타일 */}
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-amber-300 text-xs font-bold shrink-0">{txt.placingTile}:</span>
-                <div
-                  className={`w-10 h-14 rounded-lg flex items-center justify-center text-lg font-black border-2 shrink-0 ${
-                    room.pendingDrawnTile.color === 'black'
-                      ? DAVINCI_TILE.black.unrevealed
-                      : DAVINCI_TILE.white.unrevealed
-                  }`}
-                >
-                  {formatTileNumber(room.pendingDrawnTile.number)}
+          {room.turnState === 'placing' && placingPendingTile && placingMode && (
+              <div className="bg-amber-950 border border-amber-700 rounded-2xl p-4">
+                {/* 뽑은 타일 */}
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-amber-300 text-xs font-bold shrink-0">{txt.placingTile}:</span>
+                  <div className={`w-10 h-14 rounded-lg flex items-center justify-center text-lg font-black border-2 shrink-0 ${placingPendingColorCls}`}>
+                    {formatTileNumber(placingPendingTile.number)}
+                  </div>
                 </div>
-              </div>
 
-              <p className="text-stone-400 text-xs mb-2">{txt.placingHint}</p>
+                {/* forced: 위치 자동 결정 */}
+                {placingMode.type === 'forced' && (
+                  <p className="text-emerald-400 text-xs font-bold mb-3">{txt.placingForced}</p>
+                )}
 
-              {/* 내 타일 + 슬롯 */}
-              <div className="flex items-center overflow-x-auto pb-2 gap-0.5">
-                <button onClick={() => setSelectedSlot(0)} className={slotBtnCls(selectedSlot === 0)}>
-                  {selectedSlot === 0 && <span className="text-yellow-400 text-xs font-bold">▼</span>}
-                </button>
-
-                {myTiles.map((tile, idx) => {
-                  const colorClasses = tile.color === 'black'
-                    ? (tile.revealed ? DAVINCI_TILE.black.revealed : DAVINCI_TILE.black.unrevealed)
-                    : (tile.revealed ? DAVINCI_TILE.white.revealed : DAVINCI_TILE.white.unrevealed);
-                  return (
-                    <div key={idx} className="flex items-center shrink-0">
-                      <div className={`w-10 h-14 rounded-lg flex items-center justify-center text-base font-black border-2 relative ${colorClasses}`}>
-                        {formatTileNumber(tile.number)}
-                        {tile.revealed && (
-                          <span className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center text-xs">✓</span>
-                        )}
+                {/* conflict: 같은 숫자 좌/우 선택 */}
+                {placingConflictTile && placingConflictIndices && (
+                  <>
+                    <p className="text-stone-400 text-xs mb-2">{txt.placingConflict}</p>
+                    <div className="flex items-center gap-1 justify-center mb-3">
+                      <button onClick={() => setSelectedSlot(placingConflictIndices[0])} className={slotBtnCls(selectedSlot === placingConflictIndices[0])}>
+                        {selectedSlot === placingConflictIndices[0] && <span className="text-yellow-400 text-xs font-bold">▼</span>}
+                      </button>
+                      <div className={`w-10 h-14 rounded-lg flex items-center justify-center text-base font-black border-2 shrink-0 ${placingConflictColorCls}`}>
+                        {formatTileNumber(placingConflictTile.number)}
                       </div>
-                      <button onClick={() => setSelectedSlot(idx + 1)} className={slotBtnCls(selectedSlot === idx + 1)}>
-                        {selectedSlot === idx + 1 && <span className="text-yellow-400 text-xs font-bold">▼</span>}
+                      <button onClick={() => setSelectedSlot(placingConflictIndices[1])} className={slotBtnCls(selectedSlot === placingConflictIndices[1])}>
+                        {selectedSlot === placingConflictIndices[1] && <span className="text-yellow-400 text-xs font-bold">▼</span>}
                       </button>
                     </div>
-                  );
-                })}
-              </div>
+                  </>
+                )}
 
-              <button
-                onClick={handleConfirmPlacement}
-                disabled={selectedSlot === null}
-                className="w-full mt-3 py-3 rounded-xl bg-yellow-500 text-stone-900 font-black hover:bg-yellow-400 disabled:opacity-40 active:scale-95 transition-all"
-              >
-                {txt.confirmPlacement}
-              </button>
-            </div>
-          )}
+                {/* free (조커): 모든 슬롯 선택 */}
+                {placingMode.type === 'free' && (
+                  <>
+                    <p className="text-stone-400 text-xs mb-2">{txt.placingHint}</p>
+                    <div className="flex items-center overflow-x-auto pb-2 gap-0.5">
+                      <button onClick={() => setSelectedSlot(0)} className={slotBtnCls(selectedSlot === 0)}>
+                        {selectedSlot === 0 && <span className="text-yellow-400 text-xs font-bold">▼</span>}
+                      </button>
+                      {myTiles.map((tile, idx) => {
+                        const colorClasses = tile.color === 'black'
+                          ? (tile.revealed ? DAVINCI_TILE.black.revealed : DAVINCI_TILE.black.unrevealed)
+                          : (tile.revealed ? DAVINCI_TILE.white.revealed : DAVINCI_TILE.white.unrevealed);
+                        return (
+                          <div key={idx} className="flex items-center shrink-0">
+                            <div className={`w-10 h-14 rounded-lg flex items-center justify-center text-base font-black border-2 relative ${colorClasses}`}>
+                              {formatTileNumber(tile.number)}
+                              {tile.revealed && (
+                                <span className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center text-xs">✓</span>
+                              )}
+                            </div>
+                            <button onClick={() => setSelectedSlot(idx + 1)} className={slotBtnCls(selectedSlot === idx + 1)}>
+                              {selectedSlot === idx + 1 && <span className="text-yellow-400 text-xs font-bold">▼</span>}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                <button
+                  onClick={handleConfirmPlacement}
+                  disabled={selectedSlot === null}
+                  className="w-full py-3 rounded-xl bg-yellow-500 text-stone-900 font-black hover:bg-yellow-400 disabled:opacity-40 active:scale-95 transition-all"
+                >
+                  {txt.confirmPlacement}
+                </button>
+              </div>
+            )}
         </div>
       )}
 
