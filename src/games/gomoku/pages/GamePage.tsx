@@ -137,7 +137,7 @@ export default function GomokuGame({ onGoHome }: Props) {
       <div className="flex flex-col items-center mt-4 mb-2 gap-2">
         <div className="flex items-center gap-3 bg-white rounded-full px-6 py-3 shadow-md">
           {isAITurn ? (
-            <span className="font-bold text-stone-400 animate-pulse">{txt.aiThinking}</span>
+            <span className="font-bold text-lg text-stone-400 animate-pulse">{txt.aiThinking}</span>
           ) : (
             <>
               <div
@@ -158,17 +158,15 @@ export default function GomokuGame({ onGoHome }: Props) {
           )}
         </div>
 
-        {/* 타이머 바 */}
-        {!winner && !isAITurn && (
-          <div className="w-48 h-1.5 bg-stone-200 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-1000 ease-linear ${
-                timerLow ? 'bg-red-500' : 'bg-stone-400'
-              }`}
-              style={{ width: `${timerRatio * 100}%` }}
-            />
-          </div>
-        )}
+        {/* 타이머 바 — 항상 렌더링하여 레이아웃 이동 방지 */}
+        <div className={`w-48 h-1.5 rounded-full overflow-hidden ${!winner && !isAITurn ? 'bg-stone-200' : 'invisible'}`}>
+          <div
+            className={`h-full rounded-full transition-[width,background-color] duration-1000 ease-linear ${
+              timerLow ? 'bg-red-500' : 'bg-stone-400'
+            }`}
+            style={{ width: `${timerRatio * 100}%` }}
+          />
+        </div>
       </div>
 
       {/* 보드 */}

@@ -43,9 +43,10 @@ export function placeStone(state: GomokuState, row: number, col: number): Gomoku
   };
 }
 
-function checkWin(board: Board, row: number, col: number, player: Player): [number, number][] | null {
+export const DIRS: [number, number][] = [[0, 1], [1, 0], [1, 1], [1, -1]];
+
+export function checkWin(board: Board, row: number, col: number, player: Player): [number, number][] | null {
   const N = BOARD_SIZE;
-  const DIRS: [number, number][] = [[0, 1], [1, 0], [1, 1], [1, -1]];
 
   for (const [dr, dc] of DIRS) {
     const line: [number, number][] = [[row, col]];

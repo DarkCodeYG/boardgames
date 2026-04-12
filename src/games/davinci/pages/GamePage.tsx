@@ -19,6 +19,7 @@ import {
 } from '../lib/firebase-room';
 import type { RoomState } from '../lib/types';
 import Modal from '../../../components/Modal';
+import ResultPopup from '../components/ResultPopup';
 import { DAVINCI_TILE } from '../../../lib/colors';
 import {
   sfxClick,
@@ -101,8 +102,8 @@ export default function DavinciGame({ onGoHome }: Props) {
 
   // Result phase 10-second countdown
   useEffect(() => {
-    if (room?.turnState !== 'result') { setResultCountdown(10); return; }
     setResultCountdown(10);
+    if (room?.turnState !== 'result') return;
     const id = setInterval(() => setResultCountdown((p) => Math.max(0, p - 1)), 1000);
     return () => clearInterval(id);
   }, [room?.turnState]);
@@ -388,91 +389,18 @@ export default function DavinciGame({ onGoHome }: Props) {
         </div>
       )}
 
-      {/* ── RESULT POPUP ── */}
       {room.phase === 'playing' && room.turnState === 'result' && room.lastResult && (
-        <>
-          <div className="fixed inset-0 bg-black/60 z-40" />
-          <div className="fixed left-0 right-0 bottom-0 z-50 px-4 pb-6">
-            <div className={`rounded-3xl p-5 shadow-2xl border ${
-              room.lastResult.correct
-                ? 'bg-emerald-950 border-emerald-600'
-                : 'bg-red-950 border-red-700'
-            }`}>
-              {/* Result header */}
-              <div className="text-center mb-4">
-                <div className="text-5xl mb-2" aria-hidden="true">
-                  {room.lastResult.correct ? '✅' : '❌'}
-                </div>
-                <div className={`text-3xl font-black ${room.lastResult.correct ? 'text-emerald-300' : 'text-red-300'}`}>
-                  {room.lastResult.correct ? txt.correct : txt.wrong}
-                </div>
-              </div>
-
-              {/* Who guessed what */}
-              <div className="text-center mb-4">
-                <p className="text-stone-400 text-sm mb-3">
-                  <span className="text-white font-bold">{currentPlayerName}</span>
-                  {' → '}
-                  <span className="text-white font-bold">{room.lastResult.targetId}</span>
-                  {txt.targetTileOf}
-                </p>
-                <div className={`inline-flex items-center justify-center w-20 h-28 rounded-2xl border-4 font-black text-4xl shadow-lg ${
-                  room.lastResult.correct
-                    ? 'bg-emerald-900 border-emerald-400 text-emerald-200'
-                    : 'bg-red-900 border-red-400 text-red-200'
-                }`}>
-                  {formatTileNumber(room.lastResult.guessedNumber)}
-                </div>
-
-                {/* Wrong guess penalty notice */}
-                {!room.lastResult.correct && room.drawnTileIndex !== null && (() => {
-                  const drawnTile = room.players[currentPlayerName ?? '']?.tiles?.[room.drawnTileIndex!];
-                  if (!drawnTile) return null;
-                  return (
-                    <div className="mt-3 px-3 py-2 bg-amber-900/60 border border-amber-600 rounded-xl text-center text-sm text-amber-200">
-                      <span aria-hidden="true">⚠️ </span>
-                      <span className="font-bold">{currentPlayerName}</span>
-                      {txt.drawnRevealPrefix}
-                      <span className="font-black text-amber-100 text-base">{formatTileNumber(drawnTile.number)}</span>
-                      {txt.drawnRevealSuffix}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Countdown bar */}
-              <div className="mb-4">
-                <div className="h-1.5 bg-stone-700 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${
-                      resultCountdown <= 3 ? 'bg-red-400' : room.lastResult.correct ? 'bg-emerald-400' : 'bg-red-400'
-                    }`}
-                    style={{ width: `${resultCountdown * 10}%` }}
-                  />
-                </div>
-                <p className="text-xs text-stone-500 text-right mt-1">{resultCountdown}s</p>
-              </div>
-
-              {/* Buttons */}
-              <div className="flex gap-2">
-                {room.lastResult.correct && !room.winner && (
-                  <button
-                    onClick={handleContinueGuessing}
-                    className="flex-1 py-3 rounded-2xl bg-emerald-700 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all"
-                  >
-                    {txt.continueGuess}
-                  </button>
-                )}
-                <button
-                  onClick={handleEndTurn}
-                  className="flex-1 py-3 rounded-2xl bg-stone-700 text-white font-bold hover:bg-stone-600 active:scale-95 transition-all"
-                >
-                  {txt.endTurn}
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
+        <ResultPopup
+          result={room.lastResult}
+          guesserName={currentPlayerName ?? ''}
+          hasWinner={!!room.winner}
+          countdown={resultCountdown}
+          canAct
+          drawnTile={room.drawnTileIndex != null ? room.players[currentPlayerName ?? '']?.tiles?.[room.drawnTileIndex] : null}
+          txt={txt}
+          onContinue={handleContinueGuessing}
+          onEndTurn={handleEndTurn}
+        />
       )}
 
       {/* ── NUMBER PICKER MODAL ── */}
