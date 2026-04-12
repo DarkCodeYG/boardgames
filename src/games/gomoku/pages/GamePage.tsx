@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { useGameStore } from '../../codenames/store/game-store';
 import { useGomokuStore } from '../store/game-store';
 import { BOARD_SIZE, STAR_POINTS } from '../lib/game-engine';
+import { getAIMove } from '../lib/ai';
 import type { Player } from '../lib/types';
 import { TEXTS } from '../lib/i18n';
 import {
@@ -30,29 +31,42 @@ interface Props {
 
 export default function GomokuGame({ onGoHome }: Props) {
   const { lang } = useGameStore();
-  const { board, currentPlayer, winner, winLine, moveCount, placeStone, resetGame, forfeit } = useGomokuStore();
+  const {
+    board, currentPlayer, winner, winLine, moveCount,
+    placeStone, resetGame, forfeit,
+    mode, difficulty,
+  } = useGomokuStore();
   const txt = TEXTS[lang];
 
   const [timeLeft, setTimeLeft] = useState(TURN_TIME);
   const [isTimeout, setIsTimeout] = useState(false);
   const isTimeoutRef = useRef(false);
 
+  const isAITurn = mode === 'pve' && !winner && currentPlayer === 'white';
+
+  // 게임 페이지 진입 시 항상 새 게임으로 초기화
+  useEffect(() => {
+    isTimeoutRef.current = false;
+    setIsTimeout(false);
+    resetGame();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const winSet = useMemo(
     () => winLine ? new Set(winLine.map(([r, c]) => `${r},${c}`)) : null,
     [winLine],
   );
 
-  // 매 턴 타이머 리셋 + 카운트다운
+  // 매 턴 타이머 리셋 + 카운트다운 (AI 턴 제외)
   useEffect(() => {
-    if (winner) return;
+    if (winner || isAITurn) return;
     setTimeLeft(TURN_TIME);
     const timer = setInterval(() => setTimeLeft(t => Math.max(0, t - 1)), 1000);
     return () => clearInterval(timer);
   }, [moveCount, winner]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 시간 초과 판정 + 틱 소리
+  // 시간 초과 판정 + 틱 소리 (AI 턴 제외)
   useEffect(() => {
-    if (winner) return;
+    if (winner || isAITurn) return;
     if (timeLeft === 0) {
       isTimeoutRef.current = true;
       setIsTimeout(true);
@@ -71,8 +85,19 @@ export default function GomokuGame({ onGoHome }: Props) {
     }
   }, [winner]);
 
+  // AI 착수
+  useEffect(() => {
+    if (!isAITurn) return;
+    const t = setTimeout(() => {
+      const [r, c] = getAIMove(board, 'white', difficulty);
+      sfxStonePlace();
+      placeStone(r, c);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [currentPlayer, winner]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handlePlace = (r: number, c: number) => {
-    if (winner || board[r][c]) return;
+    if (winner || board[r][c] || isAITurn) return;
     sfxStonePlace();
     placeStone(r, c);
   };
@@ -111,24 +136,30 @@ export default function GomokuGame({ onGoHome }: Props) {
       {/* 현재 플레이어 + 타이머 */}
       <div className="flex flex-col items-center mt-4 mb-2 gap-2">
         <div className="flex items-center gap-3 bg-white rounded-full px-6 py-3 shadow-md">
-          <div
-            className={`w-7 h-7 rounded-full flex-shrink-0 ${stoneClass(currentPlayer)}`}
-            aria-hidden="true"
-          />
-          <span className="font-bold text-stone-700">
-            {currentPlayer === 'black' ? txt.blackTurn : txt.whiteTurn}
-          </span>
-          {!winner && (
-            <span className={`font-mono font-bold text-lg w-8 text-right transition-colors duration-300 ${
-              timerLow ? 'text-red-500' : 'text-stone-400'
-            }`}>
-              {timeLeft}
-            </span>
+          {isAITurn ? (
+            <span className="font-bold text-stone-400 animate-pulse">{txt.aiThinking}</span>
+          ) : (
+            <>
+              <div
+                className={`w-7 h-7 rounded-full flex-shrink-0 ${stoneClass(currentPlayer)}`}
+                aria-hidden="true"
+              />
+              <span className="font-bold text-stone-700">
+                {currentPlayer === 'black' ? txt.blackTurn : txt.whiteTurn}
+              </span>
+              {!winner && (
+                <span className={`font-mono font-bold text-lg w-8 text-right transition-colors duration-300 ${
+                  timerLow ? 'text-red-500' : 'text-stone-400'
+                }`}>
+                  {timeLeft}
+                </span>
+              )}
+            </>
           )}
         </div>
 
         {/* 타이머 바 */}
-        {!winner && (
+        {!winner && !isAITurn && (
           <div className="w-48 h-1.5 bg-stone-200 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-1000 ease-linear ${
@@ -185,13 +216,13 @@ export default function GomokuGame({ onGoHome }: Props) {
                     <button
                       key={`${r}-${c}`}
                       onClick={() => handlePlace(r, c)}
-                      disabled={!!cell || !!winner}
+                      disabled={!!cell || !!winner || isAITurn}
                       className="group relative flex items-center justify-center focus:outline-none"
                       style={{ width: CELL, height: CELL }}
                       aria-label={`${r + 1}행 ${c + 1}열`}
                     >
                       {/* 호버 미리보기 */}
-                      {!cell && !winner && (
+                      {!cell && !winner && !isAITurn && (
                         <div
                           className={`rounded-full opacity-0 group-hover:opacity-35 transition-opacity duration-150 pointer-events-none ${stoneClass(currentPlayer)}`}
                           style={{ width: CELL * 0.82, height: CELL * 0.82 }}
