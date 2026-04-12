@@ -109,9 +109,7 @@ export default function DavinciGame({ onGoHome }: Props) {
   }, [room?.turnState]);
 
   const currentPlayerName = room ? room.playerOrder?.[room.currentTurnIndex] : null;
-  const playerOrder = room?.playerOrder ?? Object.keys(room?.players ?? {}).sort(
-    (a, b) => (room?.players[a]?.joinedAt ?? 0) - (room?.players[b]?.joinedAt ?? 0),
-  );
+  const playerOrder = room?.playerOrder ?? [];
 
   async function handleStartGame() {
     if (Object.keys(room?.players ?? {}).length < 2) return;
@@ -397,7 +395,7 @@ export default function DavinciGame({ onGoHome }: Props) {
           hasWinner={!!room.winner}
           countdown={resultCountdown}
           canAct
-          drawnTile={room.drawnTileIndex != null ? room.players[currentPlayerName ?? '']?.tiles?.[room.drawnTileIndex] : null}
+          drawnTile={room.drawnTileIndex != null && currentPlayerName ? room.players[currentPlayerName]?.tiles?.[room.drawnTileIndex] : null}
           txt={txt}
           onContinue={handleContinueGuessing}
           onEndTurn={handleEndTurn}

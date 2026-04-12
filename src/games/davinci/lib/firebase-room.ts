@@ -1,7 +1,7 @@
 import { ref, set, get, update, remove, onValue, runTransaction, type Unsubscribe } from 'firebase/database';
 import { db } from '../../../lib/firebase';
 import type { RoomState, PlayerState, Tile, Lang } from './types';
-import { createDeck, shuffleDeck, tileCompare, insertTileSorted, getInitialTileCount } from './game-engine';
+import { createDeck, shuffleDeck, tileCompare, insertTileSorted, insertTileAt, getInitialTileCount } from './game-engine';
 
 const roomRef = (code: string) => ref(db, `davinci/${code}`);
 
@@ -27,6 +27,7 @@ export async function createDavinciRoom(lang: Lang): Promise<string> {
     currentTurnIndex: 0,
     turnState: 'draw',
     drawnTileIndex: null,
+    pendingDrawnTile: null,
     guessStartedAt: null,
     pendingGuess: null,
     lastResult: null,
@@ -90,6 +91,7 @@ export async function startDavinciGame(code: string, seed: string): Promise<void
     currentTurnIndex: 0,
     turnState: 'draw',
     drawnTileIndex: null,
+    pendingDrawnTile: null,
     pendingGuess: null,
     lastResult: null,
     winner: null,
@@ -105,17 +107,35 @@ export async function drawTile(code: string): Promise<void> {
   if (!deck.length) return;
 
   const drawn = deck.shift()!;
+
+  await update(roomRef(code), {
+    deck,
+    pendingDrawnTile: drawn,
+    turnState: 'placing',
+    drawnTileIndex: null,
+    guessStartedAt: null,
+  });
+}
+
+export async function confirmTilePlacement(code: string, insertIndex: number): Promise<void> {
+  const snap = await get(roomRef(code));
+  if (!snap.exists()) return;
+  const room = snap.val() as RoomState;
+
+  const pendingTile = room.pendingDrawnTile;
+  if (!pendingTile) return;
+
   const currentPlayerName = room.playerOrder[room.currentTurnIndex];
   const currentPlayer = room.players[currentPlayerName];
   if (!currentPlayer) return;
 
-  const { tiles: newTiles, insertedIndex } = insertTileSorted(currentPlayer.tiles ?? [], drawn);
+  const newTiles = insertTileAt(currentPlayer.tiles ?? [], pendingTile, insertIndex);
 
   await update(roomRef(code), {
-    deck,
     [`players/${currentPlayerName}/tiles`]: newTiles,
+    pendingDrawnTile: null,
+    drawnTileIndex: insertIndex,
     turnState: 'guess',
-    drawnTileIndex: insertedIndex,
     guessStartedAt: Date.now(),
   });
 }
@@ -157,7 +177,7 @@ export async function submitGuess(
   };
 
   if (correct) {
-    const newTiles = room.players[targetId].tiles.map((t, i) =>
+    const newTiles = (targetPlayer.tiles ?? []).map((t, i) =>
       i === tileIndex ? { ...t, revealed: true } : t,
     );
     const eliminated = newTiles.every((t) => t.revealed);
@@ -218,22 +238,26 @@ export async function continueGuessing(code: string): Promise<void> {
   });
 }
 
-export async function endTurn(code: string): Promise<void> {
-  const snap = await get(roomRef(code));
-  if (!snap.exists()) return;
-  const room = snap.val() as RoomState;
-
+function getNextPlayerIndex(room: RoomState): number {
   const playerCount = room.playerOrder.length;
   let nextIndex = (room.currentTurnIndex + 1) % playerCount;
   for (let i = 0; i < playerCount; i++) {
     if (!room.players[room.playerOrder[nextIndex]]?.eliminated) break;
     nextIndex = (nextIndex + 1) % playerCount;
   }
+  return nextIndex;
+}
+
+export async function endTurn(code: string): Promise<void> {
+  const snap = await get(roomRef(code));
+  if (!snap.exists()) return;
+  const room = snap.val() as RoomState;
 
   await update(roomRef(code), {
-    currentTurnIndex: nextIndex,
+    currentTurnIndex: getNextPlayerIndex(room),
     turnState: 'draw',
     drawnTileIndex: null,
+    pendingDrawnTile: null,
     guessStartedAt: null,
     pendingGuess: null,
     lastResult: null,
@@ -249,17 +273,11 @@ export async function forfeitTurn(code: string): Promise<void> {
   const currentPlayerName = room.playerOrder[room.currentTurnIndex];
   const drawnTileIndex = room.drawnTileIndex;
 
-  const playerCount = room.playerOrder.length;
-  let nextIndex = (room.currentTurnIndex + 1) % playerCount;
-  for (let i = 0; i < playerCount; i++) {
-    if (!room.players[room.playerOrder[nextIndex]]?.eliminated) break;
-    nextIndex = (nextIndex + 1) % playerCount;
-  }
-
   const updates: Record<string, unknown> = {
-    currentTurnIndex: nextIndex,
+    currentTurnIndex: getNextPlayerIndex(room),
     turnState: 'draw',
     drawnTileIndex: null,
+    pendingDrawnTile: null,
     guessStartedAt: null,
     pendingGuess: null,
     lastResult: null,
@@ -313,6 +331,8 @@ export async function resetDavinciRoom(code: string): Promise<void> {
     currentTurnIndex: 0,
     turnState: 'draw',
     drawnTileIndex: null,
+    pendingDrawnTile: null,
+    guessStartedAt: null,
     pendingGuess: null,
     lastResult: null,
     winner: null,

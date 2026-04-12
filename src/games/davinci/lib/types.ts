@@ -1,7 +1,7 @@
 export type Lang = 'ko' | 'en' | 'zh';
 export type TileColor = 'black' | 'white';
 export type GamePhase = 'lobby' | 'playing' | 'gameover';
-export type TurnState = 'draw' | 'guess' | 'result';
+export type TurnState = 'draw' | 'placing' | 'guess' | 'result';
 
 export interface Tile {
   number: number;   // 0-11 = normal, 12 = joker
@@ -32,6 +32,7 @@ export interface RoomState {
   currentTurnIndex: number;
   turnState: TurnState;
   drawnTileIndex: number | null;
+  pendingDrawnTile: Tile | null;   // tile drawn but not yet placed (during 'placing' state)
   guessStartedAt: number | null;   // timestamp when 'guess' phase began (for countdown sync)
   pendingGuess: { targetId: string; tileIndex: number } | null;
   lastResult: LastResult | null;

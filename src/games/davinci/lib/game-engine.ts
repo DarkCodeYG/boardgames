@@ -36,6 +36,13 @@ export function tileCompare(a: Tile, b: Tile): number {
   return a.color === 'white' ? -1 : 1;
 }
 
+/** Insert tile at an arbitrary index chosen by the player. */
+export function insertTileAt(tiles: Tile[], newTile: Tile, index: number): Tile[] {
+  const arr = [...tiles];
+  arr.splice(index, 0, newTile);
+  return arr;
+}
+
 /** Insert tile in sorted position. Returns new array and insertion index. */
 export function insertTileSorted(
   tiles: Tile[],

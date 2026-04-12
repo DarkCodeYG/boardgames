@@ -14,7 +14,7 @@ interface Props {
 export default function DavinciHome({ onStartGame, onBack }: Props) {
   const globalLang = useGameStore((s) => s.lang);
   const { setRoom } = useDavinciStore();
-  const [lang, setLang] = useState<Lang>((globalLang as Lang) ?? 'ko');
+  const [lang, setLang] = useState<Lang>((['ko', 'en', 'zh'].includes(globalLang) ? globalLang : 'ko') as Lang);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const txt = I18N[lang];

@@ -4,6 +4,7 @@ import {
   joinDavinciRoom,
   drawTile,
   skipDraw,
+  confirmTilePlacement,
   submitGuess,
   setPendingGuess,
   clearPendingGuess,
@@ -37,12 +38,13 @@ export default function DavinciPlayer() {
   const [room, setRoom] = useState<RoomState | null>(null);
   const [selectedTile, setSelectedTile] = useState<{ targetId: string; tileIndex: number } | null>(null);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [guessTimer, setGuessTimer] = useState(GUESS_TIMEOUT);
   const [resultCountdown, setResultCountdown] = useState(10);
   const prevTurnStateRef = useRef('');
   const prevPhaseRef = useRef('');
   const isMyTurnRef = useRef(false);
-  const autoEndedRef = useRef<number | null>(null);
+  const autoEndedRef = useRef(false);
   const autoResultEndedRef = useRef(false);
 
   useEffect(() => {
@@ -107,16 +109,18 @@ export default function DavinciPlayer() {
   useEffect(() => {
     if (room?.turnState !== 'guess' || !room.guessStartedAt) {
       setGuessTimer(GUESS_TIMEOUT);
+      autoEndedRef.current = false;
       return;
     }
+    autoEndedRef.current = false;
     const startedAt = room.guessStartedAt;
     const tick = () => {
       const remaining = Math.max(0, GUESS_TIMEOUT - (Date.now() - startedAt) / 1000);
       const secs = Math.ceil(remaining);
       setGuessTimer(secs);
       if (secs <= 5 && secs > 0) sfxTimerTick();
-      if (remaining <= 0 && isMyTurnRef.current && autoEndedRef.current !== startedAt) {
-        autoEndedRef.current = startedAt;
+      if (remaining <= 0 && isMyTurnRef.current && !autoEndedRef.current) {
+        autoEndedRef.current = true;
         forfeitTurn(roomCode).catch(console.error);
       }
     };
@@ -187,6 +191,13 @@ export default function DavinciPlayer() {
     await submitGuess(roomCode, selectedTile.targetId, selectedTile.tileIndex, selectedNumber);
     setSelectedTile(null);
     setSelectedNumber(null);
+  }
+
+  async function handleConfirmPlacement() {
+    if (selectedSlot === null) return;
+    sfxCardFlip();
+    await confirmTilePlacement(roomCode, selectedSlot);
+    setSelectedSlot(null);
   }
 
   async function handleContinueGuessing() {
@@ -308,8 +319,12 @@ export default function DavinciPlayer() {
         }`}
       >
         {isMyTurn
-          ? `▶ ${txt.currentTurn}!`
-          : `${currentTurnPlayer ?? ''} ${txt.currentTurn}`}
+          ? room.turnState === 'placing'
+            ? `▶ ${txt.placingTile}`
+            : `▶ ${txt.currentTurn}!`
+          : room.turnState === 'placing'
+            ? `${currentTurnPlayer ?? ''} ${txt.opponentPlacing}`
+            : `${currentTurnPlayer ?? ''} ${txt.currentTurn}`}
       </div>
 
       {/* My tiles */}
@@ -440,7 +455,7 @@ export default function DavinciPlayer() {
           hasWinner={!!room.winner}
           countdown={resultCountdown}
           canAct={canAct}
-          drawnTile={room.drawnTileIndex != null ? room.players[currentTurnPlayer ?? '']?.tiles?.[room.drawnTileIndex] : null}
+          drawnTile={room.drawnTileIndex != null && currentTurnPlayer ? room.players[currentTurnPlayer]?.tiles?.[room.drawnTileIndex] : null}
           txt={txt}
           onContinue={handleContinueGuessing}
           onEndTurn={handleEndTurn}
