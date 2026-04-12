@@ -240,6 +240,49 @@ export async function endTurn(code: string): Promise<void> {
   });
 }
 
+/** 추측 시간 초과 — 뽑은 타일 공개 후 턴 종료 (오답 패널티와 동일) */
+export async function forfeitTurn(code: string): Promise<void> {
+  const snap = await get(roomRef(code));
+  if (!snap.exists()) return;
+  const room = snap.val() as RoomState;
+
+  const currentPlayerName = room.playerOrder[room.currentTurnIndex];
+  const drawnTileIndex = room.drawnTileIndex;
+
+  const playerCount = room.playerOrder.length;
+  let nextIndex = (room.currentTurnIndex + 1) % playerCount;
+  for (let i = 0; i < playerCount; i++) {
+    if (!room.players[room.playerOrder[nextIndex]]?.eliminated) break;
+    nextIndex = (nextIndex + 1) % playerCount;
+  }
+
+  const updates: Record<string, unknown> = {
+    currentTurnIndex: nextIndex,
+    turnState: 'draw',
+    drawnTileIndex: null,
+    guessStartedAt: null,
+    pendingGuess: null,
+    lastResult: null,
+  };
+
+  if (drawnTileIndex !== null && room.players[currentPlayerName]?.tiles) {
+    const newTiles = room.players[currentPlayerName].tiles.map((t, i) =>
+      i === drawnTileIndex ? { ...t, revealed: true } : t,
+    );
+    const eliminated = newTiles.every((t) => t.revealed);
+    updates[`players/${currentPlayerName}/tiles`] = newTiles;
+    if (eliminated) {
+      updates[`players/${currentPlayerName}/eliminated`] = true;
+      const updatedPlayers = { ...room.players, [currentPlayerName]: { ...room.players[currentPlayerName], eliminated: true } };
+      const activePlayers = room.playerOrder.filter((n) => !updatedPlayers[n].eliminated);
+      const winner = activePlayers.length <= 1 ? (activePlayers[0] ?? null) : null;
+      if (winner !== null) { updates.winner = winner; updates.phase = 'gameover'; }
+    }
+  }
+
+  await update(roomRef(code), updates);
+}
+
 export function subscribeDavinciRoom(
   code: string,
   cb: (state: RoomState | null) => void,

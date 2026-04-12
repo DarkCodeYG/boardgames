@@ -393,6 +393,7 @@ export default function DavinciGame({ onGoHome }: Props) {
         <ResultPopup
           result={room.lastResult}
           guesserName={currentPlayerName ?? ''}
+          targetTile={room.players[room.lastResult.targetId]?.tiles?.[room.lastResult.tileIndex]}
           hasWinner={!!room.winner}
           countdown={resultCountdown}
           canAct

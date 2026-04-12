@@ -9,6 +9,7 @@ import {
   clearPendingGuess,
   continueGuessing,
   endTurn,
+  forfeitTurn,
 } from '../lib/firebase-room';
 import { formatTileNumber, JOKER_NUMBER } from '../lib/game-engine';
 import { I18N } from '../lib/i18n';
@@ -116,7 +117,7 @@ export default function DavinciPlayer() {
       if (secs <= 5 && secs > 0) sfxTimerTick();
       if (remaining <= 0 && isMyTurnRef.current && autoEndedRef.current !== startedAt) {
         autoEndedRef.current = startedAt;
-        endTurn(roomCode).catch(console.error);
+        forfeitTurn(roomCode).catch(console.error);
       }
     };
     tick();
@@ -145,15 +146,22 @@ export default function DavinciPlayer() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.turnState, roomCode]);
 
-  async function handleDrawTile() {
-    sfxCardFlip();
-    await drawTile(roomCode);
-  }
+  // 내 차례 draw 단계 — 자동 뽑기 (0.8초 딜레이)
+  useEffect(() => {
+    if (!isMyTurn || room?.turnState !== 'draw' || !roomCode) return;
+    const deck = room.deck ?? [];
+    const id = setTimeout(() => {
+      if (deck.length > 0) {
+        sfxCardFlip();
+        drawTile(roomCode).catch(console.error);
+      } else {
+        skipDraw(roomCode).catch(console.error);
+      }
+    }, 800);
+    return () => clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMyTurn, room?.turnState, roomCode]);
 
-  async function handleSkipDraw() {
-    sfxClick();
-    await skipDraw(roomCode);
-  }
 
   async function handleTileClick(targetId: string, tileIndex: number) {
     if (!isMyTurn || room?.turnState !== 'guess') return;
@@ -414,22 +422,10 @@ export default function DavinciPlayer() {
       {canAct && (
         <div className="shrink-0 mt-3 pt-3 border-t border-stone-700">
           {room.turnState === 'draw' && (
-            <div className="flex gap-2">
-              {(room.deck?.length ?? 0) > 0 ? (
-                <button
-                  onClick={handleDrawTile}
-                  className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 active:scale-95 transition-all"
-                >
-                  {txt.drawTile} ({room.deck?.length ?? 0})
-                </button>
-              ) : (
-                <button
-                  onClick={handleSkipDraw}
-                  className="flex-1 py-3 rounded-xl bg-stone-600 text-white font-bold hover:bg-stone-500 active:scale-95 transition-all"
-                >
-                  {txt.skipDraw} ({txt.deckEmpty})
-                </button>
-              )}
+            <div className="flex-1 py-3 rounded-xl bg-stone-700 text-stone-300 text-center font-bold animate-pulse">
+              {(room.deck?.length ?? 0) > 0
+                ? `${txt.drawTile}...`
+                : txt.deckEmpty}
             </div>
           )}
 
@@ -440,6 +436,7 @@ export default function DavinciPlayer() {
         <ResultPopup
           result={room.lastResult}
           guesserName={currentTurnPlayer ?? ''}
+          targetTile={room.players[room.lastResult.targetId]?.tiles?.[room.lastResult.tileIndex]}
           hasWinner={!!room.winner}
           countdown={resultCountdown}
           canAct={canAct}
