@@ -33,8 +33,9 @@ export default function GomokuGame({ onGoHome }: Props) {
   const { lang } = useGameStore();
   const {
     board, currentPlayer, winner, winLine, moveCount,
-    placeStone, resetGame, forfeit,
+    placeStone, resetGame, forfeit, undo,
     mode, difficulty,
+    undoCount,
   } = useGomokuStore();
   const txt = TEXTS[lang];
 
@@ -109,6 +110,8 @@ export default function GomokuGame({ onGoHome }: Props) {
     resetGame();
   };
 
+  const handleUndo = () => { sfxClick(); undo(); };
+
   const handleBack = () => { sfxClick(); onGoHome(); };
 
   const timerRatio = timeLeft / TURN_TIME;
@@ -125,12 +128,23 @@ export default function GomokuGame({ onGoHome }: Props) {
           ← {txt.back}
         </button>
         <h1 className="text-xl font-black text-stone-800">{txt.title}</h1>
-        <button
-          onClick={handleReset}
-          className="text-stone-400 hover:text-stone-600 text-sm font-medium transition-colors duration-150"
-        >
-          {txt.reset}
-        </button>
+        <div className="flex items-center gap-3">
+          {undoCount > 0 && !winner && (
+            <button
+              onClick={handleUndo}
+              disabled={isAITurn}
+              className="text-stone-400 hover:text-stone-600 text-sm font-medium transition-colors duration-150 disabled:opacity-30"
+            >
+              ↩ {undoCount}
+            </button>
+          )}
+          <button
+            onClick={handleReset}
+            className="text-stone-400 hover:text-stone-600 text-sm font-medium transition-colors duration-150"
+          >
+            {txt.reset}
+          </button>
+        </div>
       </header>
 
       {/* 현재 플레이어 + 타이머 */}
