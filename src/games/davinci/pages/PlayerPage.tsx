@@ -128,7 +128,6 @@ export default function DavinciPlayer() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   // room.guessStartedAt 변경 시마다 타이머 리셋
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.turnState, room?.guessStartedAt, roomCode]);
 
   // Result phase 10-second countdown — auto-endTurn on my turn
@@ -147,7 +146,6 @@ export default function DavinciPlayer() {
       });
     }, 1000);
     return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.turnState, roomCode]);
 
   // placing 상태 이탈 시 슬롯 선택 초기화
@@ -317,6 +315,37 @@ export default function DavinciPlayer() {
 
   // ── PLAYING ──
   const canAct = isMyTurn && !isEliminated;
+
+  const stepIndicator = isMyTurn && room.turnState !== 'result' ? (() => {
+    const steps = [
+      { key: 'draw', label: txt.stepDraw },
+      { key: 'placing', label: txt.stepPlace },
+      { key: 'guess', label: txt.stepGuess },
+    ] as const;
+    const currentStep = room.turnState === 'draw' ? 0 : room.turnState === 'placing' ? 1 : 2;
+    return (
+      <div className="flex items-center justify-center gap-1 mb-3 shrink-0">
+        {steps.map((s, i) => (
+          <div key={s.key} className="flex items-center gap-1">
+            <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all duration-300 ${
+              i < currentStep
+                ? 'bg-emerald-900 text-emerald-400'
+                : i === currentStep
+                  ? 'bg-emerald-500 text-white scale-105'
+                  : 'bg-stone-800 text-stone-500'
+            }`}>
+              {i < currentStep && <span aria-hidden="true">✓</span>}
+              {s.label}
+            </div>
+            {i < steps.length - 1 && (
+              <span className={`text-xs ${i < currentStep ? 'text-emerald-700' : 'text-stone-700'}`}>›</span>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  })() : null;
+
   const slotBtnCls = (selected: boolean) =>
     `w-7 h-14 rounded-md border-2 border-dashed flex items-center justify-center shrink-0 transition-all duration-150 ${
       selected ? 'border-yellow-400 bg-yellow-400/20 scale-110' : 'border-stone-600 hover:border-yellow-600'
@@ -356,8 +385,11 @@ export default function DavinciPlayer() {
             : `${currentTurnPlayer ?? ''} ${txt.currentTurn}`}
       </div>
 
+      {/* Step indicator — 내 차례일 때만 */}
+      {stepIndicator}
+
       {/* My tiles */}
-      <div className="mb-4 shrink-0">
+      <div className={`mb-4 shrink-0 relative transition-opacity duration-300 ${canAct && room.turnState === 'guess' ? 'opacity-40' : ''}`}>
         <p className="text-stone-400 text-xs mb-2">{txt.yourTiles}</p>
         <div className="flex gap-2 flex-wrap">
           {myTiles.map((tile, idx) => {
@@ -427,10 +459,17 @@ export default function DavinciPlayer() {
                           : 'bg-stone-800'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-bold">{p}</span>
-                    {isTheirTurn && <span className="text-emerald-400 text-xs">▶</span>}
-                    {player.eliminated && <span className="text-red-400 text-xs">✕</span>}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold">{p}</span>
+                      {isTheirTurn && <span className="text-emerald-400 text-xs">▶</span>}
+                      {player.eliminated && <span className="text-red-400 text-xs">✕</span>}
+                    </div>
+                    {canAct && room.turnState === 'guess' && !player.eliminated && (
+                      <span className="text-amber-300 text-xs font-bold animate-pulse">
+                        👆 {txt.tapToGuess}
+                      </span>
+                    )}
                   </div>
                   <div className="flex gap-1.5 flex-wrap">
                     {(player.tiles ?? []).map((tile, idx) => {
@@ -574,14 +613,33 @@ export default function DavinciPlayer() {
       )}
 
       {/* Number picker modal */}
-      {selectedTile && (
+      {selectedTile && (() => {
+        const targetPlayer = room.players[selectedTile.targetId];
+        const targetTile = targetPlayer?.tiles?.[selectedTile.tileIndex];
+        const tileColorCls = targetTile?.color === 'black'
+          ? DAVINCI_TILE.black.opaque
+          : DAVINCI_TILE.white.opaque;
+        const tileColorLabel = targetTile?.color === 'black' ? txt.colorBlack : txt.colorWhite;
+        return (
         <Modal
           titleId="player-number-picker"
           onClose={handleCancelGuess}
           maxWidth="max-w-sm"
         >
-          <h3 id="player-number-picker" className="text-stone-800 font-bold mb-3 text-center">
-            {selectedTile.targetId} — {txt.selectNumber}
+          {/* 타겟 컨텍스트 */}
+          <div className="flex items-center justify-center gap-4 mb-4 p-3 bg-stone-100 rounded-xl">
+            <div className={`w-12 h-16 rounded-lg border-2 flex items-center justify-center text-xl font-black shrink-0 ${tileColorCls}`}>
+              ?
+            </div>
+            <div className="text-left">
+              <p className="text-xs text-stone-500">{txt.targeted}</p>
+              <p className="font-black text-stone-800 text-base">{selectedTile.targetId}</p>
+              <p className="text-xs text-stone-500 mt-0.5">{tileColorLabel}</p>
+            </div>
+          </div>
+
+          <h3 id="player-number-picker" className="text-stone-700 text-sm font-bold mb-3 text-center">
+            {txt.selectNumber}
           </h3>
 
           <div className="grid grid-cols-4 gap-2 mb-4">
@@ -616,7 +674,8 @@ export default function DavinciPlayer() {
             </button>
           </div>
         </Modal>
-      )}
+        );
+      })()}
     </div>
   );
 }

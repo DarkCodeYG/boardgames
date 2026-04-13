@@ -592,11 +592,20 @@ export default function PlayerPage() {
   }
 
   // ===== GUESS =====
-  if (view === 'guess') {
+  if (view === 'guess' && roomState) {
     if (isFake) {
       return (
         <div className="min-h-dvh flex flex-col items-center justify-center bg-stone-100 p-6">
           <NameBanner />
+          {roomState.canvasImage && (
+            <div className="bg-white rounded-2xl p-3 shadow-md mb-4 max-w-xs w-full">
+              <img
+                src={roomState.canvasImage}
+                alt="drawing"
+                className="w-full rounded-xl"
+              />
+            </div>
+          )}
           <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-lg">
             <div className="text-4xl mb-3">🎭</div>
             <h2 className="text-xl font-black text-stone-800 mb-2">{txt.guessYourWord}</h2>

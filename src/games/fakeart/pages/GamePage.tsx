@@ -619,6 +619,16 @@ export default function GamePage({ onGoHome }: GamePageProps) {
           )}
           <h2 className="text-2xl font-black text-stone-800 mb-6">{txt.guessing}</h2>
 
+          {roomState.canvasImage && (
+            <div className="bg-white rounded-2xl p-3 shadow-md mb-4">
+              <img
+                src={roomState.canvasImage}
+                alt="completed drawing"
+                className="w-full rounded-xl"
+              />
+            </div>
+          )}
+
           <div className="bg-white rounded-2xl p-6 shadow-md">
             {!hasGuess ? (
               <p className="text-stone-400 font-bold animate-pulse">{txt.waitingForGuess}</p>
