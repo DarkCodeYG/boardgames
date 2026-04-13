@@ -416,7 +416,7 @@ export default function DavinciGame({ onGoHome }: Props) {
           targetTile={room.players[room.lastResult.targetId]?.tiles?.[room.lastResult.tileIndex]}
           hasWinner={!!room.winner}
           countdown={resultCountdown}
-          canAct
+          canAct={false}
           drawnTile={room.drawnTileIndex != null && currentPlayerName ? room.players[currentPlayerName]?.tiles?.[room.drawnTileIndex] : null}
           txt={txt}
           onContinue={handleContinueGuessing}

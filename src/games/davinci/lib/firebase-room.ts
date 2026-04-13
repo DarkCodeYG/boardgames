@@ -252,6 +252,7 @@ export async function endTurn(code: string): Promise<void> {
   const snap = await get(roomRef(code));
   if (!snap.exists()) return;
   const room = snap.val() as RoomState;
+  if (room.turnState !== 'result') return;
 
   await update(roomRef(code), {
     currentTurnIndex: getNextPlayerIndex(room),

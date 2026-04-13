@@ -218,6 +218,8 @@ export default function DavinciPlayer() {
   }
 
   async function handleEndTurn() {
+    if (autoResultEndedRef.current) return;
+    autoResultEndedRef.current = true;
     sfxTurnEnd();
     await endTurn(roomCode);
   }
