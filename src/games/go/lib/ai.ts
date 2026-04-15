@@ -101,7 +101,7 @@ function getEasyMove(state: GoState): [number, number] | null {
   const legal = candidates.filter(([r, c]) => isLegalMove(state, r, c));
   if (legal.length === 0) return null;
 
-  // 후반전 + 역전 불가 → 25% 확률로 패스 (게임이 끝날 수 있게)
+  // 후반전이고 역전 불가일 때만 25% 확률 패스
   if (isLateGame(state) && isHopeless(state) && Math.random() < 0.25) return null;
 
   return legal[Math.floor(Math.random() * legal.length)];
@@ -168,11 +168,13 @@ function getMediumMove(state: GoState): [number, number] | null {
 
   if (scored.length === 0) return null;
 
-  // 후반전에서 유효한 수(따냄/구출)가 없으면 패스
-  if (isLateGame(state) && scored[0].score < PASS_SCORE_THRESHOLD) return null;
-
-  // 역전 불가능한 상황이면 즉시 패스
-  if (isHopeless(state) && scored[0].score < PASS_SCORE_THRESHOLD * 2) return null;
+  // 후반전에서만 패스 판단 (초반 오판 방지)
+  if (isLateGame(state)) {
+    // 유효한 수(따냄/구출)가 없으면 패스
+    if (scored[0].score < PASS_SCORE_THRESHOLD) return null;
+    // 역전 불가 + 유효수 없으면 패스
+    if (isHopeless(state) && scored[0].score < PASS_SCORE_THRESHOLD * 2) return null;
+  }
 
   // 상위 3개 중 랜덤 (과결정 방지)
   const top = scored.slice(0, Math.min(3, scored.length));
@@ -237,16 +239,16 @@ function simulate(state: GoState, _aiPlayer: Player): Player {
 }
 
 function getHardMove(state: GoState, iterations: number): [number, number] | null {
-  // 역전 불가 상황이면 즉시 패스
-  if (isHopeless(state)) return null;
-
   const initialCandidates = getCandidates(state.board, state.boardSize, 2)
     .filter(([r, c]) => isLegalMove(state, r, c));
 
   if (initialCandidates.length === 0) return null;
 
-  // 후반전에서 휴리스틱 점수로 먼저 패스 여부 확인 (MCTS 시작 전 조기 판단)
+  // 후반전에서만 패스 판단 (초반 오판 방지)
   if (isLateGame(state)) {
+    // 역전 불가 상황이면 패스
+    if (isHopeless(state)) return null;
+    // 휴리스틱으로 유효수 없으면 패스 (MCTS 전 조기 판단)
     const sample = initialCandidates.slice(0, Math.min(10, initialCandidates.length));
     const bestScore = Math.max(...sample.map(([r, c]) => scoreMove(state, r, c)));
     if (bestScore < PASS_SCORE_THRESHOLD) return null;
