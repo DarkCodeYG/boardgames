@@ -320,10 +320,37 @@ function getHardMove(state: GoState, iterations: number): [number, number] | nul
 // ─── 공개 인터페이스 ──────────────────────────────────────
 
 /**
+ * 긴급한 수 존재 여부 확인.
+ * 보드 전체를 순회해 단수(活路=1)인 그룹이 있으면 true.
+ * - 상대 그룹이 단수 → 따낼 수 있음
+ * - 자신 그룹이 단수 → 구출 필요
+ * 상대가 패스했을 때 AI가 패스할지 여부를 결정하는 데 사용.
+ */
+function hasUrgentMove(state: GoState): boolean {
+  const { board, boardSize } = state;
+
+  for (let r = 0; r < boardSize; r++) {
+    for (let c = 0; c < boardSize; c++) {
+      if (!board[r][c]) continue;
+      // 같은 그룹을 반복 검사해도 결과는 동일하므로 방문 추적 생략
+      if (groupLiberties(board, r, c, boardSize) === 1) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * 난이도에 따른 AI 착수 좌표 반환.
  * null 반환 시 패스를 의미.
  */
 export function getAIMove(state: GoState, difficulty: Difficulty): [number, number] | null {
+  // 후반전에 상대가 패스했고 긴급한 수(따냄·구출)가 없으면 AI도 패스
+  // → 2연속 패스 성립 → 게임 종료
+  // ※ 초·중반에는 사용자 패스에 자동 호응하지 않음 (게임 조기 종료 방지)
+  if (state.consecutivePasses > 0 && isLateGame(state) && !hasUrgentMove(state)) {
+    return null;
+  }
+
   switch (difficulty) {
     case 'easy':   return getEasyMove(state);
     case 'medium': return getMediumMove(state);
