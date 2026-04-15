@@ -72,6 +72,9 @@ export default function GoGame({ onGoHome }: Props) {
   // ─── 자동재생 ────────────────────────────────────────────
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
 
+  // ─── AI 패스 안내 배너 ───────────────────────────────────
+  const [aiPassBanner, setAiPassBanner] = useState(false);
+
   // ─── 기권 확인 모달 ──────────────────────────────────────
   const [showResignModal, setShowResignModal] = useState(false);
 
@@ -118,10 +121,12 @@ export default function GoGame({ onGoHome }: Props) {
       const move = getAIMove(liveState, liveState.difficulty);
       if (move) {
         sfxStonePlace();
+        setAiPassBanner(false);
         useGoStore.getState().placeStone(move[0], move[1]);
       } else {
-        // 둘 곳 없으면 패스
+        // 둘 곳 없으면 패스 — 배너로 사용자에게 알림
         sfxClick();
+        setAiPassBanner(true);
         useGoStore.getState().pass();
       }
     }, 600);
@@ -153,12 +158,14 @@ export default function GoGame({ onGoHome }: Props) {
   const handlePlace = (r: number, c: number) => {
     if (winner || isReviewMode || isAITurn || displayBoard[r][c]) return;
     sfxStonePlace();
+    setAiPassBanner(false);
     placeStone(r, c);
   };
 
   const handlePass = () => {
     if (winner || isReviewMode || isAITurn) return;
     sfxClick();
+    setAiPassBanner(false);
     pass();
   };
 
@@ -319,6 +326,13 @@ export default function GoGame({ onGoHome }: Props) {
               <span className="text-amber-400">{txt.consecutivePasses(consecutivePasses)}</span>
             )}
           </div>
+
+          {/* AI 패스 안내 배너 */}
+          {aiPassBanner && !winner && (
+            <div className="bg-amber-100 border border-amber-300 rounded-xl px-4 py-2 text-xs font-semibold text-amber-800 text-center">
+              {txt.aiPassedHint}
+            </div>
+          )}
         </div>
       )}
 

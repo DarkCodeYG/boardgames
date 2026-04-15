@@ -7,10 +7,10 @@ const DIRS: [number, number][] = [[0, 1], [0, -1], [1, 0], [-1, 0]];
 
 /**
  * 패스 판단 기준 점수 (이 이하면 유효한 수가 없다고 판단).
- * scoreMove의 pure noise 범위(0~3) + 최대 center bonus(4) = ~7.
+ * scoreMove: noise(0~3) + center(0~4) + 인접 빈칸 영역 보너스(최대 ~8) = ~15.
  * 따냄 기회 최소 점수(25)보다 낮게 설정.
  */
-const PASS_SCORE_THRESHOLD = 14;
+const PASS_SCORE_THRESHOLD = 10;
 
 // ─── 공통 유틸 ────────────────────────────────────────────
 
@@ -151,6 +151,15 @@ function scoreMove(state: GoState, r: number, c: number): number {
   if (libsAfter === 1) score -= 80; // 착수 후 단수 — 나쁨
   if (libsAfter === 0) return -9999; // 자살수
 
+  // 인접 빈 칸 수 — 영역 영향력 보너스 (최대 8점)
+  let emptyAdjacent = 0;
+  for (const [dr, dc] of DIRS) {
+    const nr = r + dr, nc = c + dc;
+    if (nr < 0 || nr >= size || nc < 0 || nc >= size) continue;
+    if (state.board[nr][nc] === null) emptyAdjacent++;
+  }
+  score += emptyAdjacent * 2;
+
   // 중앙 선호 (약하게)
   const center = Math.floor(size / 2);
   const dist = Math.abs(r - center) + Math.abs(c - center);
@@ -160,7 +169,7 @@ function scoreMove(state: GoState, r: number, c: number): number {
 }
 
 function getMediumMove(state: GoState): [number, number] | null {
-  const candidates = getCandidates(state.board, state.boardSize, 2);
+  const candidates = getCandidates(state.board, state.boardSize, 3);
   const scored = candidates
     .map(([r, c]) => ({ r, c, score: scoreMove(state, r, c) }))
     .filter(m => m.score > -9999)
@@ -239,7 +248,7 @@ function simulate(state: GoState, _aiPlayer: Player): Player {
 }
 
 function getHardMove(state: GoState, iterations: number): [number, number] | null {
-  const initialCandidates = getCandidates(state.board, state.boardSize, 2)
+  const initialCandidates = getCandidates(state.board, state.boardSize, 3)
     .filter(([r, c]) => isLegalMove(state, r, c));
 
   if (initialCandidates.length === 0) return null;
@@ -355,7 +364,7 @@ export function getAIMove(state: GoState, difficulty: Difficulty): [number, numb
     case 'easy':   return getEasyMove(state);
     case 'medium': return getMediumMove(state);
     case 'hard': {
-      const iters = state.boardSize === 9 ? 320 : state.boardSize === 13 ? 150 : 60;
+      const iters = state.boardSize === 9 ? 400 : state.boardSize === 13 ? 200 : 80;
       return getHardMove(state, iters);
     }
   }

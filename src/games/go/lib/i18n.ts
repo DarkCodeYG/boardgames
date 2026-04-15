@@ -54,6 +54,7 @@ export const TEXTS = {
     reviewPause: '일시정지',
     consecutivePasses: (n: number) => `${n}회 연속 패스`,
     winMargin: (margin: number) => `${margin.toFixed(1)}점 차`,
+    aiPassedHint: 'AI가 패스했습니다 — 패스하면 집계산으로 종료',
   },
   en: {
     title: 'Go',
@@ -110,6 +111,7 @@ export const TEXTS = {
     reviewPause: 'Pause',
     consecutivePasses: (n: number) => `${n} consecutive pass${n > 1 ? 'es' : ''}`,
     winMargin: (margin: number) => `by ${margin.toFixed(1)} pts`,
+    aiPassedHint: 'AI passed — pass again to end game by score',
   },
   zh: {
     title: '围棋',
@@ -166,6 +168,7 @@ export const TEXTS = {
     reviewPause: '暂停',
     consecutivePasses: (n: number) => `连续${n}次停着`,
     winMargin: (margin: number) => `${margin.toFixed(1)}目差`,
+    aiPassedHint: 'AI停着 — 再次停着则计分结束',
   },
 } as const;
 
