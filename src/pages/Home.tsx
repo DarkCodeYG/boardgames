@@ -15,6 +15,7 @@ const TEXTS = {
         fakeart: '가짜 화가', fakeartDesc: '가짜 화가를 찾아라! 그림으로 숨어라', fakeartPlayers: '4+ 명',
         set: 'Set', setDesc: '속성이 모두 같거나 모두 다르면 Set! 결합을 찾아라', setPlayers: '2+ 명',
         gomoku: '오목', gomokuDesc: '가로·세로·대각선으로 5개를 먼저 연결하면 승리!', gomokuPlayers: '2 명',
+        go: '바둑', goDesc: '집을 더 많이 차지하면 승리! 따냄과 전략의 심리전', goPlayers: '2 명',
         davinci: '다빈치 코드', davinciDesc: '상대의 비밀 타일을 추리하라!', davinciPlayers: '2~6 명' },
   en: { title: '🎲 Board Games', subtitle: 'Choose a game to play', more: 'More games coming soon!',
         codenames: 'Codenames', codenamesDesc: 'Give clues, find your agents!', codenamesPlayers: '4+ players',
@@ -23,6 +24,7 @@ const TEXTS = {
         fakeart: 'Fake Painter', fakeartDesc: 'Find the fake painter! Hide with your strokes', fakeartPlayers: '4+ players',
         set: 'Set', setDesc: 'All same or all different = Set! Find the combinations', setPlayers: '2+ players',
         gomoku: 'Gomoku', gomokuDesc: 'Connect 5 in a row horizontally, vertically, or diagonally!', gomokuPlayers: '2 players',
+        go: 'Go', goDesc: 'Surround more territory to win! Strategy and capture', goPlayers: '2 players',
         davinci: 'Da Vinci Code', davinciDesc: "Deduce your opponent's secret tiles!", davinciPlayers: '2-6 players' },
   zh: { title: '🎲 桌游', subtitle: '选择要玩的游戏', more: '更多游戏即将推出！',
         codenames: '代号', codenamesDesc: '给出线索，找到特工！', codenamesPlayers: '4+ 人',
@@ -31,6 +33,7 @@ const TEXTS = {
         fakeart: '假画家', fakeartDesc: '找出假画家！用画笔隐藏身份', fakeartPlayers: '4+ 人',
         set: '集合', setDesc: '全相同或全不同即为集合！快速找到组合', setPlayers: '2+ 人',
         gomoku: '五子棋', gomokuDesc: '横、竖、斜方向率先连成五子者获胜！', gomokuPlayers: '2 人',
+        go: '围棋', goDesc: '占领更多地盘即获胜！提子与策略的博弈', goPlayers: '2 人',
         davinci: '达芬奇密码', davinciDesc: '推理对手的秘密牌！', davinciPlayers: '2-6 人' },
 };
 
@@ -49,6 +52,7 @@ const GAME_REGISTRY: GameEntry[] = [
   { id: 'spyfall',   icon: '🔍' },
   { id: 'set',       icon: '🃏' },
   { id: 'gomoku',    icon: '⚫' },
+  { id: 'go',        icon: '🪨' },
   { id: 'davinci',   icon: '🔢' },
   { id: 'witnesses', icon: '📖', hidden: true },
 ];

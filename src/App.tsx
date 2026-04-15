@@ -18,6 +18,8 @@ import SetGame from './games/set/pages/GamePage';
 import SetPlayer from './games/set/pages/PlayerPage';
 import GomokuHome from './games/gomoku/pages/HomePage';
 import GomokuGame from './games/gomoku/pages/GamePage';
+import GoHome from './games/go/pages/HomePage';
+import GoGame from './games/go/pages/GamePage';
 import DavinciHome from './games/davinci/pages/HomePage';
 import DavinciGame from './games/davinci/pages/GamePage';
 import DavinciPlayer from './games/davinci/pages/PlayerPage';
@@ -30,6 +32,7 @@ type Page =
   | 'fakeart-home' | 'fakeart-game' | 'fakeart-player'
   | 'set-home' | 'set-game' | 'set-player'
   | 'gomoku-home' | 'gomoku-game'
+  | 'go-home' | 'go-game'
   | 'davinci-home' | 'davinci-game' | 'davinci-player';
 
 function App() {
@@ -95,6 +98,10 @@ function App() {
       return <GomokuGame onGoHome={() => setPage('home')} />;
     case 'gomoku-home':
       return <GomokuHome onStartGame={() => setPage('gomoku-game')} onBack={() => setPage('home')} />;
+    case 'go-game':
+      return <GoGame onGoHome={() => setPage('home')} />;
+    case 'go-home':
+      return <GoHome onStartGame={() => setPage('go-game')} onBack={() => setPage('home')} />;
     case 'davinci-player':
       return <DavinciPlayer />;
     case 'davinci-game':
@@ -110,6 +117,7 @@ function App() {
           if (id === 'fakeart') setPage('fakeart-home');
           if (id === 'set') setPage('set-home');
           if (id === 'gomoku') setPage('gomoku-home');
+          if (id === 'go') setPage('go-home');
           if (id === 'davinci') setPage('davinci-home');
         }} />
       );

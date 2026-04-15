@@ -55,6 +55,11 @@ export const GOMOKU_STONE_WHITE = 'bg-gradient-to-br from-white to-stone-100 bor
 export const GOMOKU_WIN_RING = 'ring-2 ring-red-500 ring-offset-1 scale-110';
 export const GOMOKU_BOARD_BG = 'bg-amber-200';
 
+// ── Go (바둑) 색상 ───────────────────────────────────────
+export const GO_STONE_BLACK = 'bg-gradient-to-br from-stone-700 to-stone-950 shadow-lg';
+export const GO_STONE_WHITE = 'bg-gradient-to-br from-white to-stone-100 border border-stone-300 shadow-md';
+export const GO_BOARD_BG    = 'bg-amber-300 border-2 border-amber-700';
+
 // ── Da Vinci Code 타일 색상 ──────────────────────────────
 export const DAVINCI_TILE = {
   black: {
