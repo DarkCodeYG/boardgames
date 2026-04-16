@@ -12,6 +12,8 @@ interface FarmBoardProps {
   onFenceClick?: (orientation: 'horizontal' | 'vertical', r: number, c: number) => void;
   fencingMode?: boolean;
   selectedCell?: [number, number] | null;
+  /** 가족 구성원 수 — 방 셀에 사람 토큰 표시 */
+  familySize?: number;
 }
 
 const ROWS = 3;
@@ -23,7 +25,23 @@ export default function FarmBoard({
   onFenceClick,
   fencingMode = false,
   selectedCell = null,
+  familySize = 0,
 }: FarmBoardProps) {
+  // 방 셀에 가족 배치: 읽기 순서(행우선)로 familySize만큼 방에 배정
+  const familyCells = new Set<string>();
+  if (familySize > 0) {
+    let remaining = familySize;
+    for (let r = 0; r < ROWS && remaining > 0; r++) {
+      for (let c = 0; c < COLS && remaining > 0; c++) {
+        const cell = board.grid[r]?.[c];
+        if (cell === 'room_wood' || cell === 'room_clay' || cell === 'room_stone') {
+          familyCells.add(`${r}-${c}`);
+          remaining--;
+        }
+      }
+    }
+  }
+
   // 셀이 속한 목장 찾기
   function pastureForCell(r: number, c: number) {
     return board.pastures.find((p) => p.cells.some(([pr, pc]) => pr === r && pc === c));
@@ -75,6 +93,7 @@ export default function FarmBoard({
                   pasture={pasture}
                   isSelected={isSelected}
                   hasStable={hasStable(r, c)}
+                  hasFamilyMember={familyCells.has(`${r}-${c}`)}
                   onClick={() => onCellClick?.(r, c)}
                 />
               </div>

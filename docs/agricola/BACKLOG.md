@@ -43,6 +43,26 @@
 
 ---
 
+## 2026-04-16 (세션 3 — QA 라운드 1)
+
+### 완료된 작업
+
+- [2026-04-16] **QA.md 작성** — 15개 버그 항목 체크리스트 문서화
+- [2026-04-16] **B-01 수정** — farm-engine.ts: createInitialFarmBoard() 방 1→2개 (grid[1][0] 추가)
+- [2026-04-16] **B-02 수정** — game-engine.ts: 초기 음식 food:0 → P1:2, P2:3, P3:4, P4:5 (차례 보상)
+- [2026-04-16] **B-03/04 수정 (Critical)** — placeWorker: 라운드 카드 workerId 미갱신 + 누적 자원 미초기화 동시 수정. 라운드 카드에 중복 배치 가능하던 버그 해결
+- [2026-04-16] **B-05 수정 (Critical)** — growFamily requireRoom 미구분: types에 pending_family_growth_urgent 추가, RC_URGENT_WISH → 새 phase, GamePage 핸들러 분리
+- [2026-04-16] **B-06 수정** — FARM_EXPANSION: state 그대로 → pending_build_room 상태 설정, buildRoom() 함수 구현 (재료 5 + 갈대 2, 인접 방 필요)
+- [2026-04-16] **B-07 수정** — ActionBoard ACTION_INFO: RC_MAJOR_IMP/RC_FENCING/RC_GRAIN_UTIL/RC_BASIC_WISH/RC_HOUSE_RENO/RC_VEG_SEEDS/RC_URGENT_WISH ID 불일치 수정
+- [2026-04-16] **UI 개선** — GamePage 전면 재구성: 다른 플레이어 농장 탭, 워커 pip, 플레이어 상태 바(하이라이트), 플레이어 타이머, 시작 전 초기 상태 미리보기
+- [2026-04-16] **B-11 수정** — ResourcePanel: 영문 레이블 → 한국어 + 아이콘 + 가족 수 + 구걸 토큰
+- [2026-04-16] **B-12 수정** — FarmCell/FarmBoard: hasFamilyMember prop 추가, 방 안 👤 토큰 표시
+- [2026-04-16] **B-13 수정** — ActionBoard: 신규 공개 라운드 카드 "NEW" 배지 + 링 강조
+- [2026-04-16] **ActionBoard 설명 추가** — 각 행동별 한국어 설명문 + 신규 라운드 카드 강조
+- [2026-04-16] **빌드 통과** — npm run build exit 0, TypeScript 오류 0
+
+---
+
 ## 대기 중 (Phase 2 대상)
 
 ### 고우선순위

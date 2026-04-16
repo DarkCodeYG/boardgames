@@ -9,6 +9,7 @@ interface FarmCellProps {
   pasture?: Pasture;
   isSelected?: boolean;
   hasStable?: boolean;
+  hasFamilyMember?: boolean;
   onClick?: () => void;
 }
 
@@ -27,6 +28,7 @@ export default function FarmCell({
   pasture,
   isSelected,
   hasStable,
+  hasFamilyMember = false,
   onClick,
 }: FarmCellProps) {
   const cfg = CELL_CONFIG[cellType] ?? CELL_CONFIG.empty;
@@ -50,6 +52,11 @@ export default function FarmCell({
         <span className="text-[10px] font-bold text-green-800">
           {sownField.resource === 'grain' ? '밀' : '채소'}{sownField.count}
         </span>
+      )}
+
+      {/* 가족 구성원 토큰 */}
+      {hasFamilyMember && (
+        <span aria-hidden="true" className="absolute top-0 left-0 text-[11px] leading-none">👤</span>
       )}
 
       {/* 외양간 오버레이 */}

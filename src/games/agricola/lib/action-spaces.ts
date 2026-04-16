@@ -104,8 +104,8 @@ const permanentSpaces: ActionSpace[] = [
     nameEn: 'Farm Expansion',
     type: 'permanent',
     workerSlots: 1,
-    // 방 건설 and/or 외양간 건설 → UI 처리 (Phase 1)
-    effect: (state: GameState, _playerId: PlayerId) => state,
+    // 방 건설 and/or 외양간 건설 → UI 처리
+    effect: (state: GameState, _playerId: PlayerId) => ({ ...state, roundPhase: 'pending_build_room' as const }),
   },
   {
     id: 'MEETING_PLACE',

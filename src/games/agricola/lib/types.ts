@@ -59,8 +59,10 @@ export type RoundPhase =
   | 'pending_fence'      // 울타리 건설 대기
   | 'pending_renovate'   // 집 개량 대기
   | 'pending_renovate_fence'  // 집 개량 + 울타리 대기 (RC_FARM_RENO)
-  | 'pending_family_growth'   // 가족 증가 대기
-  | 'pending_animal_choice';  // 동물 선택 대기
+  | 'pending_family_growth'         // 가족 증가 대기 (방 필요 — RC_BASIC_WISH)
+  | 'pending_family_growth_urgent'  // 가족 증가 대기 (방 불필요 — RC_URGENT_WISH)
+  | 'pending_build_room'            // 방/외양간 건설 대기 (FARM_EXPANSION)
+  | 'pending_animal_choice';        // 동물 선택 대기
 
 export type HarvestPhase = 'field' | 'feeding' | 'breeding' | 'done';
 

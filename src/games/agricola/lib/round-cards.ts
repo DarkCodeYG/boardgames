@@ -105,7 +105,7 @@ const roundCards: ActionSpace[] = [
     type: 'round_card',
     workerSlots: 1,
     // 가족 증가 (방 없어도 가능) — growFamily(state, id, false)
-    effect: (state: GameState, _playerId: PlayerId) => ({ ...state, roundPhase: 'pending_family_growth' as const }),
+    effect: (state: GameState, _playerId: PlayerId) => ({ ...state, roundPhase: 'pending_family_growth_urgent' as const }),
   },
   {
     id: 'RC_CULTIVATION',

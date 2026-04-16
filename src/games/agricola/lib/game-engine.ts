@@ -29,11 +29,12 @@ export function createGameState(config: CreateGameConfig): GameState {
   const playerIds = config.playerNames.map((_, i) => `player_${i}`);
   const colors: Array<'red' | 'blue' | 'green' | 'yellow'> = ['red', 'blue', 'green', 'yellow'];
 
+  // 차례 보상 음식: P1=2, P2=3, P3=4, P4=5 (아그리콜라 룰)
   const players: GameState['players'] = Object.fromEntries(
-    playerIds.map((id, i) => [
-      id,
-      createInitialPlayerState(id, config.playerNames[i] ?? `Player ${i + 1}`, colors[i] ?? 'red'),
-    ])
+    playerIds.map((id, i) => {
+      const p = createInitialPlayerState(id, config.playerNames[i] ?? `Player ${i + 1}`, colors[i] ?? 'red');
+      return [id, { ...p, resources: { ...p.resources, food: 2 + i } }];
+    })
   );
 
   // 영구 행동 공간
@@ -184,14 +185,25 @@ export function placeWorker(
   // 행동 효과 적용
   let newState = spaceState.space.effect(state, playerId);
 
-  // 워커 배치 표시
+  // 워커 배치 표시 — 영구 공간 또는 라운드 카드 모두 처리
   if (actionSpaceId in newState.actionSpaces) {
+    const cur = newState.actionSpaces[actionSpaceId]!;
     newState = {
       ...newState,
       actionSpaces: {
         ...newState.actionSpaces,
-        [actionSpaceId]: { ...newState.actionSpaces[actionSpaceId]!, workerId: playerId },
+        [actionSpaceId]: { ...cur, workerId: playerId, accumulatedResources: emptyResources() },
       },
+    };
+  } else {
+    // 라운드 카드: workerId 설정 + accumulatedResources 초기화
+    newState = {
+      ...newState,
+      revealedRoundCards: newState.revealedRoundCards.map((rc) =>
+        rc.space.id === actionSpaceId
+          ? { ...rc, workerId: playerId, accumulatedResources: emptyResources() }
+          : rc
+      ),
     };
   }
 
@@ -528,6 +540,50 @@ export function buildFences(
   const updatedFarm = recalculatePastures({ ...player.farm, fences });
   let newState = updatePlayerFarm(state, playerId, updatedFarm);
   newState = addResources(newState, playerId, { wood: -woodCost });
+  return newState;
+}
+
+/** 방 건설: 빈 셀 클릭 → 현재 집 재질과 같은 방 추가 (재료 5 + 갈대 2) */
+export function buildRoom(
+  state: GameState,
+  playerId: PlayerId,
+  row: number,
+  col: number,
+): GameState {
+  const player = state.players[playerId];
+  if (!player) throw new Error(`Player ${playerId} not found`);
+  if (player.farm.grid[row]?.[col] !== 'empty') throw new Error(`Cannot build room at (${row},${col})`);
+
+  // 인접 셀 중 방이 있어야 함
+  const dirs: [number, number][] = [[-1,0],[1,0],[0,-1],[0,1]];
+  const hasAdjacentRoom = dirs.some(([dr, dc]) => {
+    const cell = player.farm.grid[row + dr]?.[col + dc];
+    return cell === 'room_wood' || cell === 'room_clay' || cell === 'room_stone';
+  });
+  if (!hasAdjacentRoom) throw new Error('새 방은 기존 방에 인접해야 합니다');
+
+  // 현재 집 재질
+  const currentMaterial = (player.farm.grid.flat().find(
+    (c) => c === 'room_wood' || c === 'room_clay' || c === 'room_stone'
+  ) ?? 'room_wood') as CellType;
+
+  const costMap: Record<string, Partial<Record<string, number>>> = {
+    room_wood:  { wood:  -5, reed: -2 },
+    room_clay:  { clay:  -5, reed: -2 },
+    room_stone: { stone: -5, reed: -2 },
+  };
+  const cost = costMap[currentMaterial] ?? {};
+  const res = player.resources;
+  if (currentMaterial === 'room_wood'  && (res.wood  ?? 0) < 5) throw new Error('나무 부족 (필요: 5)');
+  if (currentMaterial === 'room_clay'  && (res.clay  ?? 0) < 5) throw new Error('점토 부족 (필요: 5)');
+  if (currentMaterial === 'room_stone' && (res.stone ?? 0) < 5) throw new Error('돌 부족 (필요: 5)');
+  if ((res.reed ?? 0) < 2) throw new Error('갈대 부족 (필요: 2)');
+
+  const grid = player.farm.grid.map((r, ri) =>
+    r.map((c, ci): CellType => (ri === row && ci === col ? currentMaterial : c))
+  );
+  let newState = updatePlayerFarm(state, playerId, { grid });
+  newState = addResources(newState, playerId, cost);
   return newState;
 }
 

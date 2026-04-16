@@ -16,7 +16,9 @@ export function createInitialFarmBoard(): FarmBoard {
   const grid: FarmGrid = Array.from({ length: FARM_ROWS }, () =>
     Array.from({ length: FARM_COLS }, (): CellType => 'empty')
   );
-  grid[0][0] = 'room_wood'; // 초기 나무 방
+  // 초기 나무 방 2칸: 아그리콜라 룰 — [0][0], [1][0] (1열 상단·하단)
+  grid[0][0] = 'room_wood';
+  grid[1][0] = 'room_wood';
 
   return {
     grid,
