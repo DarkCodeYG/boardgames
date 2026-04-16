@@ -604,8 +604,8 @@ export function buildStable(
   const player = state.players[playerId];
   if (!player) throw new Error(`Player ${playerId} not found`);
   const cell = player.farm.grid[row]?.[col];
-  // 외양간은 빈 칸 또는 목장(pasture 셀)에 건설 가능
-  if (cell !== 'empty' && cell !== 'field') {
+  // 외양간은 빈 칸에만 건설 가능 (밭에는 불가)
+  if (cell !== 'empty') {
     throw new Error(`Cannot build stable at (${row},${col})`);
   }
   if (player.farm.stables.some(([sr, sc]) => sr === row && sc === col)) {

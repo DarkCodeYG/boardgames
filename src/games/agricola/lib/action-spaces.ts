@@ -147,7 +147,7 @@ const ext4Spaces: ActionSpace[] = [
   },
   {
     id: 'EXT4_HOLLOW',
-    nameKo: '흙 채굴장',
+    nameKo: '깊은 흙 채굴장',
     nameEn: 'Hollow',
     type: 'permanent',
     minPlayers: 4,

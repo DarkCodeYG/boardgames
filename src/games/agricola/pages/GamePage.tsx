@@ -222,22 +222,22 @@ export default function GamePage({ onExit }: GamePageProps) {
     if (phase === 'pending_build_room') {
       try {
         const s = buildRoom(gs, currentPlayerId, r, c);
-        setGameState(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+        saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
       } catch (e) { alert((e as Error).message); }
     } else if (phase === 'pending_build_stable') {
       try {
         const s = buildStable(gs, currentPlayerId, r, c);
-        setGameState(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+        saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
       } catch (e) { alert((e as Error).message); }
     } else if (phase === 'pending_plow') {
       try {
         const s = plowField(gs, currentPlayerId, r, c);
-        setGameState({ ...s, roundPhase: 'work' });
+        saveAndSet({ ...s, roundPhase: 'work' });
       } catch (e) { console.error(e); }
     } else if (phase === 'pending_plow_sow') {
       try {
         const s = plowField(gs, currentPlayerId, r, c);
-        setGameState({ ...s, roundPhase: 'pending_sow' });
+        saveAndSet({ ...s, roundPhase: 'pending_sow' });
       } catch (e) { console.error(e); }
     } else if (phase === 'pending_sow') {
       try {
@@ -245,7 +245,7 @@ export default function GamePage({ onExit }: GamePageProps) {
         const crop: 'grain' | 'vegetable' =
           (player?.resources.grain ?? 0) > 0 ? 'grain' : 'vegetable';
         const s = sowField(gs, currentPlayerId, r, c, crop);
-        setGameState(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+        saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
       } catch (e) { console.error(e); }
     }
   }
@@ -254,7 +254,7 @@ export default function GamePage({ onExit }: GamePageProps) {
   function handleAnimalSelect(animalType: AnimalType) {
     try {
       const s = getAnimalFromMarket(gs, currentPlayerId, animalType);
-      setGameState(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+      saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
     } catch (e) { alert((e as Error).message); }
   }
 

@@ -66,7 +66,7 @@ export function getMajorImprovements(): MajorImprovement[] {
           description: '언제든지 동물을 음식으로 변환 가능',
         },
       ],
-      victoryPoints: 1,
+      victoryPoints: 0,
       ownerId: null,
     },
     {
@@ -86,7 +86,7 @@ export function getMajorImprovements(): MajorImprovement[] {
           description: '언제든지 동물을 음식으로 변환 가능',
         },
       ],
-      victoryPoints: 1,
+      victoryPoints: 0,
       ownerId: null,
     },
     {
@@ -120,7 +120,7 @@ export function getMajorImprovements(): MajorImprovement[] {
           description: '밀 1개를 음식 5개로 변환 (1회)',
         },
       ],
-      victoryPoints: 2,
+      victoryPoints: 0,
       ownerId: null,
     },
     {
@@ -135,7 +135,7 @@ export function getMajorImprovements(): MajorImprovement[] {
           description: '밀 1개를 음식 4개로 변환 (2회)',
         },
       ],
-      victoryPoints: 3,
+      victoryPoints: 0,
       ownerId: null,
     },
     {
