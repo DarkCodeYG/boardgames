@@ -19,7 +19,7 @@ export function getMajorImprovements(): MajorImprovement[] {
   return [
     {
       id: 'MAJ_FIREPLACE_2',
-      nameKo: '화덕 (점토 2)',
+      nameKo: '화로 (흙 2)',
       nameEn: 'Fireplace (2 clay)',
       cost: { clay: 2 },
       effects: [
@@ -34,7 +34,7 @@ export function getMajorImprovements(): MajorImprovement[] {
     },
     {
       id: 'MAJ_FIREPLACE_3',
-      nameKo: '화덕 (점토 3)',
+      nameKo: '화로 (흙 3)',
       nameEn: 'Fireplace (3 clay)',
       cost: { clay: 3 },
       effects: [
@@ -49,7 +49,7 @@ export function getMajorImprovements(): MajorImprovement[] {
     },
     {
       id: 'MAJ_COOKING_HEARTH_4',
-      nameKo: '취사장 (점토 4)',
+      nameKo: '화덕 (흙 4)',
       nameEn: 'Cooking Hearth (4 clay)',
       cost: { clay: 4 },
       effects: [
@@ -71,7 +71,7 @@ export function getMajorImprovements(): MajorImprovement[] {
     },
     {
       id: 'MAJ_COOKING_HEARTH_5',
-      nameKo: '취사장 (점토 5)',
+      nameKo: '화덕 (흙 5)',
       nameEn: 'Cooking Hearth (5 clay)',
       cost: { clay: 5 },
       effects: [
@@ -93,7 +93,7 @@ export function getMajorImprovements(): MajorImprovement[] {
       id: 'MAJ_WELL',
       nameKo: '우물',
       nameEn: 'Well',
-      cost: { reed: 1, stone: 3 },
+      cost: { wood: 1, stone: 3 },
       effects: [
         {
           trigger: 'IMMEDIATE',
@@ -110,9 +110,9 @@ export function getMajorImprovements(): MajorImprovement[] {
     },
     {
       id: 'MAJ_CLAY_OVEN',
-      nameKo: '점토 오븐',
+      nameKo: '흙가마',
       nameEn: 'Clay Oven',
-      cost: { clay: 3, stone: 1 },
+      cost: { clay: 3, reed: 1 },
       effects: [
         {
           trigger: 'BAKE_BREAD',
@@ -125,9 +125,9 @@ export function getMajorImprovements(): MajorImprovement[] {
     },
     {
       id: 'MAJ_STONE_OVEN',
-      nameKo: '돌 오븐',
+      nameKo: '돌가마',
       nameEn: 'Stone Oven',
-      cost: { clay: 1, stone: 3 },
+      cost: { stone: 3, reed: 1 },
       effects: [
         {
           trigger: 'BAKE_BREAD',
@@ -140,9 +140,9 @@ export function getMajorImprovements(): MajorImprovement[] {
     },
     {
       id: 'MAJ_JOINERY',
-      nameKo: '목공소',
+      nameKo: '가구 제작소',
       nameEn: 'Joinery',
-      cost: { wood: 2, stone: 2 },
+      cost: { wood: 2, reed: 1, stone: 1 },
       effects: [
         {
           trigger: 'HARVEST_FIELD',
@@ -155,9 +155,9 @@ export function getMajorImprovements(): MajorImprovement[] {
     },
     {
       id: 'MAJ_POTTERY',
-      nameKo: '도예소',
+      nameKo: '그릇 제작소',
       nameEn: 'Pottery',
-      cost: { clay: 2, stone: 2 },
+      cost: { clay: 2, reed: 1, stone: 1 },
       effects: [
         {
           trigger: 'HARVEST_FIELD',
@@ -170,9 +170,9 @@ export function getMajorImprovements(): MajorImprovement[] {
     },
     {
       id: 'MAJ_BASKETMAKERS_WORKSHOP',
-      nameKo: '바구니 공방',
+      nameKo: '바구니 제작소',
       nameEn: "Basketmaker's Workshop",
-      cost: { reed: 2, stone: 2 },
+      cost: { reed: 2, clay: 1, stone: 1 },
       effects: [
         {
           trigger: 'HARVEST_FIELD',

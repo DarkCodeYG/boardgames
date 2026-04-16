@@ -9,6 +9,8 @@ interface ActionBoardProps {
   state: GameState;
   currentPlayerId: PlayerId;
   onActionSelect?: (actionSpaceId: string) => void;
+  /** 가족 구성원 선택됨 → 행동칸 드롭 가능 상태 강조 */
+  workerReady?: boolean;
 }
 
 const PLAYER_COLORS: Record<string, string> = {
@@ -27,39 +29,41 @@ export const RESOURCE_ICONS: Record<string, string> = {
 /** 행동 공간별 한국어 설명 및 비용 정보 */
 const ACTION_INFO: Record<string, { desc: string; cost?: Partial<Resources> }> = {
   // ─ 영구 행동 공간 ─
-  FOREST:         { desc: '🪵×3 누적 획득' },
-  CLAY_PIT:       { desc: '🧱×1 누적 획득' },
-  REED_BANK:      { desc: '🌿×1 누적 획득' },
-  FISHING:        { desc: '🍖×1 누적 획득' },
-  GRAIN_SEEDS:    { desc: '🌾×1 즉시 획득' },
-  FARMLAND:       { desc: '빈 셀 1칸 → 밭으로 전환' },
-  LESSONS:        { desc: '직업 카드 1장 플레이 (첫 번째 무료)' },
-  DAY_LABORER:    { desc: '🍖×2 즉시 획득' },
-  FARM_EXPANSION: { desc: '방(🏠) 또는 외양간 건설' },
-  MEETING_PLACE:  { desc: '선플레이어 토큰 + 소시설 플레이' },
+  FOREST:           { desc: '🪵×3 누적 획득' },
+  CLAY_PIT:         { desc: '🧱(흙)×1 누적 획득' },
+  REED_BANK:        { desc: '🌿(갈대)×1 누적 획득' },
+  FISHING:          { desc: '🍖×1 누적 획득' },
+  GRAIN_SEEDS:      { desc: '🌾(밀 종자)×1 즉시 획득' },
+  FARMLAND:         { desc: '빈 셀 1칸 → 농지(밭)로 전환' },
+  LESSONS:          { desc: '직업 카드 1장 플레이 (첫 번째 무료)' },
+  DAY_LABORER:      { desc: '🍖×2 즉시 획득 (음식 보조)' },
+  FARM_EXPANSION:   { desc: '방 건설(재료5+갈대2) 또는 외양간(나무2)' },
+  MEETING_PLACE:    { desc: '선플레이어 토큰 획득 + 소시설 1장 플레이' },
   // ─ 인원 확장 공간 ─
-  EXT4_COPSE:     { desc: '🪵×1 누적 획득' },
-  EXT4_GROVE:     { desc: '🪵×2 누적 획득' },
-  EXT4_HOLLOW:    { desc: '🧱×2 누적 획득' },
-  EXT4_RES_MKT:   { desc: '🌿×1 + 🪨×1 + 🍖×1 즉시' },
-  EXT4_LESSONS_A: { desc: '직업 카드 1장 플레이' },
-  EXT4_TRAVEL:    { desc: '🍖 누적 + 이번 라운드 워커 추가' },
-  EXT3_CLAY:      { desc: '🧱×1 누적 획득' },
-  EXT3_LESSONS:   { desc: '직업 카드 1장 플레이' },
-  V2_FOREST:      { desc: '🪵×1 누적 획득' },
-  V2_RES_MKT:     { desc: '🪨×1 + 🍖×1 즉시' },
-  V2_ANIMAL_MKT:  { desc: '🐑×1+🍖×1 or 🐷×1 or 🐄×1-🍖×1' },
-  V2_FAMILY_GROWTH: { desc: '가족 늘리기 (방 필요)' },
+  EXT4_COPSE:       { desc: '🪵×1 누적 획득' },
+  EXT4_GROVE:       { desc: '🪵×2 누적 획득' },
+  EXT4_HOLLOW:      { desc: '흙×2 누적 획득' },
+  EXT4_RES_MKT:     { desc: '🌿×1 + 🪨×1 + 🍖×1 즉시' },
+  EXT4_LESSONS_A:   { desc: '직업 카드 1장 플레이' },
+  EXT4_TRAVEL:      { desc: '🍖 누적 획득 + 이번 라운드 일꾼 1명 추가' },
+  EXT3_CLAY:        { desc: '🧱×1 누적 획득' },
+  EXT3_LESSONS:     { desc: '직업 카드 1장 플레이' },
+  V2_COPSE:         { desc: '🪵×1 누적 획득' },
+  V2_RES_MKT:       { desc: '🪨×1 + 🍖×1 즉시' },
+  V2_ANIMAL_MKT:    { desc: '🐑+🍖 OR 🐷×1 OR 🐄×1 (선택)' },
+  V34_ANIMAL_MKT:   { desc: '🐑+🍖 OR 🐷×1 OR 🐄×1 (선택)' },
+  V2_MODEST_WISH:   { desc: '가족 늘리기 (5라운드 이후, 방 필요)' },
+  V34_MODEST_WISH:  { desc: '가족 늘리기 (5라운드 이후, 방 필요)' },
   // ─ 라운드 카드 (실제 ID 기준) ─
-  RC_MAJOR_IMP:   { desc: '대시설(🏭) 또는 소시설 건설' },
-  RC_FENCING:     { desc: '목장 울타리 건설 (🪵 1/칸)' },
-  RC_GRAIN_UTIL:  { desc: '씨 뿌리기 or 빵 굽기' },
-  RC_BASIC_WISH:  { desc: '가족 늘리기 (빈 방 필요)' },
-  RC_HOUSE_RENO:  { desc: '집 개량 (재료×방수 + 🌿×1)' },
-  RC_VEG_SEEDS:   { desc: '🥕×1 즉시 획득' },
-  RC_URGENT_WISH: { desc: '가족 늘리기 (방 없어도 가능)' },
-  RC_CULTIVATION: { desc: '밭 갈기 + 씨 뿌리기' },
-  RC_FARM_RENO:   { desc: '집 개량 + 울타리 건설' },
+  RC_MAJOR_IMP:     { desc: '주요 설비(🏭) 또는 소시설 1장 건설' },
+  RC_FENCING:       { desc: '목장 울타리 건설 (🪵 1개/칸)' },
+  RC_GRAIN_UTIL:    { desc: '씨 뿌리기 OR 빵 굽기 (선택)' },
+  RC_BASIC_WISH:    { desc: '가족 늘리기 (빈 방 필요)' },
+  RC_HOUSE_RENO:    { desc: '집 개조 (재료×방수 + 🌿×1) + 소시설 플레이 가능' },
+  RC_VEG_SEEDS:     { desc: '🥕(채소 종자)×1 즉시 획득' },
+  RC_URGENT_WISH:   { desc: '가족 늘리기 (방 없어도 가능)' },
+  RC_CULTIVATION:   { desc: '농지 1칸 갈기 + 씨 뿌리기' },
+  RC_FARM_RENO:     { desc: '집 개조 + 울타리 건설 (+ 소시설 플레이 가능)' },
   // 누적 카드(양/돼지/소/채석장)는 accumulatedResources 배지로 표시
 };
 
@@ -67,7 +71,7 @@ function WorkerDot({ playerId, state }: { playerId: string; state: GameState }) 
   const color = state.players[playerId]?.color ?? 'red';
   return (
     <span
-      aria-label={`워커: ${state.players[playerId]?.name ?? playerId}`}
+      aria-label={`일꾼: ${state.players[playerId]?.name ?? playerId}`}
       className={`inline-block w-3.5 h-3.5 rounded-full border border-white ${PLAYER_COLORS[color] ?? 'bg-gray-400'}`}
     />
   );
@@ -82,6 +86,7 @@ function ActionSpaceRow({
   currentPlayerId,
   isRound,
   isNewest,
+  workerReady,
   onSelect,
 }: {
   id: string;
@@ -92,11 +97,13 @@ function ActionSpaceRow({
   currentPlayerId: PlayerId;
   isRound: boolean;
   isNewest: boolean;
+  workerReady?: boolean;
   onSelect?: () => void;
 }) {
   const isOccupied = workerId !== null;
   const isMine = workerId === currentPlayerId;
-  const canPlace = !isOccupied && state.roundPhase === 'work';
+  // 워커 배치 가능: 빈 칸 + work 단계 + 가족 구성원 선택됨
+  const canPlace = !isOccupied && state.roundPhase === 'work' && !!workerReady;
 
   const accEntries = Object.entries(accumulated).filter(([, v]) => (v as number) > 0);
   const info = ACTION_INFO[id];
@@ -105,22 +112,42 @@ function ActionSpaceRow({
     <div
       onClick={canPlace ? onSelect : undefined}
       className={[
-        'flex flex-col gap-0.5 px-3 py-2 rounded text-sm transition-colors duration-150',
+        'relative flex flex-col gap-0.5 px-3 py-2 rounded text-sm transition-all duration-150',
         isRound ? 'border-l-4 border-amber-500' : 'border-l-4 border-stone-400',
-        isNewest ? 'ring-1 ring-amber-400 bg-amber-50' : '',
         isOccupied
-          ? isMine ? 'bg-blue-50 opacity-80' : 'bg-gray-100 opacity-60'
-          : canPlace ? 'bg-white hover:bg-amber-50 cursor-pointer' : 'bg-white',
+          ? isMine
+            ? 'bg-amber-100 border border-amber-400'
+            : 'bg-stone-100 opacity-60'
+          : canPlace
+            ? 'bg-amber-50 ring-2 ring-amber-500 cursor-pointer shadow-md hover:bg-amber-100 hover:shadow-lg'
+            : workerReady
+              ? 'bg-stone-50 opacity-40 cursor-not-allowed'
+              : isNewest
+                ? 'ring-1 ring-amber-600 bg-amber-50/60'
+                : 'bg-stone-50 hover:bg-stone-100',
       ].join(' ')}
     >
-      <div className="flex items-center gap-2">
-        {/* 행동 이름 */}
-        <span className="font-medium w-28 shrink-0 text-gray-800">{nameKo}</span>
+      {/* 체스 착지 표시 — 배치 가능 칸에 초록 원형 배지 */}
+      {canPlace && (
+        <span
+          aria-hidden="true"
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center text-white text-[10px] font-bold shadow-sm animate-pulse"
+        >
+          ●
+        </span>
+      )}
 
+      <div className="flex items-center gap-2">
         {/* 신규 배지 */}
-        {isNewest && (
-          <span className="text-[10px] px-1 py-0.5 bg-amber-500 text-white rounded font-bold">NEW</span>
+        {isNewest && !canPlace && (
+          <span className="text-[10px] px-1 py-0.5 bg-amber-500 text-white rounded font-bold shrink-0">NEW</span>
         )}
+
+        {/* 행동 이름 */}
+        <span className={[
+          'font-medium w-28 shrink-0',
+          isOccupied && isMine ? 'text-amber-900' : 'text-gray-800',
+        ].join(' ')}>{nameKo}</span>
 
         {/* 누적 자원 배지 */}
         <span className="flex gap-1 text-xs text-amber-700 flex-1">
@@ -131,19 +158,27 @@ function ActionSpaceRow({
           ))}
         </span>
 
-        {/* 워커 표시 */}
-        {workerId && <WorkerDot playerId={workerId} state={state} />}
+        {/* 배치된 워커 표시 — 크게 눈에 띄게 */}
+        {workerId && (
+          <div className="flex items-center gap-1">
+            <WorkerDot playerId={workerId} state={state} />
+            {isMine && <span className="text-[10px] text-amber-800 font-semibold">내 일꾼</span>}
+          </div>
+        )}
       </div>
 
       {/* 행동 설명 */}
       {info?.desc && (
-        <span className="text-[11px] text-gray-500 pl-0.5">{info.desc}</span>
+        <span className={[
+          'text-[11px] pl-0.5',
+          canPlace ? 'text-amber-800 font-medium' : 'text-gray-500',
+        ].join(' ')}>{info.desc}</span>
       )}
     </div>
   );
 }
 
-export default function ActionBoard({ state, currentPlayerId, onActionSelect }: ActionBoardProps) {
+export default function ActionBoard({ state, currentPlayerId, onActionSelect, workerReady = false }: ActionBoardProps) {
   const permanent = Object.entries(state.actionSpaces);
   const rounds: RoundCardState[] = state.revealedRoundCards;
 
@@ -151,8 +186,16 @@ export default function ActionBoard({ state, currentPlayerId, onActionSelect }: 
   const newestCardId = rounds.length > 0 ? rounds[rounds.length - 1]?.space.id : null;
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+    <div className="bg-stone-100 border-2 border-stone-400 rounded-lg p-2 shadow-inner">
+      <div className="flex flex-col gap-1">
+      {workerReady && (
+        <div className="text-xs text-amber-900 font-medium bg-amber-100 border-2 border-amber-500 rounded-lg px-3 py-1.5 mb-1 flex items-center gap-2 shadow-sm">
+          <span aria-hidden="true" className="w-3.5 h-3.5 rounded-full bg-amber-200 border-2 border-amber-700 inline-block" />
+          <span>가족 구성원 선택됨</span>
+          <span className="text-amber-700">— ● 표시 행동칸에 배치하세요</span>
+        </div>
+      )}
+      <div className="text-xs text-amber-800 font-semibold uppercase tracking-widest border-b border-amber-300 pb-0.5 mb-1">
         영구 행동 공간
       </div>
 
@@ -167,13 +210,14 @@ export default function ActionBoard({ state, currentPlayerId, onActionSelect }: 
           currentPlayerId={currentPlayerId}
           isRound={false}
           isNewest={false}
+          workerReady={workerReady}
           onSelect={() => onActionSelect?.(id)}
         />
       ))}
 
       {rounds.length > 0 && (
         <>
-          <div className="text-xs text-gray-500 uppercase tracking-wide mt-2 mb-1">
+          <div className="text-xs text-amber-800 font-semibold uppercase tracking-widest border-b border-amber-300 pb-0.5 mt-2 mb-1">
             라운드 카드 (총 {rounds.length}장 공개)
           </div>
           {rounds.map((rc) => (
@@ -187,11 +231,13 @@ export default function ActionBoard({ state, currentPlayerId, onActionSelect }: 
               currentPlayerId={currentPlayerId}
               isRound={true}
               isNewest={rc.space.id === newestCardId}
+              workerReady={workerReady}
               onSelect={() => onActionSelect?.(rc.space.id)}
             />
           ))}
         </>
       )}
+      </div>
     </div>
   );
 }

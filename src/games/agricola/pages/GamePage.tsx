@@ -21,7 +21,11 @@ import {
   growFamily,
   renovateHouse,
   buildRoom,
+  buildStable,
+  getAnimalFromMarket,
+  buildMajorImprovement,
 } from '../lib/game-engine.js';
+import type { AnimalType } from '../lib/types.js';
 import type { GameState } from '../lib/types.js';
 
 interface GamePageProps {
@@ -43,16 +47,17 @@ const WORKER_DOT_COLORS: Record<string, string> = {
 };
 
 const PENDING_LABELS: Record<string, string> = {
-  pending_plow: '밭 갈기 — 빈 셀을 클릭하세요',
-  pending_sow: '씨 뿌리기 — 밭을 클릭하세요 (밀/채소 자동 선택)',
-  pending_plow_sow: '밭 갈고 씨 뿌리기 — 먼저 빈 셀을 클릭하세요',
-  pending_build_room: '방 건설 — 기존 방에 인접한 빈 셀을 클릭하세요 (재료 5 + 갈대 2)',
-  pending_fence: '울타리 건설 — 울타리 선분을 클릭 후 확인을 누르세요',
-  pending_renovate: '집 개량 — 확인 버튼을 누르세요 (자원 자동 차감)',
-  pending_renovate_fence: '집 개량 + 울타리 — 확인 버튼을 누르세요',
-  pending_family_growth: '가족 늘리기 (빈 방 필요) — 확인 버튼을 누르세요',
-  pending_family_growth_urgent: '가족 늘리기 (방 없어도 가능) — 확인 버튼을 누르세요',
-  pending_animal_choice: '동물 배치 — 확인 버튼을 누르세요',
+  pending_plow:                  '밭 갈기 — 빈 셀을 클릭하세요',
+  pending_sow:                   '씨 뿌리기 — 밭을 클릭하세요 (밀/채소 자동 선택)',
+  pending_plow_sow:              '밭 갈고 씨 뿌리기 — 먼저 빈 셀을 클릭하세요',
+  pending_build_room:            '방 건설 — 기존 방에 인접한 빈 셀을 클릭하세요 (재료5+갈대2)',
+  pending_build_stable:          '외양간 건설 — 빈 셀을 클릭하세요 (나무 2)',
+  pending_fence:                 '울타리 건설 — 울타리 선분을 클릭 후 확인을 누르세요',
+  pending_renovate:              '집 개조 — 확인 버튼을 누르세요 (자원 자동 차감)',
+  pending_renovate_fence:        '집 개조 + 울타리 — 확인 버튼을 누르세요',
+  pending_family_growth:         '가족 늘리기 (빈 방 필요) — 확인 버튼을 누르세요',
+  pending_family_growth_urgent:  '가족 늘리기 (방 없어도 가능) — 확인 버튼을 누르세요',
+  pending_animal_choice:         '동물 배치 — 확인 버튼을 누르세요',
 };
 
 function advanceToNextPlayer(state: GameState): GameState {
@@ -87,6 +92,12 @@ export default function GamePage({ onExit }: GamePageProps) {
 
   // 농장 보기 탭: 현재 플레이어 또는 다른 플레이어 인덱스
   const [viewingPlayerIdx, setViewingPlayerIdx] = useState(0);
+
+  // 바둑 방식 워커 배치: 선택된 가족 구성원 셀 좌표
+  const [selectedFamilyCell, setSelectedFamilyCell] = useState<[number, number] | null>(null);
+
+  // Undo 스택 (마지막 액션 이전 state 보관)
+  const [history, setHistory] = useState<GameState[]>([]);
 
   // 플레이어별 누적 소요 시간 (초)
   const [playerTimers, setPlayerTimers] = useState<Record<string, number>>({});
@@ -137,6 +148,20 @@ export default function GamePage({ onExit }: GamePageProps) {
   const viewingPlayerId = gs.playerOrder[viewingPlayerIdx] ?? '';
   const viewingPlayer = gs.players[viewingPlayerId];
 
+  // ── Undo 래퍼: 주요 액션 전 현재 state 보존 ────────────────────
+  function saveAndSet(newState: GameState) {
+    setHistory((prev) => [...prev.slice(-9), gs]); // 최대 10개 유지
+    setGameState(newState);
+  }
+
+  function handleUndo() {
+    const prev = history[history.length - 1];
+    if (!prev) return;
+    setHistory((h) => h.slice(0, -1));
+    setGameState(prev);
+    setSelectedFamilyCell(null);
+  }
+
   // ── 핸들러 ──────────────────────────────────────────────────────
 
   function handleStartGame() {
@@ -145,8 +170,19 @@ export default function GamePage({ onExit }: GamePageProps) {
     setGameState({ ...s, phase: 'playing' });
   }
 
+  // 가족 구성원 클릭 — 선택 토글 (바둑 방식)
+  function handleFamilyMemberClick(r: number, c: number) {
+    // 이미 같은 셀 선택 시 해제
+    if (selectedFamilyCell && selectedFamilyCell[0] === r && selectedFamilyCell[1] === c) {
+      setSelectedFamilyCell(null);
+    } else {
+      setSelectedFamilyCell([r, c]);
+    }
+  }
+
   function handleActionSelect(actionSpaceId: string) {
     if (gs.roundPhase !== 'work') return;
+    if (!selectedFamilyCell) return;
     const pid = gs.playerOrder[gs.currentPlayerIndex];
     if (!pid) return;
     const player = gs.players[pid];
@@ -154,8 +190,17 @@ export default function GamePage({ onExit }: GamePageProps) {
     try {
       let s = placeWorker(gs, pid, actionSpaceId);
       if (s.roundPhase === 'work') s = advanceToNextPlayer(s);
-      setGameState(s);
+      setSelectedFamilyCell(null);
+      saveAndSet(s);
     } catch (e) { console.error('placeWorker 오류:', e); }
+  }
+
+  // 대시설 건설 선택
+  function handleMajorImpSelect(majorId: string) {
+    try {
+      const s = buildMajorImprovement(gs, currentPlayerId, majorId);
+      saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+    } catch (e) { alert((e as Error).message); }
   }
 
   function handleEndRound() {
@@ -179,6 +224,11 @@ export default function GamePage({ onExit }: GamePageProps) {
         const s = buildRoom(gs, currentPlayerId, r, c);
         setGameState(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
       } catch (e) { alert((e as Error).message); }
+    } else if (phase === 'pending_build_stable') {
+      try {
+        const s = buildStable(gs, currentPlayerId, r, c);
+        setGameState(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+      } catch (e) { alert((e as Error).message); }
     } else if (phase === 'pending_plow') {
       try {
         const s = plowField(gs, currentPlayerId, r, c);
@@ -200,12 +250,42 @@ export default function GamePage({ onExit }: GamePageProps) {
     }
   }
 
+  // 가축 시장 동물 선택 처리
+  function handleAnimalSelect(animalType: AnimalType) {
+    try {
+      const s = getAnimalFromMarket(gs, currentPlayerId, animalType);
+      setGameState(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+    } catch (e) { alert((e as Error).message); }
+  }
+
+  // 방 만들기·외양간 짓기 — 어떤 걸 지을지 선택
+  function handleBuildChoice(choice: 'room' | 'stable' | 'both') {
+    if (choice === 'room') {
+      setGameState({ ...gs, roundPhase: 'pending_build_room' });
+    } else if (choice === 'stable') {
+      setGameState({ ...gs, roundPhase: 'pending_build_stable' });
+    } else {
+      // 둘 다: 방 먼저, 완료 후 외양간 선택 — 방 건설 후 외양간도 이어서
+      setGameState({ ...gs, roundPhase: 'pending_build_room' });
+    }
+  }
+
   function handlePendingConfirm() {
     const phase = gs.roundPhase;
     try {
       if (phase === 'pending_family_growth') {
-        // RC_BASIC_WISH — 방 필요
-        const s = growFamily(gs, currentPlayerId, true);
+        // RC_BASIC_WISH / MODEST_WISH — 방 필요 + Modest는 5라운드 조건
+        let s: GameState;
+        if (gs.round < 5) {
+          // 소박한 가족 늘리기: 5라운드 미만이면 에러
+          const actionId = Object.keys(gs.actionSpaces).find(
+            (id) => gs.actionSpaces[id]?.workerId === currentPlayerId
+          );
+          if (actionId === 'V2_MODEST_WISH' || actionId === 'V34_MODEST_WISH') {
+            throw new Error('소박한 가족 늘리기는 5라운드부터 가능합니다');
+          }
+        }
+        s = growFamily(gs, currentPlayerId, true);
         setGameState(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
       } else if (phase === 'pending_family_growth_urgent') {
         // RC_URGENT_WISH — 방 불필요
@@ -216,12 +296,14 @@ export default function GamePage({ onExit }: GamePageProps) {
         const next: GameState['roundPhase'] =
           phase === 'pending_renovate_fence' ? 'pending_fence' : 'work';
         setGameState({ ...s, roundPhase: next });
+      } else if (phase === 'pending_fence' || phase === 'pending_build_stable') {
+        // 울타리 또는 외양간 건설은 별도 UI로 처리, 여기서는 건너뜀
+        setGameState(advanceToNextPlayer({ ...gs, roundPhase: 'work' }));
       } else {
         setGameState({ ...gs, roundPhase: 'work' });
       }
     } catch (e) {
-      console.error('pending 확인 오류:', e);
-      setGameState({ ...gs, roundPhase: 'work' });
+      alert((e as Error).message);
     }
   }
 
@@ -241,7 +323,7 @@ export default function GamePage({ onExit }: GamePageProps) {
               'w-2.5 h-2.5 rounded-full border border-white',
               i < placed ? 'opacity-30 bg-gray-400' : color,
             ].join(' ')}
-            title={i < placed ? '배치됨' : '남은 워커'}
+            title={i < placed ? '배치됨' : '남은 일꾼'}
           />
         ))}
       </div>
@@ -251,7 +333,7 @@ export default function GamePage({ onExit }: GamePageProps) {
   // ── 렌더 ────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-amber-50 p-4">
+    <div className="min-h-screen bg-stone-300 p-4">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -269,9 +351,19 @@ export default function GamePage({ onExit }: GamePageProps) {
             </span>
           )}
         </div>
-        <button onClick={onExit} className="text-sm text-gray-400 hover:text-gray-600">
-          종료
-        </button>
+        <div className="flex items-center gap-2">
+          {history.length > 0 && (
+            <button
+              onClick={handleUndo}
+              className="text-xs px-2 py-1 bg-stone-200 border border-stone-400 text-stone-700 rounded hover:bg-stone-300"
+            >
+              ↩ 되돌리기
+            </button>
+          )}
+          <button onClick={onExit} className="text-sm text-gray-400 hover:text-gray-600">
+            종료
+          </button>
+        </div>
       </div>
 
       {/* 플레이어 상태 바 — 차례 강조 */}
@@ -311,7 +403,91 @@ export default function GamePage({ onExit }: GamePageProps) {
       )}
 
       {/* pending 상태 안내 배너 */}
-      {pendingLabel && (
+      {gs.roundPhase === 'pending_major_imp' ? (
+        /* 대시설 선택 */
+        <div className="mb-3 px-4 py-3 bg-stone-100 border-2 border-stone-400 rounded-lg">
+          <p className="text-sm font-semibold text-stone-800 mb-2">🏭 주요 설비 건설 — 원하는 설비를 선택하세요</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {gs.majorImprovements
+              .filter((m) => m.ownerId === null)
+              .map((m) => {
+                const costStr = m.cost
+                  ? Object.entries(m.cost).map(([r, v]) => `${r} ${v}`).join(' + ')
+                  : '무료';
+                const canAfford = !m.cost || Object.entries(m.cost).every(
+                  ([r, v]) => ((currentPlayer?.resources[r as keyof typeof currentPlayer.resources] ?? 0) as number) >= (v ?? 0)
+                );
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => handleMajorImpSelect(m.id)}
+                    disabled={!canAfford}
+                    className={[
+                      'text-left text-xs px-2 py-1.5 rounded border transition-colors',
+                      canAfford
+                        ? 'bg-amber-50 border-amber-400 hover:bg-amber-100 text-stone-800'
+                        : 'bg-stone-50 border-stone-200 text-stone-400 cursor-not-allowed opacity-60',
+                    ].join(' ')}
+                  >
+                    <span className="font-medium">{m.nameKo}</span>
+                    <span className="block text-[10px] text-stone-500">{costStr} · {m.victoryPoints}VP</span>
+                  </button>
+                );
+              })}
+          </div>
+          <button
+            onClick={() => setGameState(advanceToNextPlayer({ ...gs, roundPhase: 'work' }))}
+            className="mt-2 text-xs px-3 py-1 rounded border bg-stone-200 text-stone-600 border-stone-300 hover:bg-stone-300"
+          >
+            건너뜀
+          </button>
+        </div>
+      ) : gs.roundPhase === 'pending_animal_select' ? (
+        /* 가축 시장 — 동물 종 선택 */
+        <div className="mb-3 px-4 py-2 bg-sky-50 border border-sky-300 rounded-lg">
+          <p className="text-sm font-medium text-sky-800 mb-2">🐾 가축 시장 — 원하는 동물을 선택하세요</p>
+          <div className="flex gap-2">
+            <button onClick={() => handleAnimalSelect('sheep')}
+              className="flex-1 text-xs px-2 py-1.5 bg-sky-100 border border-sky-300 rounded hover:bg-sky-200 font-medium">
+              🐑 양 (음식 1 지불)
+            </button>
+            <button onClick={() => handleAnimalSelect('boar')}
+              className="flex-1 text-xs px-2 py-1.5 bg-pink-100 border border-pink-300 rounded hover:bg-pink-200 font-medium">
+              🐷 멧돼지 (무료)
+            </button>
+            <button onClick={() => handleAnimalSelect('cattle')}
+              className="flex-1 text-xs px-2 py-1.5 bg-amber-100 border border-amber-300 rounded hover:bg-amber-200 font-medium">
+              🐄 소 (음식 1 지불)
+            </button>
+          </div>
+        </div>
+      ) : gs.roundPhase === 'pending_build_room' || gs.roundPhase === 'pending_build_stable' ? (
+        /* 방 만들기·외양간 짓기 — 선택 버튼 + 셀 클릭 안내 */
+        <div className="mb-3 px-4 py-2 bg-amber-100 border border-amber-300 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium text-amber-800">
+              {gs.roundPhase === 'pending_build_room'
+                ? '🏠 방 건설 — 기존 방에 인접한 빈 셀을 클릭하세요 (재료5+갈대2)'
+                : '🐄 외양간 건설 — 빈 셀을 클릭하세요 (나무2)'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => handleBuildChoice('room')}
+              className={`text-xs px-3 py-1 rounded border font-medium ${gs.roundPhase === 'pending_build_room' ? 'bg-amber-600 text-white border-amber-700' : 'bg-white text-amber-700 border-amber-400 hover:bg-amber-50'}`}>
+              🏠 방 건설
+            </button>
+            <button onClick={() => handleBuildChoice('stable')}
+              className={`text-xs px-3 py-1 rounded border font-medium ${gs.roundPhase === 'pending_build_stable' ? 'bg-green-600 text-white border-green-700' : 'bg-white text-green-700 border-green-400 hover:bg-green-50'}`}>
+              🐄 외양간 건설
+            </button>
+            <button onClick={() => setGameState(advanceToNextPlayer({ ...gs, roundPhase: 'work' }))}
+              className="text-xs px-3 py-1 rounded border bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200 ml-auto">
+              건너뜀
+            </button>
+          </div>
+        </div>
+      ) : pendingLabel ? (
+        /* 일반 pending 배너 */
         <div className="mb-3 px-4 py-2 bg-amber-100 border border-amber-300 rounded-lg flex items-center justify-between">
           <span className="text-sm font-medium text-amber-800">{pendingLabel}</span>
           <button
@@ -321,7 +497,7 @@ export default function GamePage({ onExit }: GamePageProps) {
             확인
           </button>
         </div>
-      )}
+      ) : null}
 
       {/* 게임 종료 */}
       {isGameOver ? (
@@ -368,7 +544,7 @@ export default function GamePage({ onExit }: GamePageProps) {
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700">
                 {allWorkersPlaced
-                  ? '✅ 모든 워커 배치 완료'
+                  ? '✅ 모든 일꾼 배치 완료'
                   : `${currentPlayer?.name ?? ''}의 차례`}
               </span>
               {allWorkersPlaced && (
@@ -384,6 +560,7 @@ export default function GamePage({ onExit }: GamePageProps) {
               state={gs}
               currentPlayerId={currentPlayerId}
               onActionSelect={handleActionSelect}
+              workerReady={!!selectedFamilyCell}
             />
           </div>
 
@@ -425,7 +602,10 @@ export default function GamePage({ onExit }: GamePageProps) {
                 <FarmBoard
                   board={viewingPlayer.farm}
                   familySize={viewingPlayer.familySize}
+                  deployedCount={viewingPlayerId === currentPlayerId ? countPlaced(gs, currentPlayerId) : viewingPlayer.familySize}
+                  selectedFamilyCell={viewingPlayerId === currentPlayerId ? selectedFamilyCell : null}
                   onCellClick={viewingPlayerId === currentPlayerId ? handleCellClick : undefined}
+                  onFamilyMemberClick={viewingPlayerId === currentPlayerId ? handleFamilyMemberClick : undefined}
                   fencingMode={
                     viewingPlayerId === currentPlayerId &&
                     (gs.roundPhase === 'pending_fence' || gs.roundPhase === 'pending_renovate_fence')

@@ -9,7 +9,7 @@ const RESOURCE_ROWS: { key: string; icon: string; label: string; color: string }
   // 건재료
   [
     { key: 'wood',      icon: '🪵', label: '나무',   color: 'text-yellow-800' },
-    { key: 'clay',      icon: '🧱', label: '점토',   color: 'text-orange-700' },
+    { key: 'clay',      icon: '🧱', label: '흙',     color: 'text-orange-700' },
     { key: 'stone',     icon: '🪨', label: '돌',     color: 'text-gray-600' },
     { key: 'reed',      icon: '🌿', label: '갈대',   color: 'text-green-700' },
   ],
@@ -31,15 +31,15 @@ export default function ResourcePanel({ player }: ResourcePanelProps) {
   const { resources, beggingTokens, familySize } = player;
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-2 text-xs">
+    <div className="bg-amber-50 rounded-lg border-2 border-amber-300 p-2 text-xs shadow-sm">
       {/* 가족 수 + 구걸 토큰 */}
-      <div className="flex items-center gap-3 mb-2 pb-1.5 border-b border-gray-100">
+      <div className="flex items-center gap-3 mb-2 pb-1.5 border-b border-amber-200">
         <span className="flex items-center gap-1 font-medium text-gray-700">
           <span aria-hidden="true">👨‍👩‍👧</span> 가족 <span className="font-bold">{familySize}</span>명
         </span>
         {beggingTokens > 0 && (
-          <span className="flex items-center gap-1 text-red-600 font-medium">
-            <span aria-hidden="true">😞</span> 구걸 <span className="font-bold">-{beggingTokens * 3}</span>점
+          <span className="flex items-center gap-1 text-red-700 font-bold bg-red-100 border border-red-300 px-1.5 py-0.5 rounded">
+            <span aria-hidden="true">😞</span> 구걸 <span className="font-bold">-{beggingTokens * 3}점</span>
           </span>
         )}
       </div>
@@ -54,7 +54,7 @@ export default function ResourcePanel({ player }: ResourcePanelProps) {
                 key={key}
                 className={[
                   'flex-1 flex flex-col items-center py-1 rounded',
-                  val > 0 ? 'bg-amber-50' : 'bg-gray-50 opacity-50',
+                  val > 0 ? 'bg-amber-200/60 border border-amber-400' : 'bg-stone-100/60 border border-stone-200 opacity-60',
                 ].join(' ')}
               >
                 <span aria-hidden="true" className="text-base leading-none">{icon}</span>

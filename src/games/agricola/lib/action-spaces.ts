@@ -29,7 +29,7 @@ function takeAccumulated(state: GameState, playerId: PlayerId, spaceId: string):
 const permanentSpaces: ActionSpace[] = [
   {
     id: 'FOREST',
-    nameKo: '큰 숲',
+    nameKo: '숲',
     nameEn: 'Forest',
     type: 'permanent',
     workerSlots: 1,
@@ -38,7 +38,7 @@ const permanentSpaces: ActionSpace[] = [
   },
   {
     id: 'CLAY_PIT',
-    nameKo: '점토 구덩이',
+    nameKo: '흙 채굴장',
     nameEn: 'Clay Pit',
     type: 'permanent',
     workerSlots: 1,
@@ -47,7 +47,7 @@ const permanentSpaces: ActionSpace[] = [
   },
   {
     id: 'REED_BANK',
-    nameKo: '갈대 호수',
+    nameKo: '갈대밭',
     nameEn: 'Reed Bank',
     type: 'permanent',
     workerSlots: 1,
@@ -65,7 +65,7 @@ const permanentSpaces: ActionSpace[] = [
   },
   {
     id: 'GRAIN_SEEDS',
-    nameKo: '곡식 씨앗',
+    nameKo: '곡식 종자',
     nameEn: 'Grain Seeds',
     type: 'permanent',
     workerSlots: 1,
@@ -74,7 +74,7 @@ const permanentSpaces: ActionSpace[] = [
   },
   {
     id: 'FARMLAND',
-    nameKo: '경작지',
+    nameKo: '농지',
     nameEn: 'Farmland',
     type: 'permanent',
     workerSlots: 1,
@@ -100,7 +100,7 @@ const permanentSpaces: ActionSpace[] = [
   },
   {
     id: 'FARM_EXPANSION',
-    nameKo: '농장 확장',
+    nameKo: '방 만들기·외양간 짓기',
     nameEn: 'Farm Expansion',
     type: 'permanent',
     workerSlots: 1,
@@ -109,7 +109,7 @@ const permanentSpaces: ActionSpace[] = [
   },
   {
     id: 'MEETING_PLACE',
-    nameKo: '만남의 장소',
+    nameKo: '회합 장소',
     nameEn: 'Meeting Place',
     type: 'permanent',
     workerSlots: 1,
@@ -127,7 +127,7 @@ const permanentSpaces: ActionSpace[] = [
 const ext4Spaces: ActionSpace[] = [
   {
     id: 'EXT4_COPSE',
-    nameKo: '작은 숲',
+    nameKo: '덤불',
     nameEn: 'Copse',
     type: 'permanent',
     minPlayers: 4,
@@ -137,7 +137,7 @@ const ext4Spaces: ActionSpace[] = [
   },
   {
     id: 'EXT4_GROVE',
-    nameKo: '숲',
+    nameKo: '수풀',
     nameEn: 'Grove',
     type: 'permanent',
     minPlayers: 4,
@@ -147,7 +147,7 @@ const ext4Spaces: ActionSpace[] = [
   },
   {
     id: 'EXT4_HOLLOW',
-    nameKo: '움푹한 땅',
+    nameKo: '흙 채굴장',
     nameEn: 'Hollow',
     type: 'permanent',
     minPlayers: 4,
@@ -177,7 +177,7 @@ const ext4Spaces: ActionSpace[] = [
   },
   {
     id: 'EXT4_TRAVEL',
-    nameKo: '떠돌이',
+    nameKo: '유랑극단',
     nameEn: 'Traveling Players',
     type: 'permanent',
     minPlayers: 4,
@@ -203,23 +203,21 @@ const ext3Spaces: ActionSpace[] = [
 const v34Spaces: ActionSpace[] = [
   {
     id: 'V34_ANIMAL_MKT',
-    nameKo: '동물 시장',
+    nameKo: '가축 시장',
     nameEn: 'Animal Market',
     type: 'permanent',
     minPlayers: 3,
     workerSlots: 1,
-    // Phase 1 TODO: 양/멧돼지/소 중 선택
-    effect: (state: GameState, _playerId: PlayerId) => state,
+    effect: (state: GameState, _playerId: PlayerId) => ({ ...state, roundPhase: 'pending_animal_select' as const }),
   },
   {
     id: 'V34_MODEST_WISH',
-    nameKo: '가족 소원 (소박한)',
+    nameKo: '소박한 가족 늘리기',
     nameEn: 'Modest Wish for Children',
     type: 'permanent',
     minPlayers: 3,
     workerSlots: 1,
-    // Phase 1 TODO: 5라운드부터, 방 필요
-    effect: (state: GameState, _playerId: PlayerId) => state,
+    effect: (state: GameState, _playerId: PlayerId) => ({ ...state, roundPhase: 'pending_family_growth' as const }),
   },
 ];
 
@@ -227,7 +225,7 @@ const v34Spaces: ActionSpace[] = [
 const v2Spaces: ActionSpace[] = [
   {
     id: 'V2_COPSE',
-    nameKo: '작은 숲',
+    nameKo: '덤불',
     nameEn: 'Copse',
     type: 'permanent',
     minPlayers: 2,
@@ -247,21 +245,23 @@ const v2Spaces: ActionSpace[] = [
   },
   {
     id: 'V2_ANIMAL_MKT',
-    nameKo: '동물 시장',
+    nameKo: '가축 시장',
     nameEn: 'Animal Market',
     type: 'permanent',
     minPlayers: 2,
     workerSlots: 1,
-    effect: (state: GameState, _playerId: PlayerId) => state,
+    // 양+음식1 OR 멧돼지 OR 소-음식1 선택 → UI가 처리
+    effect: (state: GameState, _playerId: PlayerId) => ({ ...state, roundPhase: 'pending_animal_select' as const }),
   },
   {
     id: 'V2_MODEST_WISH',
-    nameKo: '가족 소원 (소박한)',
+    nameKo: '소박한 가족 늘리기',
     nameEn: 'Modest Wish for Children',
     type: 'permanent',
     minPlayers: 2,
     workerSlots: 1,
-    effect: (state: GameState, _playerId: PlayerId) => state,
+    // 5라운드 이후, 빈 방 필요 → pending_family_growth와 동일하나 라운드 조건 추가
+    effect: (state: GameState, _playerId: PlayerId) => ({ ...state, roundPhase: 'pending_family_growth' as const }),
   },
 ];
 

@@ -32,17 +32,17 @@ const roundCards: ActionSpace[] = [
   // ── 스테이지 1 ────────────────────────────────────────────────
   {
     id: 'RC_MAJOR_IMP',
-    nameKo: '대시설',
+    nameKo: '주요 설비',
     nameEn: 'Major Improvement',
     type: 'round_card',
     roundRevealed: undefined, // 스테이지 1 임의 순서
     workerSlots: 1,
-    // Phase 2: 대시설/소시설 선택 플레이. Phase 1: pass
-    effect: (state: GameState, _playerId: PlayerId) => state,
+    // 대시설 또는 소시설 건설 선택
+    effect: (state: GameState, _playerId: PlayerId) => ({ ...state, roundPhase: 'pending_major_imp' as const }),
   },
   {
     id: 'RC_FENCING',
-    nameKo: '울타리 건설',
+    nameKo: '울타리',
     nameEn: 'Fencing',
     type: 'round_card',
     workerSlots: 1,
@@ -51,7 +51,7 @@ const roundCards: ActionSpace[] = [
   },
   {
     id: 'RC_GRAIN_UTIL',
-    nameKo: '농업 활용',
+    nameKo: '곡식 활용',
     nameEn: 'Grain Utilization',
     type: 'round_card',
     workerSlots: 1,
@@ -63,7 +63,7 @@ const roundCards: ActionSpace[] = [
   // ── 스테이지 2 ────────────────────────────────────────────────
   {
     id: 'RC_BASIC_WISH',
-    nameKo: '가족 소원 (기본)',
+    nameKo: '기본 가족 늘리기',
     nameEn: 'Basic Wish for Children',
     type: 'round_card',
     workerSlots: 1,
@@ -72,7 +72,7 @@ const roundCards: ActionSpace[] = [
   },
   {
     id: 'RC_HOUSE_RENO',
-    nameKo: '집 개량',
+    nameKo: '집 개조',
     nameEn: 'House Redevelopment',
     type: 'round_card',
     workerSlots: 1,
@@ -84,7 +84,7 @@ const roundCards: ActionSpace[] = [
   // ── 스테이지 3 ────────────────────────────────────────────────
   {
     id: 'RC_VEG_SEEDS',
-    nameKo: '채소 씨앗',
+    nameKo: '채소 종자',
     nameEn: 'Vegetable Seeds',
     type: 'round_card',
     workerSlots: 1,
@@ -100,7 +100,7 @@ const roundCards: ActionSpace[] = [
   // ── 스테이지 5 ────────────────────────────────────────────────
   {
     id: 'RC_URGENT_WISH',
-    nameKo: '급한 가족 늘리기',
+    nameKo: '급한 가족 소원',
     nameEn: 'Urgent Wish for Children',
     type: 'round_card',
     workerSlots: 1,

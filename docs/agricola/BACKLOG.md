@@ -63,6 +63,55 @@
 
 ---
 
+## 2026-04-17 (세션 4 — QA 라운드 2)
+
+### 완료된 작업
+
+- [2026-04-17] **한국어 용어 전면 수정** — action-spaces.ts: 숲/흙 채굴장/갈대밭/곡식 종자/농지/방 만들기·외양간 짓기/회합 장소/덤불/수풀/점토 채굴장/유랑극단/가축 시장. round-cards.ts: 주요 설비/울타리/곡식 활용/기본 가족 늘리기/집 개조/채소 종자/급한 가족 소원
+
+- [2026-04-17] **sowField 채소 버그 수정** — count: 3 하드코딩 → grain=3, vegetable=2 (룰 일치)
+
+- [2026-04-17] **ResourcePanel 점토→흙** — 한국어판 공식 명칭 반영
+
+- [2026-04-17] **UX 재설계: 바둑 방식 워커 배치** — FarmCell: familyMemberState('available'/'deployed'/'selected'). FarmBoard: deployedCount/selectedFamilyCell props. GamePage: selectedFamilyCell 상태, handleFamilyMemberClick. ActionBoard: workerReady prop + 녹색 드롭 타겟 강조. 가족 구성원 클릭 → 행동칸 클릭 순서로 배치
+
+- [2026-04-17] **가축 시장 OR 선택 구현** — pending_animal_select 단계 추가. 3종(양+음식1/멧돼지/소+음식1) 중 선택 버튼 UI. getAnimalFromMarket() 함수 구현
+
+- [2026-04-17] **외양간 건설 구현** — pending_build_stable 단계 추가. buildStable() 함수(나무2). FARM_EXPANSION 배너에서 방/외양간 전환 버튼 UI
+
+- [2026-04-17] **소박한 가족 늘리기 활성화** — V2/V34_MODEST_WISH: effect → pending_family_growth 설정. 핸들러에서 5라운드 조건 검사 추가
+
+- [2026-04-17] **한국어 룰 참고 파일 생성** — docs/agricola/korean-rules/01-action-spaces-ko.md, 02-major-improvements-ko.md, 03-resources-ko.md
+
+- [2026-04-17] **OR 조건 행동 검증 에이전트 가동** — 9개 OR 행동 검토: Critical 4개 발견 및 수정
+
+- [2026-04-17] **목장 용량 버그 수정** — calcPastureCapacity: `2^cellCount` → `cellCount × 2` (룰북 기준, 1칸=2마리)
+
+- [2026-04-17] **체스/장기 방식 워커 배치 UX 완성** — 가족 선택 시: 배치 가능 칸에 초록 ● 펄스 표시. 선택된 가족 토큰: 파란 링+펄스 애니메이션. 배치된 워커: 파란 배경+"내 워커" 레이블. 행동 설명 초록색으로 강조. 선택 해제: 같은 셀 재클릭
+
+- [2026-04-17] **빌드 통과** — npm run build exit 0, TypeScript 오류 0
+
+---
+
+## 2026-04-17 (세션 5 — QA 라운드 3)
+
+### 완료된 작업
+
+- [2026-04-17] **UI 일꾼 용어 통일** — ActionBoard, GamePage, i18n.ts: '워커' → '일꾼'/'가족 구성원'. aria-label, 남은 일꾼 tooltip, 모든 일꾼 배치 완료 텍스트, 유랑극단 설명, place_worker i18n key 전부 수정
+- [2026-04-17] **대시설 한국어명 전면 수정** — major-improvements.ts: 화덕(점토2/3)→화로(흙2/3), 취사장(점토4/5)→화덕(흙4/5), 점토오븐→흙가마, 돌오븐→돌가마, 목공소→가구제작소, 도예소→그릇제작소, 바구니공방→바구니제작소
+- [2026-04-17] **우물 비용 수정** — MAJ_WELL: cost `{reed:1, stone:3}` → `{wood:1, stone:3}` (나무위키 룰 기준)
+- [2026-04-17] **buildRoom 에러 메시지** — '점토 부족' → '흙 부족' (용어 일관성)
+- [2026-04-17] **문서-구현 정합성 검토 에이전트 가동** — docs/agricola/REVIEW.md 생성. Critical 버그 6개 발견 즉시 수정
+- [2026-04-17] **대시설 비용 5개 수정 (Critical)** — 흙가마: clay3+stone1→clay3+reed1, 돌가마: clay1+stone3→stone3+reed1, 가구제작소: wood2+stone2→wood2+reed1+stone1, 그릇제작소: clay2+stone2→clay2+reed1+stone1, 바구니제작소: reed2+stone2→reed2+clay1+stone1
+- [2026-04-17] **EXT4_HOLLOW 명칭 수정** — '점토 채굴장' → '흙 채굴장' (흙 용어 통일)
+- [2026-04-17] **빌드 통과** — npm run build exit 0, TypeScript 오류 0
+- [2026-04-17] **라운드 카드 스테이지 내 셔플** — createGameState: pendingRoundCards Fisher-Yates 셔플 적용 (룰 불일치 수정, 주석 '// Phase 2에서 셔플' 제거)
+- [2026-04-17] **RC_MAJOR_IMP 대시설 선택 UI** — pending_major_imp RoundPhase 추가. buildMajorImprovement() 구현 (비용검증·차감·ownerId설정). GamePage에 설비 그리드 선택 배너(비용 충족여부 표시, 건너뜀 가능)
+- [2026-04-17] **Undo(되돌리기) 기능** — GamePage history 스택(최대 10). 일꾼 배치·대시설 건설 시 saveAndSet으로 저장. 헤더 ↩ 되돌리기 버튼 (history 있을 때만 표시)
+- [2026-04-17] **디자인 P0+P1 적용** — 원판 아그리콜라 느낌 색상 시스템 전면 교체: FarmCell(방색상·나무디스크 토큰·씨앗배지), ActionBoard(amber 팔레트·보드판 컨테이너·섹션레이블), ResourcePanel(크림배경·자원배지), FarmBoard(나무 프레임), GamePage(stone-300 배경)
+
+---
+
 ## 대기 중 (Phase 2 대상)
 
 ### 고우선순위

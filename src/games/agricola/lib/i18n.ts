@@ -28,7 +28,7 @@ const ko: Record<I18nKey, string> = {
   phase_gameover: '게임 종료',
   round: '라운드',
   stage: '스테이지',
-  place_worker: '워커 배치',
+  place_worker: '일꾼 배치',
   return_home: '귀환',
   your_turn: '당신의 차례',
   score_total: '총점',

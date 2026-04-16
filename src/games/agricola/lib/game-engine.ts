@@ -50,10 +50,15 @@ export function createGameState(config: CreateGameConfig): GameState {
     ])
   );
 
-  // 라운드 카드 (스테이지별 준비)
-  const pendingRoundCards = Object.keys(STAGE_ROUNDS).map((stage) =>
-    getRoundCardsByStage(Number(stage))
-  );
+  // 라운드 카드 (스테이지별 준비, 스테이지 내 순서 랜덤 셔플)
+  const pendingRoundCards = Object.keys(STAGE_ROUNDS).map((stage) => {
+    const cards = [...getRoundCardsByStage(Number(stage))];
+    for (let i = cards.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [cards[i], cards[j]] = [cards[j]!, cards[i]!];
+    }
+    return cards;
+  });
 
   // 카드 덱 (Phase 2에서 셔플 구현)
   const { occupations, improvements } = getBaseDeckCards();
@@ -432,7 +437,9 @@ export function sowField(
   }
 
   const resourceCost: Partial<Record<string, number>> = { [crop]: -1 };
-  const sownFields = [...player.farm.sownFields, { row, col, resource: crop, count: 3 }];
+  // 밀: 손에서 1 + 공급에서 2 = 밭에 3개. 채소: 손에서 1 + 공급에서 1 = 밭에 2개
+  const sowCount = crop === 'grain' ? 3 : 2;
+  const sownFields = [...player.farm.sownFields, { row, col, resource: crop, count: sowCount }];
   let newState = updatePlayerFarm(state, playerId, { sownFields });
   newState = addResources(newState, playerId, resourceCost);
   return newState;
@@ -575,7 +582,7 @@ export function buildRoom(
   const cost = costMap[currentMaterial] ?? {};
   const res = player.resources;
   if (currentMaterial === 'room_wood'  && (res.wood  ?? 0) < 5) throw new Error('나무 부족 (필요: 5)');
-  if (currentMaterial === 'room_clay'  && (res.clay  ?? 0) < 5) throw new Error('점토 부족 (필요: 5)');
+  if (currentMaterial === 'room_clay'  && (res.clay  ?? 0) < 5) throw new Error('흙 부족 (필요: 5)');
   if (currentMaterial === 'room_stone' && (res.stone ?? 0) < 5) throw new Error('돌 부족 (필요: 5)');
   if ((res.reed ?? 0) < 2) throw new Error('갈대 부족 (필요: 2)');
 
@@ -585,6 +592,112 @@ export function buildRoom(
   let newState = updatePlayerFarm(state, playerId, { grid });
   newState = addResources(newState, playerId, cost);
   return newState;
+}
+
+/** 외양간 건설: 빈 셀 클릭 → 외양간 추가 (나무 2개) */
+export function buildStable(
+  state: GameState,
+  playerId: PlayerId,
+  row: number,
+  col: number,
+): GameState {
+  const player = state.players[playerId];
+  if (!player) throw new Error(`Player ${playerId} not found`);
+  const cell = player.farm.grid[row]?.[col];
+  // 외양간은 빈 칸 또는 목장(pasture 셀)에 건설 가능
+  if (cell !== 'empty' && cell !== 'field') {
+    throw new Error(`Cannot build stable at (${row},${col})`);
+  }
+  if (player.farm.stables.some(([sr, sc]) => sr === row && sc === col)) {
+    throw new Error(`Already has stable at (${row},${col})`);
+  }
+  if ((player.resources.wood ?? 0) < 2) throw new Error('나무 부족 (외양간 건설: 나무 2)');
+
+  const stables: [number, number][] = [...player.farm.stables, [row, col]];
+  let newState = updatePlayerFarm(state, playerId, { stables });
+  newState = addResources(newState, playerId, { wood: -2 });
+  return newState;
+}
+
+/** 가축 시장 동물 획득: 종 선택 후 해당 동물 1마리 + 음식 교환 */
+export function getAnimalFromMarket(
+  state: GameState,
+  playerId: PlayerId,
+  animalType: AnimalType,
+): GameState {
+  const player = state.players[playerId];
+  if (!player) throw new Error(`Player ${playerId} not found`);
+
+  // 양: 음식 1 지불 후 양 1마리
+  // 멧돼지: 그냥 1마리
+  // 소: 소 1마리 대신 음식 1 지불 (또는 -음식 아닌 +양과 교환 규칙 — 여기서는 기본판 룰: 소 받고 음식 1 내기)
+  // 실제 룰: 양+음식 OR 돼지 OR 소-음식 (2인 자원 시장)
+  const costAndGain: Record<AnimalType, Partial<Record<string, number>>> = {
+    sheep:  { sheep:  1, food: -1 }, // 양: 음식 1 내고 양 1
+    boar:   { boar:   1 },           // 멧돼지: 무료
+    cattle: { cattle: 1, food: -1 }, // 소: 음식 1 내고 소 1
+  };
+  const delta = costAndGain[animalType];
+
+  // 음식 부족 체크
+  const foodChange = (delta.food ?? 0);
+  if (foodChange < 0 && (player.resources.food ?? 0) < Math.abs(foodChange)) {
+    throw new Error('음식 부족');
+  }
+
+  return addResources(state, playerId, delta);
+}
+
+/** 대시설 건설: 비용 지불 + ownerId 설정 */
+export function buildMajorImprovement(
+  state: GameState,
+  playerId: PlayerId,
+  majorImprovementId: string,
+): GameState {
+  const player = state.players[playerId];
+  if (!player) throw new Error(`Player ${playerId} not found`);
+
+  const maj = state.majorImprovements.find((m) => m.id === majorImprovementId);
+  if (!maj) throw new Error(`대시설 ${majorImprovementId}을(를) 찾을 수 없습니다`);
+  if (maj.ownerId !== null) throw new Error('이미 다른 플레이어가 보유한 설비입니다');
+
+  // 비용 검증
+  if (maj.cost) {
+    for (const [res, amount] of Object.entries(maj.cost)) {
+      const have = (player.resources[res as keyof typeof player.resources] ?? 0) as number;
+      if (have < (amount ?? 0)) {
+        throw new Error(`자원 부족: ${res} (필요 ${amount}, 보유 ${have})`);
+      }
+    }
+  }
+
+  // 비용 차감
+  const costDelta: Partial<Record<string, number>> = {};
+  if (maj.cost) {
+    for (const [res, amount] of Object.entries(maj.cost)) {
+      costDelta[res] = -(amount ?? 0);
+    }
+  }
+  let newState = addResources(state, playerId, costDelta);
+
+  // ownerId 설정
+  newState = {
+    ...newState,
+    majorImprovements: newState.majorImprovements.map((m) =>
+      m.id === majorImprovementId ? { ...m, ownerId: playerId } : m
+    ),
+  };
+
+  return newState;
+}
+
+/** 소박한 가족 늘리기: 5라운드 이후 + 빈 방 있을 때만 가능 */
+export function growFamilyModest(
+  state: GameState,
+  playerId: PlayerId,
+): GameState {
+  if (state.round < 5) throw new Error('소박한 가족 늘리기는 5라운드부터 가능합니다');
+  return growFamily(state, playerId, true); // 방 필요
 }
 
 // ── 유틸리티 ─────────────────────────────────────────────────────

@@ -207,12 +207,13 @@ export const DECK_B_IMPROVEMENT_IDS = [
 
 /**
  * 목장 수용 동물 수 계산
+ * 룰: 울타리 구역 안 칸 1개당 동물 2마리 수용. 외양간 1개당 해당 목장 용량 ×2.
  * @param cellCount - 목장 내 셀 수
- * @param stableCount - 목장 내 외양간 수 (각각 ×2 적용)
+ * @param stableCount - 목장 내 외양간 수 (각각 ×2 배수 적용)
  */
 export function calcPastureCapacity(cellCount: number, stableCount: number): number {
-  const base = Math.pow(2, cellCount);
-  return base * Math.pow(2, stableCount);
+  const base = cellCount * 2; // 1칸 = 2마리
+  return base * Math.pow(2, stableCount); // 외양간 1개당 ×2
 }
 
 // ── 인원별 초기 카드 배분 수 ────────────────────────────────────
