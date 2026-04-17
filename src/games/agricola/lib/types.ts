@@ -334,6 +334,7 @@ export interface AgricolaStoreState {
 export interface CreateGameConfig {
   playerCount: 2 | 3 | 4;
   playerNames: string[];
+  playerColors?: Array<'red' | 'blue' | 'green' | 'yellow'>;
   seed?: number;
   deck: 'AB';
 }

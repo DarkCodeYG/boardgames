@@ -29,7 +29,8 @@ import { getBaseDeckCards } from './cards/index.js';
 export function createGameState(config: CreateGameConfig): GameState {
   // Phase 1 TODO: 셔플, 패 배분, 초기 보드 설정
   const playerIds = config.playerNames.map((_, i) => `player_${i}`);
-  const colors: Array<'red' | 'blue' | 'green' | 'yellow'> = ['red', 'blue', 'green', 'yellow'];
+  const defaultColors: Array<'red' | 'blue' | 'green' | 'yellow'> = ['red', 'blue', 'green', 'yellow'];
+  const colors = config.playerColors ?? defaultColors;
 
   // 차례 보상 음식: P1=2, P2=3, P3=4, P4=5 (아그리콜라 룰)
   const players: GameState['players'] = Object.fromEntries(

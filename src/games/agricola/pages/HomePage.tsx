@@ -1,6 +1,5 @@
 /**
  * 아그리콜라 홈 페이지 — 설정 및 게임 시작
- * Phase 1 구현 대상.
  */
 
 import { useState } from 'react';
@@ -11,20 +10,41 @@ interface HomePageProps {
   onStartGame: () => void;
 }
 
+type PlayerColor = 'red' | 'blue' | 'green' | 'yellow';
+
+const COLOR_OPTIONS: Array<{ id: PlayerColor; label: string; dot: string; bg: string; ring: string }> = [
+  { id: 'red',    label: '빨강', dot: 'bg-red-500',    bg: 'bg-red-100',    ring: 'ring-red-500' },
+  { id: 'blue',   label: '파랑', dot: 'bg-blue-500',   bg: 'bg-blue-100',   ring: 'ring-blue-500' },
+  { id: 'green',  label: '초록', dot: 'bg-green-500',  bg: 'bg-green-100',  ring: 'ring-green-500' },
+  { id: 'yellow', label: '노랑', dot: 'bg-yellow-400', bg: 'bg-yellow-100', ring: 'ring-yellow-400' },
+];
+
 export default function HomePage({ onStartGame }: HomePageProps) {
   const { playerCount, setPlayerCount, setGameState } = useAgricolaStore();
   const [names, setNames] = useState<string[]>(['플레이어 1', '플레이어 2', '플레이어 3', '플레이어 4']);
+  const [colors, setColors] = useState<PlayerColor[]>(['red', 'blue', 'green', 'yellow']);
+
+  function handleColorSelect(playerIdx: number, color: PlayerColor) {
+    setColors((prev) => {
+      const next = [...prev];
+      next[playerIdx] = color;
+      return next;
+    });
+  }
 
   function handleStart() {
     const playerNames = names.slice(0, playerCount);
-    const state = createGameState({ playerCount, playerNames, deck: 'AB' });
+    const playerColors = colors.slice(0, playerCount) as PlayerColor[];
+    const state = createGameState({ playerCount, playerNames, playerColors, deck: 'AB' });
     setGameState(state);
     onStartGame();
   }
 
+  const usedColors = colors.slice(0, playerCount);
+
   return (
     <div className="min-h-screen bg-amber-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full">
+      <div className="bg-white rounded-2xl shadow-lg p-8 max-w-lg w-full">
         <h1 className="text-3xl font-bold text-amber-800 mb-2 text-center">🌾 아그리콜라</h1>
         <p className="text-center text-gray-500 text-sm mb-8">Agricola 2016 Revised Edition</p>
 
@@ -48,22 +68,50 @@ export default function HomePage({ onStartGame }: HomePageProps) {
           </div>
         </div>
 
-        {/* 플레이어 이름 */}
-        <div className="mb-8 space-y-2">
-          {Array.from({ length: playerCount }, (_, i) => (
-            <input
-              key={i}
-              type="text"
-              value={names[i] ?? ''}
-              onChange={(e) => {
-                const next = [...names];
-                next[i] = e.target.value;
-                setNames(next);
-              }}
-              placeholder={`플레이어 ${i + 1}`}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
-            />
-          ))}
+        {/* 플레이어 이름 + 색상 */}
+        <div className="mb-8 space-y-3">
+          {Array.from({ length: playerCount }, (_, i) => {
+            const selectedColor = colors[i] ?? 'red';
+            return (
+              <div key={i} className="flex items-center gap-2">
+                {/* 이름 입력 */}
+                <input
+                  type="text"
+                  value={names[i] ?? ''}
+                  onChange={(e) => {
+                    const next = [...names];
+                    next[i] = e.target.value;
+                    setNames(next);
+                  }}
+                  placeholder={`플레이어 ${i + 1}`}
+                  className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+                />
+                {/* 색상 선택 */}
+                <div className="flex gap-1">
+                  {COLOR_OPTIONS.map((opt) => {
+                    const takenByOther = usedColors.some((c, ci) => ci !== i && c === opt.id);
+                    const isSelected = selectedColor === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        title={opt.label}
+                        disabled={takenByOther}
+                        onClick={() => handleColorSelect(i, opt.id)}
+                        className={[
+                          'w-7 h-7 rounded-full border-2 transition-all duration-150',
+                          opt.dot,
+                          isSelected ? `ring-2 ring-offset-1 ${opt.ring} border-white scale-110` : 'border-transparent',
+                          takenByOther ? 'opacity-25 cursor-not-allowed' : 'hover:scale-110 cursor-pointer',
+                        ].join(' ')}
+                        aria-label={`${opt.label} 선택`}
+                        aria-pressed={isSelected}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <button

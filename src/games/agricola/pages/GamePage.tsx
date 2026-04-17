@@ -118,8 +118,8 @@ function formatSeconds(sec: number): string {
 export default function GamePage({ onExit }: GamePageProps) {
   const { gameState, setGameState } = useAgricolaStore();
 
-  // 농장 보기 탭: 현재 플레이어 또는 다른 플레이어 인덱스
-  const [viewingPlayerIdx, setViewingPlayerIdx] = useState(0);
+  // 농장판 접기 상태: 접힌 플레이어 ID 집합 (기본 전체 표시)
+  const [collapsedFarms, setCollapsedFarms] = useState<Set<string>>(new Set());
 
   // 바둑 방식 워커 배치: 선택된 가족 구성원 셀 좌표
   const [selectedFamilyCell, setSelectedFamilyCell] = useState<[number, number] | null>(null);
@@ -154,7 +154,6 @@ export default function GamePage({ onExit }: GamePageProps) {
   // 플레이어별 누적 소요 시간 (초)
   const [playerTimers, setPlayerTimers] = useState<Record<string, number>>({});
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prevPlayerIdRef = useRef<string>('');
 
   if (!gameState) {
     return <div className="p-8 text-center">게임 상태 없음</div>;
@@ -174,13 +173,6 @@ export default function GamePage({ onExit }: GamePageProps) {
     });
 
   const pendingLabel = PENDING_LABELS[gs.roundPhase];
-
-  // 농장 탭 동기화: 현재 플레이어가 바뀌면 해당 탭으로 이동
-  if (prevPlayerIdRef.current !== currentPlayerId && gs.phase === 'playing') {
-    prevPlayerIdRef.current = currentPlayerId;
-    const idx = gs.playerOrder.indexOf(currentPlayerId);
-    if (idx >= 0) setViewingPlayerIdx(idx);
-  }
 
   // 플로팅 디스크: 가족 구성원 선택 시 커서 추적
   useEffect(() => {
@@ -250,8 +242,6 @@ export default function GamePage({ onExit }: GamePageProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allWorkersPlaced, gs.phase, harvestPlayerIdx]);
 
-  const viewingPlayerId = gs.playerOrder[viewingPlayerIdx] ?? '';
-  const viewingPlayer = gs.players[viewingPlayerId];
 
   // ── Undo 래퍼: 주요 액션 전 현재 state 보존 ────────────────────
   function saveAndSet(newState: GameState) {
@@ -383,8 +373,7 @@ export default function GamePage({ onExit }: GamePageProps) {
   autoEndRoundRef.current = handleEndRound;
 
   function handleCellClick(r: number, c: number) {
-    // 현재 플레이어 탭을 보고 있을 때만 클릭 유효
-    if (viewingPlayerId !== currentPlayerId) return;
+    // 현재 플레이어 농장에서만 클릭 유효 (핸들러 자체가 현재 플레이어 보드에만 바인딩됨)
     const phase = gs.roundPhase;
     if (phase === 'pending_build_room') {
       try {
@@ -402,7 +391,7 @@ export default function GamePage({ onExit }: GamePageProps) {
       try {
         const s = plowField(gs, currentPlayerId, r, c);
         sfxStonePlace();
-        saveAndSet({ ...s, roundPhase: 'work' });
+        saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
       } catch (e) { console.error(e); }
     } else if (phase === 'pending_plow_sow') {
       try {
@@ -517,9 +506,11 @@ export default function GamePage({ onExit }: GamePageProps) {
       } else if (phase === 'pending_renovate' || phase === 'pending_renovate_fence') {
         const s = renovateHouse(gs, currentPlayerId);
         sfxStonePlace();
-        const next: GameState['roundPhase'] =
-          phase === 'pending_renovate_fence' ? 'pending_fence' : 'work';
-        setGameState({ ...s, roundPhase: next });
+        if (phase === 'pending_renovate_fence') {
+          setGameState({ ...s, roundPhase: 'pending_fence' });
+        } else {
+          setGameState(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+        }
       } else if (phase === 'pending_fence') {
         if (pendingFenceSegments.length === 0) {
           // 세그먼트 없이 확인 → 건너뜀
@@ -533,7 +524,7 @@ export default function GamePage({ onExit }: GamePageProps) {
         }
       } else {
         sfxClick();
-        setGameState({ ...gs, roundPhase: 'work' });
+        setGameState(advanceToNextPlayer({ ...gs, roundPhase: 'work' }));
       }
     } catch (e) {
       sfxWrong();
@@ -922,84 +913,92 @@ export default function GamePage({ onExit }: GamePageProps) {
             />
           </div>
 
-          {/* 농장 + 자원 — 탭으로 플레이어 전환 */}
-          <div>
-            {/* 플레이어 탭 */}
-            <div className="flex gap-1 mb-2">
-              {gs.playerOrder.map((pid, idx) => {
-                const p = gs.players[pid];
-                if (!p) return null;
-                const isActive = pid === currentPlayerId;
-                const colorStyle = PLAYER_COLORS[p.color] ?? PLAYER_COLORS.red;
-                return (
+          {/* 농장 + 자원 — 전체 표시, 개별 접기/펼치기 */}
+          <div className="space-y-2">
+            {gs.playerOrder.map((pid) => {
+              const p = gs.players[pid];
+              if (!p) return null;
+              const isActive = pid === currentPlayerId;
+              const isCollapsed = collapsedFarms.has(pid);
+              const colorStyle = PLAYER_COLORS[p.color] ?? PLAYER_COLORS.red;
+              return (
+                <div
+                  key={pid}
+                  className={[
+                    'rounded-lg border overflow-hidden',
+                    isActive ? `ring-2 ${colorStyle.ring}` : 'border-gray-200',
+                  ].join(' ')}
+                >
+                  {/* 헤더 — 클릭으로 접기/펼치기 */}
                   <button
-                    key={pid}
-                    onClick={() => setViewingPlayerIdx(idx)}
-                    className={[
-                      'flex-1 text-xs py-1.5 px-2 rounded-t border-b-2 transition-colors duration-150',
-                      viewingPlayerIdx === idx
-                        ? `${colorStyle.bg} border-current ${colorStyle.text} font-bold`
-                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50',
-                    ].join(' ')}
+                    onClick={() =>
+                      setCollapsedFarms((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(pid)) next.delete(pid);
+                        else next.add(pid);
+                        return next;
+                      })
+                    }
+                    className={`w-full flex items-center justify-between px-3 py-2 ${colorStyle.bg} ${colorStyle.text} hover:opacity-90 transition-opacity`}
                   >
-                    {isActive && <span aria-hidden="true">▶</span>} {p.name}
+                    <span className="font-bold text-sm flex items-center gap-1">
+                      {isActive && <span aria-hidden="true">▶</span>}
+                      {p.name}
+                      {gs.startingPlayerToken === pid && <span aria-hidden="true" className="ml-1 text-yellow-600">⭐</span>}
+                    </span>
+                    <span className="text-xs opacity-70">{isCollapsed ? '▼ 펼치기' : '▲ 접기'}</span>
                   </button>
-                );
-              })}
-            </div>
 
-            {/* 선택된 플레이어 농장 */}
-            {viewingPlayer && (
-              <div className={[
-                'rounded-lg p-2',
-                viewingPlayerId === currentPlayerId ? 'bg-white ring-1 ring-amber-300' : 'bg-gray-50 opacity-90',
-              ].join(' ')}>
-                {viewingPlayerId !== currentPlayerId && (
-                  <div className="text-xs text-gray-400 mb-1 text-center">👁 보기 전용</div>
-                )}
-                <FarmBoard
-                  board={viewingPlayer.farm}
-                  familySize={viewingPlayer.familySize}
-                  deployedCount={viewingPlayerId === currentPlayerId ? countPlaced(gs, currentPlayerId) : viewingPlayer.familySize}
-                  selectedFamilyCell={viewingPlayerId === currentPlayerId ? selectedFamilyCell : null}
-                  onCellClick={viewingPlayerId === currentPlayerId ? handleCellClick : undefined}
-                  onFamilyMemberClick={viewingPlayerId === currentPlayerId ? handleFamilyMemberClick : undefined}
-                  onFenceClick={viewingPlayerId === currentPlayerId ? handleFenceClick : undefined}
-                  fencingMode={
-                    viewingPlayerId === currentPlayerId &&
-                    (gs.roundPhase === 'pending_fence' || gs.roundPhase === 'pending_renovate_fence')
-                  }
-                  pendingFenceSegments={viewingPlayerId === currentPlayerId ? pendingFenceSegments : []}
-                  playerColor={viewingPlayer.color}
-                  isStartingPlayer={gs.startingPlayerToken === viewingPlayerId}
-                  animalPlacementType={
-                    viewingPlayerId === currentPlayerId ? pendingAnimalPlacement : null
-                  }
-                  onAnimalPlace={viewingPlayerId === currentPlayerId ? handlePlaceAnimal : undefined}
-                />
-                <div className="mt-3">
-                  <ResourcePanel player={viewingPlayer} />
+                  {/* 농장 내용 */}
+                  {!isCollapsed && (
+                    <div className="p-2 bg-white">
+                      {!isActive && (
+                        <div className="text-xs text-gray-400 mb-1 text-center">👁 보기 전용</div>
+                      )}
+                      <FarmBoard
+                        board={p.farm}
+                        familySize={p.familySize}
+                        deployedCount={isActive ? countPlaced(gs, pid) : p.familySize}
+                        selectedFamilyCell={isActive ? selectedFamilyCell : null}
+                        onCellClick={isActive ? handleCellClick : undefined}
+                        onFamilyMemberClick={isActive ? handleFamilyMemberClick : undefined}
+                        onFenceClick={isActive ? handleFenceClick : undefined}
+                        fencingMode={
+                          isActive &&
+                          (gs.roundPhase === 'pending_fence' || gs.roundPhase === 'pending_renovate_fence')
+                        }
+                        pendingFenceSegments={isActive ? pendingFenceSegments : []}
+                        playerColor={p.color}
+                        isStartingPlayer={gs.startingPlayerToken === pid}
+                        animalPlacementType={isActive ? pendingAnimalPlacement : null}
+                        onAnimalPlace={isActive ? handlePlaceAnimal : undefined}
+                      />
+                      <div className="mt-3">
+                        <ResourcePanel player={p} />
+                      </div>
+
+                      {/* 손패 — 현재 플레이어만 */}
+                      {isActive && currentPlayer && (
+                        <div className="mt-3">
+                          <CardHand
+                            occupations={currentPlayer.hand.occupations}
+                            minorImprovements={currentPlayer.hand.minorImprovements}
+                            activeType={
+                              gs.roundPhase === 'pending_play_occupation' ? 'occupation'
+                              : gs.roundPhase === 'pending_play_minor_imp' ? 'minor_improvement'
+                              : null
+                            }
+                            occupationFoodCost={getOccupationPlayCost(currentPlayer, gs.playerOrder.length)}
+                            onCardClick={(card) => { sfxCardFlip(); setDetailCard(card); }}
+                            selectedCardId={detailCard?.id ?? null}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-
-                {/* 손패 — 현재 플레이어 탭일 때만 표시 */}
-                {viewingPlayerId === currentPlayerId && currentPlayer && (
-                  <div className="mt-3">
-                    <CardHand
-                      occupations={currentPlayer.hand.occupations}
-                      minorImprovements={currentPlayer.hand.minorImprovements}
-                      activeType={
-                        gs.roundPhase === 'pending_play_occupation' ? 'occupation'
-                        : gs.roundPhase === 'pending_play_minor_imp' ? 'minor_improvement'
-                        : null
-                      }
-                      occupationFoodCost={getOccupationPlayCost(currentPlayer, gs.playerOrder.length)}
-                      onCardClick={(card) => { sfxCardFlip(); setDetailCard(card); }}
-                      selectedCardId={detailCard?.id ?? null}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
+              );
+            })}
           </div>
         </div>
       )}
