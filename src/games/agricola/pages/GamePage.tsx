@@ -1,6 +1,6 @@
 /**
  * 아그리콜라 게임 페이지 — 메인 게임 화면
- * Phase 1 v2: 다른 플레이어 농장 탭 + 워커 pip + 차례 하이라이트 + 플레이어 타이머
+ * Phase 2: 카드 패 + 카드 플레이 연동
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -8,6 +8,9 @@ import { useAgricolaStore } from '../store/game-store.js';
 import FarmBoard from '../components/FarmBoard.js';
 import ActionBoard from '../components/ActionBoard.js';
 import ResourcePanel from '../components/ResourcePanel.js';
+import CardHand from '../components/CardHand.js';
+import CardDetail from '../components/CardDetail.js';
+import HarvestModal from '../components/HarvestModal.js';
 import ScoreBoard from '../components/ScoreBoard.js';
 import {
   isHarvestRound,
@@ -15,7 +18,11 @@ import {
   startRound,
   replenishActionSpaces,
   returnWorkers,
-  runHarvest,
+  harvestFields,
+  feedFamilyForPlayer,
+  bakeBreadForPlayer,
+  breedAnimalsForPlayer,
+  buildFences,
   plowField,
   sowField,
   growFamily,
@@ -24,9 +31,16 @@ import {
   buildStable,
   getAnimalFromMarket,
   buildMajorImprovement,
+  placeAnimalForPlayer,
 } from '../lib/game-engine.js';
-import type { AnimalType } from '../lib/types.js';
+import { playCard, canPlayCard, getOccupationPlayCost } from '../lib/card-engine.js';
+import type { AnimalType, Card } from '../lib/types.js';
 import type { GameState } from '../lib/types.js';
+import {
+  sfxStonePlace, sfxCardFlip, sfxCorrect, sfxWrong,
+  sfxToggle, sfxClick, sfxGameStart, sfxTurnEnd, sfxTurnOver,
+  sfxModalOpen, sfxModalClose, sfxVictory,
+} from '../../../lib/sound.js';
 
 interface GamePageProps {
   onExit: () => void;
@@ -46,18 +60,32 @@ const WORKER_DOT_COLORS: Record<string, string> = {
   yellow: 'bg-yellow-400',
 };
 
+/** 커서에 붙는 플로팅 디스크 색상 */
+const FLOATING_DISC: Record<string, string> = {
+  red:    'bg-red-500 border-red-700',
+  blue:   'bg-blue-500 border-blue-700',
+  green:  'bg-green-500 border-green-700',
+  yellow: 'bg-yellow-400 border-yellow-600',
+};
+
 const PENDING_LABELS: Record<string, string> = {
   pending_plow:                  '밭 갈기 — 빈 셀을 클릭하세요',
-  pending_sow:                   '씨 뿌리기 — 밭을 클릭하세요 (밀/채소 자동 선택)',
+  pending_sow:                   '씨 뿌리기 — 밭을 클릭하세요 (곡식/채소 자동 선택)',
   pending_plow_sow:              '밭 갈고 씨 뿌리기 — 먼저 빈 셀을 클릭하세요',
   pending_build_room:            '방 건설 — 기존 방에 인접한 빈 셀을 클릭하세요 (재료5+갈대2)',
   pending_build_stable:          '외양간 건설 — 빈 셀을 클릭하세요 (나무 2)',
-  pending_fence:                 '울타리 건설 — 울타리 선분을 클릭 후 확인을 누르세요',
   pending_renovate:              '집 개조 — 확인 버튼을 누르세요 (자원 자동 차감)',
   pending_renovate_fence:        '집 개조 + 울타리 — 확인 버튼을 누르세요',
   pending_family_growth:         '가족 늘리기 (빈 방 필요) — 확인 버튼을 누르세요',
   pending_family_growth_urgent:  '가족 늘리기 (방 없어도 가능) — 확인 버튼을 누르세요',
   pending_animal_choice:         '동물 배치 — 확인 버튼을 누르세요',
+};
+
+/** 자원 한국어 이름 */
+const KO_RES: Record<string, string> = {
+  wood: '나무', clay: '흙', stone: '돌', reed: '갈대',
+  grain: '곡식', vegetable: '채소', food: '음식',
+  sheep: '양', boar: '멧돼지', cattle: '소',
 };
 
 function advanceToNextPlayer(state: GameState): GameState {
@@ -96,8 +124,32 @@ export default function GamePage({ onExit }: GamePageProps) {
   // 바둑 방식 워커 배치: 선택된 가족 구성원 셀 좌표
   const [selectedFamilyCell, setSelectedFamilyCell] = useState<[number, number] | null>(null);
 
+  // 플로팅 디스크 커서 위치
+  const [cursorPos, setCursorPos] = useState({ x: -200, y: -200 });
+
   // Undo 스택 (마지막 액션 이전 state 보관)
   const [history, setHistory] = useState<GameState[]>([]);
+
+  // 카드 상세 모달
+  const [detailCard, setDetailCard] = useState<Card | null>(null);
+
+  // 수확: 현재 처리 중인 플레이어 인덱스 (null=수확 단계 아님)
+  const [harvestPlayerIdx, setHarvestPlayerIdx] = useState<number | null>(null);
+
+  // 울타리 건설: 선택된 세그먼트
+  const [pendingFenceSegments, setPendingFenceSegments] = useState<Array<{ type: 'h' | 'v'; row: number; col: number }>>([]);
+
+  // 가축 배치: 시장에서 가져온 동물 종 (null=배치 완료)
+  const [pendingAnimalPlacement, setPendingAnimalPlacement] = useState<AnimalType | null>(null);
+
+  // 라운드 종료 카운트다운 (초, null=비활성)
+  const [countdownSec, setCountdownSec] = useState<number | null>(null);
+
+  // 주요 설비 패널 표시
+  const [showMajorImpPanel, setShowMajorImpPanel] = useState(false);
+
+  // 카운트다운 자동 종료 ref (stale closure 방지)
+  const autoEndRoundRef = useRef<() => void>(() => {});
 
   // 플레이어별 누적 소요 시간 (초)
   const [playerTimers, setPlayerTimers] = useState<Record<string, number>>({});
@@ -130,6 +182,32 @@ export default function GamePage({ onExit }: GamePageProps) {
     if (idx >= 0) setViewingPlayerIdx(idx);
   }
 
+  // 플로팅 디스크: 가족 구성원 선택 시 커서 추적
+  useEffect(() => {
+    if (!selectedFamilyCell) {
+      setCursorPos({ x: -200, y: -200 });
+      return;
+    }
+    function onMouseMove(e: MouseEvent) {
+      setCursorPos({ x: e.clientX, y: e.clientY });
+    }
+    function onTouchMove(e: TouchEvent) {
+      const t = e.touches[0];
+      if (t) setCursorPos({ x: t.clientX, y: t.clientY });
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setSelectedFamilyCell(null);
+    }
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [selectedFamilyCell]);
+
   // 타이머: 현재 플레이어의 생각 시간 측정
   useEffect(() => {
     if (gs.phase !== 'playing' || allWorkersPlaced) {
@@ -145,6 +223,33 @@ export default function GamePage({ onExit }: GamePageProps) {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [currentPlayerId, gs.phase, allWorkersPlaced]);
 
+  // 카운트다운: 모든 일꾼 배치 완료 시 10초 후 자동 라운드 종료
+  useEffect(() => {
+    if (!allWorkersPlaced || gs.phase !== 'playing' || harvestPlayerIdx !== null) {
+      setCountdownSec(null);
+      return;
+    }
+    let remaining = 10;
+    let cancelled = false;
+    setCountdownSec(remaining);
+    const id = setInterval(() => {
+      if (cancelled) return;
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(id);
+        setCountdownSec(null);
+        autoEndRoundRef.current();
+      } else {
+        setCountdownSec(remaining);
+      }
+    }, 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allWorkersPlaced, gs.phase, harvestPlayerIdx]);
+
   const viewingPlayerId = gs.playerOrder[viewingPlayerIdx] ?? '';
   const viewingPlayer = gs.players[viewingPlayerId];
 
@@ -157,6 +262,7 @@ export default function GamePage({ onExit }: GamePageProps) {
   function handleUndo() {
     const prev = history[history.length - 1];
     if (!prev) return;
+    sfxClick();
     setHistory((h) => h.slice(0, -1));
     setGameState(prev);
     setSelectedFamilyCell(null);
@@ -165,6 +271,7 @@ export default function GamePage({ onExit }: GamePageProps) {
   // ── 핸들러 ──────────────────────────────────────────────────────
 
   function handleStartGame() {
+    sfxGameStart();
     let s = startRound(gs);
     s = replenishActionSpaces(s);
     setGameState({ ...s, phase: 'playing' });
@@ -174,8 +281,10 @@ export default function GamePage({ onExit }: GamePageProps) {
   function handleFamilyMemberClick(r: number, c: number) {
     // 이미 같은 셀 선택 시 해제
     if (selectedFamilyCell && selectedFamilyCell[0] === r && selectedFamilyCell[1] === c) {
+      sfxClick();
       setSelectedFamilyCell(null);
     } else {
+      sfxToggle();
       setSelectedFamilyCell([r, c]);
     }
   }
@@ -188,8 +297,11 @@ export default function GamePage({ onExit }: GamePageProps) {
     const player = gs.players[pid];
     if (!player || countPlaced(gs, pid) >= player.familySize) return;
     try {
+      sfxStonePlace();
+      const prevIndex = gs.currentPlayerIndex;
       let s = placeWorker(gs, pid, actionSpaceId);
       if (s.roundPhase === 'work') s = advanceToNextPlayer(s);
+      if (s.currentPlayerIndex !== prevIndex) setTimeout(() => sfxTurnOver(), 180);
       setSelectedFamilyCell(null);
       saveAndSet(s);
     } catch (e) { console.error('placeWorker 오류:', e); }
@@ -199,21 +311,76 @@ export default function GamePage({ onExit }: GamePageProps) {
   function handleMajorImpSelect(majorId: string) {
     try {
       const s = buildMajorImprovement(gs, currentPlayerId, majorId);
+      sfxCorrect();
       saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
-    } catch (e) { alert((e as Error).message); }
+    } catch (e) { sfxWrong(); alert((e as Error).message); }
+  }
+
+  function finishRoundAfterHarvest(s: GameState, round: number) {
+    let final = returnWorkers(s);
+    // 선플레이어 토큰 보유자를 다음 라운드 첫 번째 플레이어로
+    final = { ...final, currentPlayerIndex: final.firstPlayerIndex };
+    if (round >= 14) {
+      sfxVictory();
+      setGameState({ ...final, phase: 'gameover' });
+    } else {
+      sfxCorrect();
+      final = startRound(final);
+      final = replenishActionSpaces(final);
+      setGameState(final);
+    }
   }
 
   function handleEndRound() {
-    let s = returnWorkers(gs);
-    if (isHarvestRound(gs.round)) s = runHarvest(s);
-    if (gs.round >= 14) {
-      setGameState({ ...s, phase: 'gameover' });
+    setCountdownSec(null); // 카운트다운 취소
+    setHistory([]); // 라운드 경계 — 다음 라운드 카드 보고 언두 방지
+    setPendingFenceSegments([]); // 미확정 울타리 초기화
+    if (isHarvestRound(gs.round)) {
+      sfxModalOpen();
+      // 밭 수확 먼저 전체 적용 후 1인씩 식량 처리
+      const harvested = harvestFields(gs);
+      setGameState(harvested);
+      setHarvestPlayerIdx(0);
+      return;
+    }
+    sfxTurnEnd();
+    finishRoundAfterHarvest(gs, gs.round);
+  }
+
+  // 빵 굽기: 현재 수확 중인 플레이어가 설비로 곡식→음식 변환
+  function handleBakeBread(improvementId: string) {
+    const pid = harvestPlayerIdx !== null ? gs.playerOrder[harvestPlayerIdx] : null;
+    if (!pid) return;
+    try {
+      sfxCorrect();
+      setGameState(bakeBreadForPlayer(gs, pid, improvementId));
+    } catch (e) { sfxWrong(); alert((e as Error).message); }
+  }
+
+  // 1인 수확 완료: 식량 공급 + 번식 → 다음 플레이어 또는 라운드 종료
+  function handleHarvestPlayerConfirm() {
+    if (harvestPlayerIdx === null) return;
+    const pid = gs.playerOrder[harvestPlayerIdx];
+    if (!pid) return;
+
+    sfxToggle();
+    let s = feedFamilyForPlayer(gs, pid);
+    s = breedAnimalsForPlayer(s, pid);
+    setGameState(s);
+
+    const nextIdx = harvestPlayerIdx + 1;
+    if (nextIdx < gs.playerOrder.length) {
+      setHarvestPlayerIdx(nextIdx);
     } else {
-      s = startRound(s);
-      s = replenishActionSpaces(s);
-      setGameState(s);
+      // 모든 플레이어 수확 완료 → 워커 회수 + 다음 라운드
+      sfxModalClose();
+      setHarvestPlayerIdx(null);
+      finishRoundAfterHarvest(s, gs.round);
     }
   }
+
+  // ref를 최신 handleEndRound로 매 렌더마다 갱신 (countdown 자동 발화용)
+  autoEndRoundRef.current = handleEndRound;
 
   function handleCellClick(r: number, c: number) {
     // 현재 플레이어 탭을 보고 있을 때만 클릭 유효
@@ -222,21 +389,25 @@ export default function GamePage({ onExit }: GamePageProps) {
     if (phase === 'pending_build_room') {
       try {
         const s = buildRoom(gs, currentPlayerId, r, c);
+        sfxStonePlace();
         saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
-      } catch (e) { alert((e as Error).message); }
+      } catch (e) { sfxWrong(); alert((e as Error).message); }
     } else if (phase === 'pending_build_stable') {
       try {
         const s = buildStable(gs, currentPlayerId, r, c);
+        sfxStonePlace();
         saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
-      } catch (e) { alert((e as Error).message); }
+      } catch (e) { sfxWrong(); alert((e as Error).message); }
     } else if (phase === 'pending_plow') {
       try {
         const s = plowField(gs, currentPlayerId, r, c);
+        sfxStonePlace();
         saveAndSet({ ...s, roundPhase: 'work' });
       } catch (e) { console.error(e); }
     } else if (phase === 'pending_plow_sow') {
       try {
         const s = plowField(gs, currentPlayerId, r, c);
+        sfxStonePlace();
         saveAndSet({ ...s, roundPhase: 'pending_sow' });
       } catch (e) { console.error(e); }
     } else if (phase === 'pending_sow') {
@@ -245,21 +416,57 @@ export default function GamePage({ onExit }: GamePageProps) {
         const crop: 'grain' | 'vegetable' =
           (player?.resources.grain ?? 0) > 0 ? 'grain' : 'vegetable';
         const s = sowField(gs, currentPlayerId, r, c, crop);
+        sfxToggle();
         saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
       } catch (e) { console.error(e); }
     }
   }
 
-  // 가축 시장 동물 선택 처리
+  // 가축 시장 동물 선택 → resources에 임시 보관 후 배치 모드 진입
   function handleAnimalSelect(animalType: AnimalType) {
     try {
       const s = getAnimalFromMarket(gs, currentPlayerId, animalType);
+      sfxCorrect();
+      // 행동 완료 처리(advanceToNextPlayer)는 배치 후에 실행
+      saveAndSet({ ...s, roundPhase: 'work' }); // roundPhase를 work로 돌리되 아직 플레이어는 유지
+      setPendingAnimalPlacement(animalType);
+    } catch (e) { sfxWrong(); alert((e as Error).message); }
+  }
+
+  // 가축 배치 확정: 목장 인덱스 또는 'house'
+  function handlePlaceAnimal(destination: number | 'house') {
+    if (!pendingAnimalPlacement) return;
+    try {
+      const s = placeAnimalForPlayer(gs, currentPlayerId, pendingAnimalPlacement, destination);
+      sfxStonePlace();
+      setPendingAnimalPlacement(null);
       saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
-    } catch (e) { alert((e as Error).message); }
+    } catch (e) { sfxWrong(); alert((e as Error).message); }
+  }
+
+  // 카드 플레이
+  function handleCardPlay(card: Card) {
+    try {
+      const s = playCard(gs, currentPlayerId, card.id);
+      sfxCardFlip();
+      setTimeout(() => sfxCorrect(), 120);
+      setDetailCard(null);
+      saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+    } catch (e) {
+      sfxWrong();
+      alert((e as Error).message);
+    }
+  }
+
+  // 소시설 건너뜀 (optional)
+  function handleSkipMinorImp() {
+    sfxClick();
+    saveAndSet(advanceToNextPlayer({ ...gs, roundPhase: 'work' }));
   }
 
   // 방 만들기·외양간 짓기 — 어떤 걸 지을지 선택
   function handleBuildChoice(choice: 'room' | 'stable' | 'both') {
+    sfxClick();
     if (choice === 'room') {
       setGameState({ ...gs, roundPhase: 'pending_build_room' });
     } else if (choice === 'stable') {
@@ -268,6 +475,20 @@ export default function GamePage({ onExit }: GamePageProps) {
       // 둘 다: 방 먼저, 완료 후 외양간 선택 — 방 건설 후 외양간도 이어서
       setGameState({ ...gs, roundPhase: 'pending_build_room' });
     }
+  }
+
+  // 울타리 세그먼트 토글: 클릭 시 추가/제거
+  function handleFenceClick(orientation: 'horizontal' | 'vertical', r: number, c: number) {
+    const type = orientation === 'horizontal' ? 'h' : 'v';
+    setPendingFenceSegments((prev) => {
+      const exists = prev.some((seg) => seg.type === type && seg.row === r && seg.col === c);
+      if (exists) {
+        sfxClick();
+        return prev.filter((seg) => !(seg.type === type && seg.row === r && seg.col === c));
+      }
+      sfxToggle();
+      return [...prev, { type, row: r, col: c }];
+    });
   }
 
   function handlePendingConfirm() {
@@ -286,23 +507,36 @@ export default function GamePage({ onExit }: GamePageProps) {
           }
         }
         s = growFamily(gs, currentPlayerId, true);
+        sfxCorrect();
         setGameState(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
       } else if (phase === 'pending_family_growth_urgent') {
         // RC_URGENT_WISH — 방 불필요
         const s = growFamily(gs, currentPlayerId, false);
+        sfxCorrect();
         setGameState(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
       } else if (phase === 'pending_renovate' || phase === 'pending_renovate_fence') {
         const s = renovateHouse(gs, currentPlayerId);
+        sfxStonePlace();
         const next: GameState['roundPhase'] =
           phase === 'pending_renovate_fence' ? 'pending_fence' : 'work';
         setGameState({ ...s, roundPhase: next });
-      } else if (phase === 'pending_fence' || phase === 'pending_build_stable') {
-        // 울타리 또는 외양간 건설은 별도 UI로 처리, 여기서는 건너뜀
-        setGameState(advanceToNextPlayer({ ...gs, roundPhase: 'work' }));
+      } else if (phase === 'pending_fence') {
+        if (pendingFenceSegments.length === 0) {
+          // 세그먼트 없이 확인 → 건너뜀
+          sfxClick();
+          setGameState(advanceToNextPlayer({ ...gs, roundPhase: 'work' }));
+        } else {
+          const s = buildFences(gs, currentPlayerId, pendingFenceSegments);
+          sfxStonePlace();
+          setPendingFenceSegments([]);
+          saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+        }
       } else {
+        sfxClick();
         setGameState({ ...gs, roundPhase: 'work' });
       }
     } catch (e) {
+      sfxWrong();
       alert((e as Error).message);
     }
   }
@@ -402,8 +636,46 @@ export default function GamePage({ onExit }: GamePageProps) {
         </div>
       )}
 
+      {/* 가축 배치 대기 배너 — 시장에서 가져온 동물을 목장/집에 배치해야 함 */}
+      {pendingAnimalPlacement && (
+        <div className="mb-3 px-4 py-2 bg-green-50 border-2 border-green-500 rounded-lg">
+          <p className="text-sm font-semibold text-green-800">
+            {pendingAnimalPlacement === 'sheep' ? '🐑 양' : pendingAnimalPlacement === 'boar' ? '🐷 멧돼지' : '🐄 소'}
+            {' '}을(를) 아래 농장에서 배치할 위치를 선택하세요
+          </p>
+          <p className="text-xs text-green-600 mt-0.5">
+            녹색 버튼 = 빈 목장 또는 같은 동물 목장 / 파란색 버튼 = 집 안 (최대 1마리)
+          </p>
+        </div>
+      )}
+
       {/* pending 상태 안내 배너 */}
-      {gs.roundPhase === 'pending_major_imp' ? (
+      {gs.roundPhase === 'pending_play_occupation' ? (
+        /* 직업 카드 선택 */
+        <div className="mb-3 px-4 py-2 bg-amber-50 border-2 border-amber-500 rounded-lg">
+          <p className="text-sm font-semibold text-amber-800">
+            📜 직업 카드 플레이 — 아래 손패에서 직업 카드를 선택하세요
+            {currentPlayer && getOccupationPlayCost(currentPlayer, gs.playerOrder.length) > 0 && (
+              <span className="ml-2 text-xs font-normal text-amber-600">
+                (비용: 음식 {getOccupationPlayCost(currentPlayer, gs.playerOrder.length)}개)
+              </span>
+            )}
+          </p>
+        </div>
+      ) : gs.roundPhase === 'pending_play_minor_imp' ? (
+        /* 소시설 카드 선택 (선택 사항) */
+        <div className="mb-3 px-4 py-2 bg-green-50 border-2 border-green-500 rounded-lg flex items-center justify-between">
+          <p className="text-sm font-semibold text-green-800">
+            🔧 보조 설비 놓기 가능 (선택) — 아래 손패에서 보조 설비를 선택하거나 건너뛰세요
+          </p>
+          <button
+            onClick={handleSkipMinorImp}
+            className="text-xs px-3 py-1 rounded border bg-green-100 text-green-700 border-green-300 hover:bg-green-200 ml-3 shrink-0"
+          >
+            건너뜀
+          </button>
+        </div>
+      ) : gs.roundPhase === 'pending_major_imp' ? (
         /* 대시설 선택 */
         <div className="mb-3 px-4 py-3 bg-stone-100 border-2 border-stone-400 rounded-lg">
           <p className="text-sm font-semibold text-stone-800 mb-2">🏭 주요 설비 건설 — 원하는 설비를 선택하세요</p>
@@ -412,7 +684,7 @@ export default function GamePage({ onExit }: GamePageProps) {
               .filter((m) => m.ownerId === null)
               .map((m) => {
                 const costStr = m.cost
-                  ? Object.entries(m.cost).map(([r, v]) => `${r} ${v}`).join(' + ')
+                  ? Object.entries(m.cost).map(([r, v]) => `${KO_RES[r] ?? r} ${v}`).join(' + ')
                   : '무료';
                 const canAfford = !m.cost || Object.entries(m.cost).every(
                   ([r, v]) => ((currentPlayer?.resources[r as keyof typeof currentPlayer.resources] ?? 0) as number) >= (v ?? 0)
@@ -449,17 +721,43 @@ export default function GamePage({ onExit }: GamePageProps) {
           <div className="flex gap-2">
             <button onClick={() => handleAnimalSelect('sheep')}
               className="flex-1 text-xs px-2 py-1.5 bg-sky-100 border border-sky-300 rounded hover:bg-sky-200 font-medium">
-              🐑 양 (음식 1 지불)
+              🐑 양 + 음식1
             </button>
             <button onClick={() => handleAnimalSelect('boar')}
               className="flex-1 text-xs px-2 py-1.5 bg-pink-100 border border-pink-300 rounded hover:bg-pink-200 font-medium">
-              🐷 멧돼지 (무료)
+              🐷 멧돼지
             </button>
             <button onClick={() => handleAnimalSelect('cattle')}
               className="flex-1 text-xs px-2 py-1.5 bg-amber-100 border border-amber-300 rounded hover:bg-amber-200 font-medium">
-              🐄 소 (음식 1 지불)
+              🐄 소 (음식1 지불)
             </button>
           </div>
+        </div>
+      ) : gs.roundPhase === 'pending_fence' ? (
+        /* 울타리 건설 — 나무 비용 동적 표시 */
+        <div className="mb-3 px-4 py-2 bg-amber-100 border border-amber-400 rounded-lg flex items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium text-amber-900">
+              🪵 울타리 건설 — 아래 농장에서 울타리 선분을 클릭하세요
+            </p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              선택한 세그먼트: <span className="font-bold">{pendingFenceSegments.length}개</span>
+              {pendingFenceSegments.length > 0 && (
+                <span className="ml-2">나무 {pendingFenceSegments.length}개 소모</span>
+              )}
+              {pendingFenceSegments.length === 0 && ' (없으면 건너뜀)'}
+            </p>
+          </div>
+          <button
+            onClick={handlePendingConfirm}
+            disabled={
+              pendingFenceSegments.length > 0 &&
+              (currentPlayer?.resources.wood ?? 0) < pendingFenceSegments.length
+            }
+            className="text-xs px-3 py-1.5 bg-amber-600 text-white rounded hover:bg-amber-700 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            확인
+          </button>
         </div>
       ) : gs.roundPhase === 'pending_build_room' || gs.roundPhase === 'pending_build_stable' ? (
         /* 방 만들기·외양간 짓기 — 선택 버튼 + 셀 클릭 안내 */
@@ -541,21 +839,81 @@ export default function GamePage({ onExit }: GamePageProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* 행동 보드 */}
           <div className="lg:col-span-2">
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex items-center justify-between gap-2">
               <span className="text-sm font-medium text-gray-700">
                 {allWorkersPlaced
                   ? '✅ 모든 일꾼 배치 완료'
                   : `${currentPlayer?.name ?? ''}의 차례`}
               </span>
-              {allWorkersPlaced && (
+              <div className="flex items-center gap-2">
+                {/* 주요 설비 확인 버튼 */}
                 <button
-                  onClick={handleEndRound}
-                  className="text-sm px-4 py-1.5 bg-stone-700 text-white rounded-lg hover:bg-stone-800 transition-colors duration-150"
+                  onClick={() => { sfxClick(); setShowMajorImpPanel((v) => !v); }}
+                  className="text-xs px-2 py-1 bg-stone-200 border border-stone-400 text-stone-700 rounded hover:bg-stone-300"
+                  title="주요 설비 목록 확인"
                 >
-                  {isHarvestRound(gs.round) ? '라운드 종료 + 수확' : '라운드 종료'}
+                  🏭 주요 설비
                 </button>
-              )}
+                {allWorkersPlaced && (
+                  <div className="flex items-center gap-1.5">
+                    {countdownSec !== null && (
+                      <span className="text-sm font-mono font-bold text-amber-700 tabular-nums min-w-[2rem] text-right">
+                        {countdownSec}초
+                      </span>
+                    )}
+                    <button
+                      onClick={handleEndRound}
+                      className="text-sm px-4 py-1.5 bg-stone-700 text-white rounded-lg hover:bg-stone-800 transition-colors duration-150"
+                    >
+                      {isHarvestRound(gs.round) ? '라운드 종료 + 수확' : '라운드 종료'}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* 주요 설비 패널 */}
+            {showMajorImpPanel && (
+              <div className="mb-2 bg-stone-100 border-2 border-stone-400 rounded-lg p-2">
+                <div className="text-xs font-semibold text-stone-600 uppercase tracking-wide mb-1.5">
+                  주요 설비 현황
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  {gs.majorImprovements.map((m) => {
+                    const isOwned = m.ownerId !== null;
+                    const owner = m.ownerId ? gs.players[m.ownerId] : null;
+                    const ownerColor = owner ? (WORKER_DOT_COLORS[owner.color] ?? 'bg-gray-400') : '';
+                    const costStr = m.cost
+                      ? Object.entries(m.cost).map(([r, v]) => `${KO_RES[r] ?? r}${v}`).join('+')
+                      : '무료';
+                    return (
+                      <div
+                        key={m.id}
+                        className={[
+                          'text-xs px-2 py-1 rounded border',
+                          isOwned ? 'bg-stone-200 border-stone-300 opacity-60' : 'bg-amber-50 border-amber-300',
+                        ].join(' ')}
+                      >
+                        <div className="flex items-center gap-1">
+                          {isOwned && owner && (
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${ownerColor}`} />
+                          )}
+                          <span className={`font-medium leading-tight ${isOwned ? 'line-through text-stone-500' : 'text-stone-800'}`}>
+                            {m.nameKo}
+                          </span>
+                          {!isOwned && (
+                            <span className="ml-auto text-[10px] text-amber-700 shrink-0">{costStr}</span>
+                          )}
+                        </div>
+                        {!isOwned && m.victoryPoints != null && (
+                          <span className="text-[10px] text-yellow-700">+{m.victoryPoints}VP</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <ActionBoard
               state={gs}
               currentPlayerId={currentPlayerId}
@@ -606,18 +964,98 @@ export default function GamePage({ onExit }: GamePageProps) {
                   selectedFamilyCell={viewingPlayerId === currentPlayerId ? selectedFamilyCell : null}
                   onCellClick={viewingPlayerId === currentPlayerId ? handleCellClick : undefined}
                   onFamilyMemberClick={viewingPlayerId === currentPlayerId ? handleFamilyMemberClick : undefined}
+                  onFenceClick={viewingPlayerId === currentPlayerId ? handleFenceClick : undefined}
                   fencingMode={
                     viewingPlayerId === currentPlayerId &&
                     (gs.roundPhase === 'pending_fence' || gs.roundPhase === 'pending_renovate_fence')
                   }
+                  pendingFenceSegments={viewingPlayerId === currentPlayerId ? pendingFenceSegments : []}
+                  playerColor={viewingPlayer.color}
+                  isStartingPlayer={gs.startingPlayerToken === viewingPlayerId}
+                  animalPlacementType={
+                    viewingPlayerId === currentPlayerId ? pendingAnimalPlacement : null
+                  }
+                  onAnimalPlace={viewingPlayerId === currentPlayerId ? handlePlaceAnimal : undefined}
                 />
                 <div className="mt-3">
                   <ResourcePanel player={viewingPlayer} />
                 </div>
+
+                {/* 손패 — 현재 플레이어 탭일 때만 표시 */}
+                {viewingPlayerId === currentPlayerId && currentPlayer && (
+                  <div className="mt-3">
+                    <CardHand
+                      occupations={currentPlayer.hand.occupations}
+                      minorImprovements={currentPlayer.hand.minorImprovements}
+                      activeType={
+                        gs.roundPhase === 'pending_play_occupation' ? 'occupation'
+                        : gs.roundPhase === 'pending_play_minor_imp' ? 'minor_improvement'
+                        : null
+                      }
+                      occupationFoodCost={getOccupationPlayCost(currentPlayer, gs.playerOrder.length)}
+                      onCardClick={(card) => { sfxCardFlip(); setDetailCard(card); }}
+                      selectedCardId={detailCard?.id ?? null}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {/* 수확 모달 — 1인씩 순서대로 처리 */}
+      {harvestPlayerIdx !== null && (() => {
+        const harvestPid = gs.playerOrder[harvestPlayerIdx];
+        if (!harvestPid) return null;
+        return (
+          <HarvestModal
+            state={gs}
+            harvestingPlayerId={harvestPid}
+            playerNumber={harvestPlayerIdx + 1}
+            totalPlayers={gs.playerOrder.length}
+            onBakeBread={handleBakeBread}
+            onConfirmFeed={handleHarvestPlayerConfirm}
+          />
+        );
+      })()}
+
+      {/* 플로팅 가족 구성원 토큰 — 커서에 반투명 디스크 */}
+      {selectedFamilyCell && currentPlayer && (
+        <div
+          className="fixed z-50 pointer-events-none"
+          style={{ left: cursorPos.x - 18, top: cursorPos.y - 18 }}
+          aria-hidden="true"
+        >
+          <div
+            className={[
+              'w-9 h-9 rounded-full border-4 shadow-xl opacity-70',
+              FLOATING_DISC[currentPlayer.color] ?? 'bg-gray-500 border-gray-700',
+            ].join(' ')}
+          />
+        </div>
+      )}
+
+      {/* 카드 상세 모달 */}
+      {detailCard && currentPlayer && (
+        <CardDetail
+          card={detailCard}
+          canPlay={
+            (gs.roundPhase === 'pending_play_occupation' && detailCard.type === 'occupation') ||
+            (gs.roundPhase === 'pending_play_minor_imp' && detailCard.type === 'minor_improvement')
+              ? canPlayCard(gs, currentPlayerId, detailCard).ok
+              : false
+          }
+          playReason={canPlayCard(gs, currentPlayerId, detailCard).reason}
+          occupationFoodCost={getOccupationPlayCost(currentPlayer, gs.playerOrder.length)}
+          onPlay={
+            (gs.roundPhase === 'pending_play_occupation' && detailCard.type === 'occupation') ||
+            (gs.roundPhase === 'pending_play_minor_imp' && detailCard.type === 'minor_improvement')
+              ? () => handleCardPlay(detailCard)
+              : undefined
+          }
+          onClose={() => { sfxClick(); setDetailCard(null); }}
+        />
       )}
     </div>
   );

@@ -6,14 +6,26 @@
 import type { MajorImprovement, GameState, PlayerId } from '../types.js';
 import { addResources } from '../game-engine.js';
 
-// 취사 설비(화덕/취사장): 밀 → 음식 변환
+// 취사 설비(화덕/취사장): 곡식 → 음식 변환 (빵 굽기 행동 시 곡식 1개당)
 function bakingEffect(
   wheatToFood: number,
 ): (state: GameState, playerId: PlayerId) => GameState {
   return (state, playerId) =>
-    // Phase 1 TODO: 빵 굽기 UI와 연동 (밀 몇 개를 구울지 선택)
     addResources(state, playerId, { food: wheatToFood });
 }
+
+/**
+ * 취사 설비 ANYTIME 동물→음식 변환 효과
+ * 화로/화덕 모두 동일 비율: 양·멧돼지 2식, 소 3식, 채소 2식
+ * 실제 호출은 GamePage에서 동물 종류를 선택한 뒤 직접 처리하므로
+ * 이 apply는 placeholder — 변환 비율은 ANIMAL_TO_FOOD_RATES에서 참조.
+ */
+export const ANIMAL_TO_FOOD_RATES: Record<string, number> = {
+  sheep: 2,
+  boar: 2,
+  cattle: 3,
+  vegetable: 2,
+};
 
 export function getMajorImprovements(): MajorImprovement[] {
   return [
@@ -26,7 +38,12 @@ export function getMajorImprovements(): MajorImprovement[] {
         {
           trigger: 'BAKE_BREAD',
           apply: bakingEffect(2), // 밀 1 → 음식 2
-          description: '밀 1개를 음식 2개로 변환',
+          description: '곡식 1개를 음식 2개로 변환',
+        },
+        {
+          trigger: 'ANYTIME',
+          apply: (state: GameState, _playerId: PlayerId) => state, // 동물 선택 UI에서 직접 처리
+          description: '언제든지: 양·멧돼지→2식, 소→3식, 채소→2식',
         },
       ],
       victoryPoints: 1,
@@ -41,7 +58,12 @@ export function getMajorImprovements(): MajorImprovement[] {
         {
           trigger: 'BAKE_BREAD',
           apply: bakingEffect(2),
-          description: '밀 1개를 음식 2개로 변환',
+          description: '곡식 1개를 음식 2개로 변환',
+        },
+        {
+          trigger: 'ANYTIME',
+          apply: (state: GameState, _playerId: PlayerId) => state,
+          description: '언제든지: 양·멧돼지→2식, 소→3식, 채소→2식',
         },
       ],
       victoryPoints: 1,
@@ -56,17 +78,15 @@ export function getMajorImprovements(): MajorImprovement[] {
         {
           trigger: 'BAKE_BREAD',
           apply: bakingEffect(3), // 밀 1 → 음식 3
-          description: '밀 1개를 음식 3개로 변환',
+          description: '곡식 1개를 음식 3개로 변환',
         },
         {
           trigger: 'ANYTIME',
-          apply: (state: GameState, _playerId: PlayerId) =>
-            // Phase 1 TODO: 동물 → 음식 변환
-            state,
-          description: '언제든지 동물을 음식으로 변환 가능',
+          apply: (state: GameState, _playerId: PlayerId) => state,
+          description: '언제든지: 양·멧돼지→2식, 소→3식, 채소→2식',
         },
       ],
-      victoryPoints: 0,
+      victoryPoints: 1,
       ownerId: null,
     },
     {
@@ -78,15 +98,15 @@ export function getMajorImprovements(): MajorImprovement[] {
         {
           trigger: 'BAKE_BREAD',
           apply: bakingEffect(3),
-          description: '밀 1개를 음식 3개로 변환',
+          description: '곡식 1개를 음식 3개로 변환',
         },
         {
           trigger: 'ANYTIME',
           apply: (state: GameState, _playerId: PlayerId) => state,
-          description: '언제든지 동물을 음식으로 변환 가능',
+          description: '언제든지: 양·멧돼지→2식, 소→3식, 채소→2식',
         },
       ],
-      victoryPoints: 0,
+      victoryPoints: 1,
       ownerId: null,
     },
     {
@@ -112,37 +132,37 @@ export function getMajorImprovements(): MajorImprovement[] {
       id: 'MAJ_CLAY_OVEN',
       nameKo: '흙가마',
       nameEn: 'Clay Oven',
-      cost: { clay: 3, reed: 1 },
+      cost: { clay: 3, stone: 1 },
       effects: [
         {
           trigger: 'BAKE_BREAD',
           apply: bakingEffect(5), // 밀 1 → 음식 5
-          description: '밀 1개를 음식 5개로 변환 (1회)',
+          description: '곡식 1개를 음식 5개로 변환 (1회)',
         },
       ],
-      victoryPoints: 0,
+      victoryPoints: 2,
       ownerId: null,
     },
     {
       id: 'MAJ_STONE_OVEN',
       nameKo: '돌가마',
       nameEn: 'Stone Oven',
-      cost: { stone: 3, reed: 1 },
+      cost: { clay: 1, stone: 3 },
       effects: [
         {
           trigger: 'BAKE_BREAD',
           apply: bakingEffect(4), // 밀 1 → 음식 4 (2회)
-          description: '밀 1개를 음식 4개로 변환 (2회)',
+          description: '곡식 1개를 음식 4개로 변환 (2회)',
         },
       ],
-      victoryPoints: 0,
+      victoryPoints: 3,
       ownerId: null,
     },
     {
       id: 'MAJ_JOINERY',
       nameKo: '가구 제작소',
       nameEn: 'Joinery',
-      cost: { wood: 2, reed: 1, stone: 1 },
+      cost: { wood: 2, stone: 2 },
       effects: [
         {
           trigger: 'HARVEST_FIELD',
@@ -157,7 +177,7 @@ export function getMajorImprovements(): MajorImprovement[] {
       id: 'MAJ_POTTERY',
       nameKo: '그릇 제작소',
       nameEn: 'Pottery',
-      cost: { clay: 2, reed: 1, stone: 1 },
+      cost: { clay: 2, stone: 2 },
       effects: [
         {
           trigger: 'HARVEST_FIELD',
@@ -172,7 +192,7 @@ export function getMajorImprovements(): MajorImprovement[] {
       id: 'MAJ_BASKETMAKERS_WORKSHOP',
       nameKo: '바구니 제작소',
       nameEn: "Basketmaker's Workshop",
-      cost: { reed: 2, clay: 1, stone: 1 },
+      cost: { reed: 2, stone: 2 },
       effects: [
         {
           trigger: 'HARVEST_FIELD',

@@ -9,7 +9,7 @@ interface ScoreBoardProps {
 const CATEGORIES = [
   ['farmlands', '밭'],
   ['pastures', '목장'],
-  ['grain', '밀'],
+  ['grain', '곡식'],
   ['vegetables', '채소'],
   ['sheep', '양'],
   ['boar', '멧돼지'],

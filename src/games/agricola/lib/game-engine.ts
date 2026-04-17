@@ -14,9 +14,11 @@ import {
   ROUND_TO_STAGE,
   PERMANENT_ACTION_SPACE_IDS,
   BEGGING_FOOD_PER_PERSON,
+  BEGGING_FOOD_NEWBORN,
+  SOLO_FOOD_PER_PERSON,
   INITIAL_FAMILY_SIZE,
 } from './constants.js';
-import { createInitialFarmBoard, recalculatePastures } from './farm-engine.js';
+import { createInitialFarmBoard, recalculatePastures, placeAnimalInFarm, isPastureFullyFenced } from './farm-engine.js';
 import { getPermanentActionSpaces } from './action-spaces.js';
 import { getRoundCardsByStage } from './round-cards.js';
 import { getMajorImprovements } from './cards/major-improvements.js';
@@ -255,7 +257,7 @@ export function runHarvest(state: GameState): GameState {
   return newState;
 }
 
-function harvestFields(state: GameState): GameState {
+export function harvestFields(state: GameState): GameState {
   // Phase 1 TODO: 밭에서 씨앗 1개씩 수확
   const players = Object.fromEntries(
     Object.entries(state.players).map(([id, player]) => {
@@ -280,11 +282,87 @@ function harvestFields(state: GameState): GameState {
   return { ...state, players };
 }
 
+/** 수확 시 플레이어의 필요 음식 계산
+ *  - 1인 플레이: 성인 1명당 3개 (신생아 1개)
+ *  - 다인 플레이: 성인 1명당 2개 (신생아 1개)
+ *  - hasGrown === true: 이번 라운드 태어난 가족 1명은 신생아로 취급
+ */
+function calcFoodNeeded(player: PlayerState, playerCount: number): number {
+  const foodPerAdult = playerCount === 1 ? SOLO_FOOD_PER_PERSON : BEGGING_FOOD_PER_PERSON;
+  const adults   = player.hasGrown ? player.familySize - 1 : player.familySize;
+  const newborns = player.hasGrown ? 1 : 0;
+  return adults * foodPerAdult + newborns * BEGGING_FOOD_NEWBORN;
+}
+
+/** 특정 플레이어의 식량 공급 (수확 단계용: 1인씩 처리) */
+export function feedFamilyForPlayer(state: GameState, playerId: PlayerId): GameState {
+  const player = state.players[playerId];
+  if (!player) return state;
+  const needed = calcFoodNeeded(player, state.playerOrder.length);
+  const food = player.resources.food;
+  const deficit = Math.max(0, needed - food);
+  return {
+    ...state,
+    players: {
+      ...state.players,
+      [playerId]: {
+        ...player,
+        resources: {
+          ...player.resources,
+          food: Math.max(0, food - needed),
+        },
+        beggingTokens: player.beggingTokens + deficit,
+      },
+    },
+  };
+}
+
+/** 특정 플레이어의 빵 굽기 (곡식 1 → 음식 N, 보유 설비에 따라) */
+export function bakeBreadForPlayer(
+  state: GameState,
+  playerId: PlayerId,
+  improvementId: string,
+): GameState {
+  const player = state.players[playerId];
+  if (!player) return state;
+  if ((player.resources.grain ?? 0) < 1) throw new Error('곡식 부족 (빵 굽기: 곡식 1 필요)');
+
+  const improvement = state.majorImprovements.find(
+    (m) => m.id === improvementId && m.ownerId === playerId,
+  );
+  if (!improvement) throw new Error('해당 설비를 보유하지 않았습니다');
+  const bakingEff = improvement.effects.find((e) => e.trigger === 'BAKE_BREAD');
+  if (!bakingEff) throw new Error('빵 굽기 효과가 없는 설비입니다');
+
+  // 곡식 1개 차감 후 BAKE_BREAD 효과(음식 N 추가) 적용
+  const afterGrain = addResources(state, playerId, { grain: -1 });
+  return bakingEff.apply(afterGrain, playerId);
+}
+
+/** 특정 플레이어의 동물 번식 (수확 단계용: 1인씩 처리) */
+export function breedAnimalsForPlayer(state: GameState, playerId: PlayerId): GameState {
+  const player = state.players[playerId];
+  if (!player) return state;
+
+  const ANIMAL_TYPES: AnimalType[] = ['sheep', 'boar', 'cattle'];
+  let farm = player.farm;
+  for (const animalType of ANIMAL_TYPES) {
+    farm = breedAnimalType(farm, animalType);
+  }
+  return {
+    ...state,
+    players: {
+      ...state.players,
+      [playerId]: { ...player, farm },
+    },
+  };
+}
+
 function feedFamily(state: GameState): GameState {
-  // Phase 1 TODO: 가족 1인당 음식 2개 필요, 부족 시 구걸 토큰
+  const playerCount = state.playerOrder.length;
   const players = Object.fromEntries(
     Object.entries(state.players).map(([id, player]) => {
-      const needed = player.familySize * BEGGING_FOOD_PER_PERSON;
+      const needed = calcFoodNeeded(player, playerCount);
       const food = player.resources.food;
       const deficit = Math.max(0, needed - food);
       return [id, {
@@ -529,7 +607,7 @@ export function buildFences(
 
   const woodCost = segments.length;
   if ((player.resources.wood ?? 0) < woodCost) {
-    throw new Error(`Not enough wood (need ${woodCost}, have ${player.resources.wood})`);
+    throw new Error(`나무 부족 (필요 ${woodCost}개, 보유 ${player.resources.wood}개)`);
   }
 
   const fences = {
@@ -544,10 +622,47 @@ export function buildFences(
     }
   }
 
-  const updatedFarm = recalculatePastures({ ...player.farm, fences });
-  let newState = updatePlayerFarm(state, playerId, updatedFarm);
+  // 닫힌 구역 형성 검증: isPastureFullyFenced로 모든 면을 명시 울타리로 둘러싸야 함
+  // (보드 경계도 명시 울타리 필요 — 외벽 자동 벽 아님)
+  const oldFarm = recalculatePastures(player.farm);
+  const tempFarm = recalculatePastures({ ...player.farm, fences });
+
+  const oldFullyFenced = oldFarm.pastures.filter((p) =>
+    isPastureFullyFenced(p.cells, player.farm.fences),
+  ).length;
+  const newFullyFenced = tempFarm.pastures.filter((p) =>
+    isPastureFullyFenced(p.cells, fences),
+  ).length;
+
+  if (newFullyFenced <= oldFullyFenced) {
+    throw new Error(
+      '울타리가 완전히 닫힌 구역을 만들지 않습니다.\n보드 경계를 포함한 모든 면에 울타리를 배치해야 합니다.',
+    );
+  }
+
+  let newState = updatePlayerFarm(state, playerId, tempFarm);
   newState = addResources(newState, playerId, { wood: -woodCost });
   return newState;
+}
+
+/**
+ * 동물을 특정 목장 또는 집에 배치 (가축 시장 구매 후 위치 선택 시 호출)
+ * resources.양/멧돼지/소 는 getAnimalFromMarket 시 +1 되어 있으므로
+ * 여기서는 pasture/house 배치만 처리하고 resources는 -1 한다.
+ */
+export function placeAnimalForPlayer(
+  state: GameState,
+  playerId: PlayerId,
+  animalType: AnimalType,
+  destination: number | 'house',
+): GameState {
+  const player = state.players[playerId];
+  if (!player) throw new Error(`Player ${playerId} not found`);
+
+  const updatedFarm = placeAnimalInFarm(player.farm, animalType, destination);
+  // resources는 "미배치" 임시 카운터로 사용하므로 배치 완료 시 차감
+  const newState = updatePlayerFarm(state, playerId, updatedFarm);
+  return addResources(newState, playerId, { [animalType]: -1 });
 }
 
 /** 방 건설: 빈 셀 클릭 → 현재 집 재질과 같은 방 추가 (재료 5 + 갈대 2) */
@@ -628,21 +743,18 @@ export function getAnimalFromMarket(
   const player = state.players[playerId];
   if (!player) throw new Error(`Player ${playerId} not found`);
 
-  // 양: 음식 1 지불 후 양 1마리
-  // 멧돼지: 그냥 1마리
-  // 소: 소 1마리 대신 음식 1 지불 (또는 -음식 아닌 +양과 교환 규칙 — 여기서는 기본판 룰: 소 받고 음식 1 내기)
-  // 실제 룰: 양+음식 OR 돼지 OR 소-음식 (2인 자원 시장)
+  // 룰: 양+음식1 받기 OR 멧돼지 받기 OR 소 받고 음식1 내기
   const costAndGain: Record<AnimalType, Partial<Record<string, number>>> = {
-    sheep:  { sheep:  1, food: -1 }, // 양: 음식 1 내고 양 1
-    boar:   { boar:   1 },           // 멧돼지: 무료
-    cattle: { cattle: 1, food: -1 }, // 소: 음식 1 내고 소 1
+    sheep:  { sheep:  1, food: +1 }, // 양: 양1 + 음식1 모두 받음
+    boar:   { boar:   1 },           // 멧돼지: 추가 없음
+    cattle: { cattle: 1, food: -1 }, // 소: 소1 받고 음식1 지불
   };
   const delta = costAndGain[animalType];
 
-  // 음식 부족 체크
+  // 소 선택 시 음식 부족 체크
   const foodChange = (delta.food ?? 0);
-  if (foodChange < 0 && (player.resources.food ?? 0) < Math.abs(foodChange)) {
-    throw new Error('음식 부족');
+  if (foodChange < 0 && player.resources.food < Math.abs(foodChange)) {
+    throw new Error('음식 부족 — 소를 받으려면 음식 1개가 필요합니다');
   }
 
   return addResources(state, playerId, delta);

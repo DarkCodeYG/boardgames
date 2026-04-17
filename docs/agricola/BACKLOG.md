@@ -125,6 +125,20 @@
 
 ---
 
+## 2026-04-17 (세션 7 — Phase 2 카드 시스템 + 코드리뷰 버그픽스)
+
+### 완료된 작업
+
+- [2026-04-17] **Phase 2 카드 시스템 완성** — card-engine.ts(playCard/canPlayCard/getOccupationPlayCost), CardHand.tsx, CardDetail.tsx, HarvestModal.tsx, GamePage.tsx 카드 플레이 연동 + HarvestModal 연동 완료
+- [2026-04-17] **A/B덱 카드 효과 전면 구현** — 직업 A24장·B23장, 소시설 A24장·B24장. 단순 IMMEDIATE 완전 구현, 복잡 효과 스텁+설명
+- [2026-04-17] **코드리뷰 에이전트 가동** — Critical 5건 분석, 실제 버그 3건 확인 후 즉시 수정
+- [2026-04-17] **HarvestModal 음식 계산 수정 (Critical)** — foodAfterField에 곡물/채소 포함 → food만 사용. feedFamily와 로직 일치. JSX 표시도 수정.
+- [2026-04-17] **HarvestModal 번식 예측 수정 (Critical)** — resources.sheep+pastures → pastures+animalsInHouse (breedAnimals와 동일 로직)
+- [2026-04-17] **canPlayCard 직업 음식 비용 추가 (Critical)** — 직업 플레이 시 음식 비용 미검증 → getOccupationPlayCost 결과로 사전 검증. 비용 부족 시 reason 포함 반환.
+- [2026-04-17] **빌드 통과** — npm run build exit 0, TypeScript 오류 0
+
+---
+
 ## 대기 중 (Phase 2 대상)
 
 ### 고우선순위

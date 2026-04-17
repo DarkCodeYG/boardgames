@@ -3,8 +3,11 @@
  * Phase 1 구현. v3: 바둑 방식 워커 배치 (가족 구성원 선택→행동칸 드롭)
  */
 
-import type { FarmBoard as FarmBoardType } from '../lib/types.js';
+import type { FarmBoard as FarmBoardType, AnimalType } from '../lib/types.js';
 import FarmCell, { type FamilyMemberState } from './FarmCell.js';
+
+const ANIMAL_ICON: Record<AnimalType, string> = { sheep: '🐑', boar: '🐷', cattle: '🐄' };
+const ANIMAL_NAME: Record<AnimalType, string> = { sheep: '양', boar: '멧돼지', cattle: '소' };
 
 interface FarmBoardProps {
   board: FarmBoardType;
@@ -19,6 +22,16 @@ interface FarmBoardProps {
   deployedCount?: number;
   /** 선택된 가족 구성원 셀 좌표 */
   selectedFamilyCell?: [number, number] | null;
+  /** 플레이어 색상 (토큰 색상 표시용) */
+  playerColor?: string;
+  /** 선택 중인 울타리 세그먼트 (미확정, 주황색 강조) */
+  pendingFenceSegments?: Array<{ type: 'h' | 'v'; row: number; col: number }>;
+  /** 가축 배치 모드: 배치할 동물 종류 */
+  animalPlacementType?: AnimalType | null;
+  /** 가축 배치 목장 선택 (목장 인덱스 또는 'house') */
+  onAnimalPlace?: (destination: number | 'house') => void;
+  /** 선플레이어 토큰 보유 여부 — 마커 표시 */
+  isStartingPlayer?: boolean;
 }
 
 const ROWS = 3;
@@ -48,6 +61,11 @@ export default function FarmBoard({
   familySize = 0,
   deployedCount = 0,
   selectedFamilyCell = null,
+  playerColor,
+  pendingFenceSegments = [],
+  animalPlacementType = null,
+  onAnimalPlace,
+  isStartingPlayer = false,
 }: FarmBoardProps) {
   // 방 셀에 가족 구성원 상태 부여
   // 읽기 순서로: 첫 deployedCount 방 → 'deployed', 나머지 → 'available'
@@ -86,18 +104,24 @@ export default function FarmBoard({
     return board.sownFields.find((f) => f.row === r && f.col === c);
   }
 
-  // 울타리 스타일
+  // 울타리 스타일 (새 좌표계: v[r][c] = c열 왼쪽 경계)
   function borderClasses(r: number, c: number): string {
     const borders: string[] = [];
-    if (r > 0 && board.fences.horizontal[r]?.[c]) borders.push('border-t-[3px] border-t-amber-800');
-    if (r < ROWS - 1 && board.fences.horizontal[r + 1]?.[c]) borders.push('border-b-[3px] border-b-amber-800');
-    if (c > 0 && board.fences.vertical[r]?.[c - 1]) borders.push('border-l-[3px] border-l-amber-800');
-    if (c < COLS - 1 && board.fences.vertical[r]?.[c]) borders.push('border-r-[3px] border-r-amber-800');
+    if (board.fences.horizontal[r]?.[c]) borders.push('border-t-[3px] border-t-amber-800');
+    if (board.fences.horizontal[r + 1]?.[c]) borders.push('border-b-[3px] border-b-amber-800');
+    if (board.fences.vertical[r]?.[c]) borders.push('border-l-[3px] border-l-amber-800');
+    if (board.fences.vertical[r]?.[c + 1]) borders.push('border-r-[3px] border-r-amber-800');
     return borders.join(' ');
   }
 
   return (
     <div className="p-2 bg-amber-950/20 rounded-lg border-4 border-amber-900 shadow-xl inline-block">
+      {isStartingPlayer && (
+        <div className="flex items-center gap-1 mb-1 px-1">
+          <span aria-hidden="true" className="text-sm">⭐</span>
+          <span className="text-xs font-bold text-yellow-700">선플레이어</span>
+        </div>
+      )}
       <div className="relative inline-block">
       {/* 메인 그리드 */}
       <div
@@ -131,6 +155,7 @@ export default function FarmBoard({
                   isSelected={isSelected}
                   hasStable={hasStable(r, c)}
                   familyMemberState={fmState}
+                  playerColor={playerColor}
                   onClick={handleClick}
                 />
               </div>
@@ -141,44 +166,107 @@ export default function FarmBoard({
 
       {/* 울타리 모드 오버레이 */}
       {fencingMode && (
-        <div className="absolute inset-0 pointer-events-none">
-          {/* 수평 울타리 버튼 */}
+        <div className="absolute inset-0 pointer-events-none overflow-visible">
+          {/* ── 수평 울타리 버튼 (r=0..3, 외벽 포함) ── */}
           {Array.from({ length: ROWS + 1 }, (_, r) =>
             Array.from({ length: COLS }, (_, c) => {
-              if (r === 0 || r === ROWS) return null;
-              const active = board.fences.horizontal[r]?.[c] ?? false;
+              const built   = board.fences.horizontal[r]?.[c] ?? false;
+              const pending = pendingFenceSegments.some((s) => s.type === 'h' && s.row === r && s.col === c);
               return (
                 <button
                   key={`h-${r}-${c}`}
                   aria-label={`수평 울타리 (${r},${c})`}
                   onClick={() => onFenceClick?.('horizontal', r, c)}
                   className={[
-                    'pointer-events-auto absolute w-14 h-2 -translate-y-1',
-                    active ? 'bg-amber-800 opacity-100' : 'bg-amber-400 opacity-30 hover:opacity-60',
+                    'pointer-events-auto absolute w-14 h-3 -translate-y-1.5 rounded-sm transition-all',
+                    built   ? 'bg-amber-800 opacity-100' :
+                    pending ? 'bg-orange-500 opacity-90 ring-1 ring-orange-300' :
+                              'bg-amber-400 opacity-40 hover:opacity-80 cursor-pointer',
                   ].join(' ')}
                   style={{ top: `${r * 3.5}rem`, left: `${c * 3.5}rem` }}
                 />
               );
             })
           )}
-          {/* 수직 울타리 버튼 */}
+          {/* ── 수직 울타리 버튼 (c=0..5, 외벽 포함; v[r][c] = c열 왼쪽) ── */}
           {Array.from({ length: ROWS }, (_, r) =>
-            Array.from({ length: COLS - 1 }, (_, c) => {
-              const active = board.fences.vertical[r]?.[c] ?? false;
+            Array.from({ length: COLS + 1 }, (_, c) => {
+              const built   = board.fences.vertical[r]?.[c] ?? false;
+              const pending = pendingFenceSegments.some((s) => s.type === 'v' && s.row === r && s.col === c);
               return (
                 <button
                   key={`v-${r}-${c}`}
                   aria-label={`수직 울타리 (${r},${c})`}
                   onClick={() => onFenceClick?.('vertical', r, c)}
                   className={[
-                    'pointer-events-auto absolute h-14 w-2 -translate-x-1',
-                    active ? 'bg-amber-800 opacity-100' : 'bg-amber-400 opacity-30 hover:opacity-60',
+                    'pointer-events-auto absolute h-14 w-3 -translate-x-1.5 rounded-sm transition-all',
+                    built   ? 'bg-amber-800 opacity-100' :
+                    pending ? 'bg-orange-500 opacity-90 ring-1 ring-orange-300' :
+                              'bg-amber-400 opacity-40 hover:opacity-80 cursor-pointer',
                   ].join(' ')}
-                  style={{ top: `${r * 3.5}rem`, left: `${(c + 1) * 3.5}rem` }}
+                  style={{ top: `${r * 3.5}rem`, left: `${c * 3.5}rem` }}
                 />
               );
             })
           )}
+        </div>
+      )}
+
+      {/* 가축 배치 모드 오버레이 */}
+      {animalPlacementType && onAnimalPlace && (
+        <div className="absolute inset-0 pointer-events-none">
+          {/* 목장별 배치 버튼 — 각 목장의 첫 번째 셀 위에 표시 */}
+          {board.pastures.map((pasture, idx) => {
+            const firstCell = pasture.cells[0];
+            if (!firstCell) return null;
+            const [pr, pc] = firstCell;
+            const wrongType = pasture.animals !== null && pasture.animals.type !== animalPlacementType;
+            const full      = (pasture.animals?.count ?? 0) >= pasture.capacity;
+            if (wrongType || full) return null;
+            const remaining = pasture.capacity - (pasture.animals?.count ?? 0);
+            return (
+              <button
+                key={`place-${idx}`}
+                aria-label={`목장 ${idx + 1}에 ${ANIMAL_NAME[animalPlacementType]} 배치`}
+                onClick={() => onAnimalPlace(idx)}
+                className="pointer-events-auto absolute flex flex-col items-center justify-center
+                  w-14 h-14 bg-green-500/70 hover:bg-green-400/80 border-2 border-green-300
+                  rounded text-xs font-bold text-white transition-all z-10"
+                style={{ top: `${pr * 3.5}rem`, left: `${pc * 3.5}rem` }}
+              >
+                <span>{ANIMAL_ICON[animalPlacementType]}</span>
+                <span className="text-[9px]">+{remaining}</span>
+              </button>
+            );
+          })}
+          {/* 집 배치 버튼 — 방이 있는 첫 번째 셀 */}
+          {(() => {
+            const houseTotal = board.animalsInHouse.reduce((s, a) => s + a.count, 0);
+            if (houseTotal >= 1) return null;
+            // 집 첫 번째 방 셀 찾기
+            for (let r = 0; r < ROWS; r++) {
+              for (let c = 0; c < COLS; c++) {
+                const cell = board.grid[r]?.[c];
+                if (cell === 'room_wood' || cell === 'room_clay' || cell === 'room_stone') {
+                  return (
+                    <button
+                      key="place-house"
+                      aria-label={`집에 ${ANIMAL_NAME[animalPlacementType]} 배치 (애완)`}
+                      onClick={() => onAnimalPlace('house')}
+                      className="pointer-events-auto absolute flex flex-col items-center justify-center
+                        w-14 h-14 bg-blue-500/70 hover:bg-blue-400/80 border-2 border-blue-300
+                        rounded text-xs font-bold text-white transition-all z-10"
+                      style={{ top: `${r * 3.5}rem`, left: `${c * 3.5}rem` }}
+                    >
+                      <span>{ANIMAL_ICON[animalPlacementType]}</span>
+                      <span className="text-[9px]">집 안</span>
+                    </button>
+                  );
+                }
+              }
+            }
+            return null;
+          })()}
         </div>
       )}
       </div>

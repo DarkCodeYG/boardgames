@@ -13,7 +13,9 @@ export const MAX_STAGES = 6;
 export const MAX_FAMILY_SIZE = 5;
 export const INITIAL_FAMILY_SIZE = 2;
 export const INITIAL_ROOMS = 2; // 나무 방 2칸에서 시작 (단, 초기 보드는 방1 + 빈칸1 배치)
-export const BEGGING_FOOD_PER_PERSON = 2; // 수확 시 가족 1인당 필요 음식
+export const BEGGING_FOOD_PER_PERSON = 2;  // 수확 시 가족 1인당 필요 음식
+export const BEGGING_FOOD_NEWBORN      = 1;  // 이번 라운드 태어난 신생아 필요 음식
+export const SOLO_FOOD_PER_PERSON      = 3;  // 1인 플레이 시 가족 1인당 필요 음식
 export const BEGGING_PENALTY = -3; // 구걸 토큰 1개당 VP
 
 // ── 라운드 / 스테이지 매핑 ───────────────────────────────────────

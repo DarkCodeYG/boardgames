@@ -37,7 +37,7 @@ const ko: Record<I18nKey, string> = {
   clay: '점토',
   stone: '돌',
   reed: '갈대',
-  grain: '밀',
+  grain: '곡식',
   vegetable: '채소',
   food: '음식',
   sheep: '양',

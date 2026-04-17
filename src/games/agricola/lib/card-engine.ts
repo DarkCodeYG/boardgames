@@ -3,7 +3,8 @@
  * Phase 2 구현 대상.
  */
 
-import type { GameState, PlayerId, TriggerType, Card, CardEffect } from './types.js';
+import type { GameState, PlayerId, TriggerType, Card, CardEffect, ResourceType } from './types.js';
+import { addResources } from './game-engine.js';
 
 // ── 트리거 발동 ──────────────────────────────────────────────────
 
@@ -76,10 +77,28 @@ export function playCard(
   return triggerEffects(newState, playerId, 'IMMEDIATE');
 }
 
-function payCardCost(state: GameState, _playerId: PlayerId, card: Card): GameState {
-  // Phase 2 TODO: 비용 검증 + 자원 차감
-  void card; // stub
-  return state;
+function payCardCost(state: GameState, playerId: PlayerId, card: Card): GameState {
+  const player = state.players[playerId];
+  if (!player) return state;
+
+  const playerCount = state.playerOrder.length;
+  const delta: Partial<Record<ResourceType, number>> = {};
+
+  if (card.type === 'occupation') {
+    const foodCost = getOccupationPlayCost(player, playerCount);
+    if (foodCost > 0) {
+      if ((player.resources.food ?? 0) < foodCost) throw new Error(`음식 부족 (직업 카드 비용: 음식 ${foodCost})`);
+      delta.food = -foodCost;
+    }
+  } else if (card.cost) {
+    for (const [res, amt] of Object.entries(card.cost)) {
+      const have = player.resources[res as ResourceType] ?? 0;
+      if (have < (amt ?? 0)) throw new Error(`자원 부족: ${res}`);
+      delta[res as ResourceType] = -(amt ?? 0);
+    }
+  }
+
+  return addResources(state, playerId, delta);
 }
 
 // ── 카드 비용 계산 ───────────────────────────────────────────────
@@ -111,11 +130,19 @@ export function canPlayCard(
     // TODO: parse and check prerequisites string
   }
 
-  // 비용 확인
+  // 직업 카드 플레이 비용 (음식)
+  if (card.type === 'occupation') {
+    const foodCost = getOccupationPlayCost(player, state.playerOrder.length);
+    if (foodCost > 0 && (player.resources.food ?? 0) < foodCost) {
+      return { ok: false, reason: `음식 부족 (직업 카드 비용: 음식 ${foodCost}개)` };
+    }
+  }
+
+  // 소시설 카드 자원 비용
   if (card.cost) {
     for (const [resource, amount] of Object.entries(card.cost)) {
       if ((player.resources[resource as keyof typeof player.resources] ?? 0) < (amount ?? 0)) {
-        return { ok: false, reason: `Insufficient ${resource}` };
+        return { ok: false, reason: `자원 부족: ${resource}` };
       }
     }
   }

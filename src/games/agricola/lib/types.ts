@@ -65,7 +65,9 @@ export type RoundPhase =
   | 'pending_build_stable'          // 외양간 건설 대기 (FARM_EXPANSION)
   | 'pending_animal_select'         // 가축 시장 동물 종 선택 대기
   | 'pending_animal_choice'         // 동물 배치 선택 대기
-  | 'pending_major_imp';            // 주요 설비 건설 선택 대기 (RC_MAJOR_IMP + MEETING_PLACE)
+  | 'pending_major_imp'             // 주요 설비 건설 선택 대기 (RC_MAJOR_IMP + MEETING_PLACE)
+  | 'pending_play_occupation'       // 직업 카드 선택 대기 (LESSONS)
+  | 'pending_play_minor_imp';       // 소시설 카드 선택 대기 (MEETING_PLACE, 선택 사항)
 
 export type HarvestPhase = 'field' | 'feeding' | 'breeding' | 'done';
 
@@ -87,14 +89,16 @@ export interface SownField {
 /**
  * 울타리 좌표계
  * horizontal[r][c] = true → r행 c열 셀의 위쪽 경계선 (4행×5열)
- *   r=0: 보드 상단 외벽 (암묵적 true)
- *   r=3: 보드 하단 외벽 (암묵적 true)
- * vertical[r][c] = true → r행 c열 셀의 오른쪽 경계선 (3행×4열)
- *   c=0 왼쪽 외벽 / c=4 오른쪽 외벽: 암묵적 true
+ *   r=0: 보드 상단 외벽 (명시 배치 필요)
+ *   r=3: 보드 하단 외벽 (명시 배치 필요)
+ * vertical[r][c] = true → c열의 왼쪽 경계선 (3행×6열)
+ *   c=0: 왼쪽 외벽 (명시 배치 필요)
+ *   c=1..4: 열 사이 내부 울타리
+ *   c=5: 오른쪽 외벽 (명시 배치 필요)
  */
 export interface FenceGrid {
   horizontal: boolean[][]; // [4][5]
-  vertical: boolean[][];   // [3][4]
+  vertical: boolean[][];   // [3][6]
 }
 
 /** 울타리로 둘러싸인 목장 (farm-engine이 자동 계산) */

@@ -33,12 +33,12 @@ const ACTION_INFO: Record<string, { desc: string; cost?: Partial<Resources> }> =
   CLAY_PIT:         { desc: '🧱(흙)×1 누적 획득' },
   REED_BANK:        { desc: '🌿(갈대)×1 누적 획득' },
   FISHING:          { desc: '🍖×1 누적 획득' },
-  GRAIN_SEEDS:      { desc: '🌾(밀 종자)×1 즉시 획득' },
-  FARMLAND:         { desc: '빈 셀 1칸 → 농지(밭)로 전환' },
+  GRAIN_SEEDS:      { desc: '🌾(곡식 종자)×1 즉시 획득' },
+  FARMLAND:         { desc: '밭 타일 1개를 농장 칸에 내려놓기' },
   LESSONS:          { desc: '직업 카드 1장 플레이 (첫 번째 무료)' },
   DAY_LABORER:      { desc: '🍖×2 즉시 획득 (음식 보조)' },
   FARM_EXPANSION:   { desc: '방 건설(재료5+갈대2) 또는 외양간(나무2)' },
-  MEETING_PLACE:    { desc: '선플레이어 토큰 획득 + 소시설 1장 플레이' },
+  MEETING_PLACE:    { desc: '시작 플레이어 되기 그리고/또는 보조 설비 1장 놓기' },
   // ─ 인원 확장 공간 ─
   EXT4_COPSE:       { desc: '🪵×1 누적 획득' },
   EXT4_GROVE:       { desc: '🪵×2 누적 획득' },
@@ -55,15 +55,15 @@ const ACTION_INFO: Record<string, { desc: string; cost?: Partial<Resources> }> =
   V2_MODEST_WISH:   { desc: '가족 늘리기 (5라운드 이후, 방 필요)' },
   V34_MODEST_WISH:  { desc: '가족 늘리기 (5라운드 이후, 방 필요)' },
   // ─ 라운드 카드 (실제 ID 기준) ─
-  RC_MAJOR_IMP:     { desc: '주요 설비(🏭) 또는 소시설 1장 건설' },
+  RC_MAJOR_IMP:     { desc: '주요 설비 또는 보조 설비 1장 건설' },
   RC_FENCING:       { desc: '목장 울타리 건설 (🪵 1개/칸)' },
-  RC_GRAIN_UTIL:    { desc: '씨 뿌리기 OR 빵 굽기 (선택)' },
-  RC_BASIC_WISH:    { desc: '가족 늘리기 (빈 방 필요)' },
-  RC_HOUSE_RENO:    { desc: '집 개조 (재료×방수 + 🌿×1) + 소시설 플레이 가능' },
+  RC_GRAIN_UTIL:    { desc: '씨 뿌리기 그리고/또는 빵 굽기' },
+  RC_BASIC_WISH:    { desc: '가족 늘리기 (빈 방 필요) + 보조 설비 1장 놓기' },
+  RC_HOUSE_RENO:    { desc: '집 개조 (재료×방수 + 🌿×1) 후 주요 또는 보조 설비 1장 놓기' },
   RC_VEG_SEEDS:     { desc: '🥕(채소 종자)×1 즉시 획득' },
   RC_URGENT_WISH:   { desc: '가족 늘리기 (방 없어도 가능)' },
-  RC_CULTIVATION:   { desc: '농지 1칸 갈기 + 씨 뿌리기' },
-  RC_FARM_RENO:     { desc: '집 개조 + 울타리 건설 (+ 소시설 플레이 가능)' },
+  RC_CULTIVATION:   { desc: '밭 1칸 갈기 + 씨 뿌리기' },
+  RC_FARM_RENO:     { desc: '집 개조 + 울타리 건설 그리고/또는 보조 설비 1장 놓기' },
   // 누적 카드(양/돼지/소/채석장)는 accumulatedResources 배지로 표시
 };
 
@@ -152,7 +152,13 @@ function ActionSpaceRow({
         {/* 누적 자원 배지 */}
         <span className="flex gap-1 text-xs text-amber-700 flex-1">
           {accEntries.map(([res, cnt]) => (
-            <span key={res} className="bg-amber-100 px-1 rounded">
+            <span
+              key={res}
+              className={[
+                'px-1 rounded border',
+                res === 'reed' ? 'bg-white border-stone-300' : 'bg-amber-100 border-transparent',
+              ].join(' ')}
+            >
               {RESOURCE_ICONS[res] ?? res} {cnt}
             </span>
           ))}
@@ -162,7 +168,6 @@ function ActionSpaceRow({
         {workerId && (
           <div className="flex items-center gap-1">
             <WorkerDot playerId={workerId} state={state} />
-            {isMine && <span className="text-[10px] text-amber-800 font-semibold">내 일꾼</span>}
           </div>
         )}
       </div>

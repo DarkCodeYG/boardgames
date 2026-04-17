@@ -11,11 +11,11 @@ const RESOURCE_ROWS: { key: string; icon: string; label: string; color: string }
     { key: 'wood',      icon: '🪵', label: '나무',   color: 'text-yellow-800' },
     { key: 'clay',      icon: '🧱', label: '흙',     color: 'text-orange-700' },
     { key: 'stone',     icon: '🪨', label: '돌',     color: 'text-gray-600' },
-    { key: 'reed',      icon: '🌿', label: '갈대',   color: 'text-green-700' },
+    { key: 'reed',      icon: '🌿', label: '갈대',   color: 'text-stone-500' },
   ],
   // 작물
   [
-    { key: 'grain',     icon: '🌾', label: '밀',     color: 'text-yellow-600' },
+    { key: 'grain',     icon: '🌾', label: '곡식',   color: 'text-yellow-600' },
     { key: 'vegetable', icon: '🥕', label: '채소',   color: 'text-orange-500' },
     { key: 'food',      icon: '🍖', label: '음식',   color: 'text-red-600' },
   ],
@@ -23,7 +23,7 @@ const RESOURCE_ROWS: { key: string; icon: string; label: string; color: string }
   [
     { key: 'sheep',     icon: '🐑', label: '양',     color: 'text-sky-600' },
     { key: 'boar',      icon: '🐷', label: '멧돼지', color: 'text-pink-700' },
-    { key: 'cattle',    icon: '🐄', label: '소',     color: 'text-brown-700' },
+    { key: 'cattle',    icon: '🐄', label: '소',     color: 'text-amber-800' },
   ],
 ];
 
@@ -54,7 +54,9 @@ export default function ResourcePanel({ player }: ResourcePanelProps) {
                 key={key}
                 className={[
                   'flex-1 flex flex-col items-center py-1 rounded',
-                  val > 0 ? 'bg-amber-200/60 border border-amber-400' : 'bg-stone-100/60 border border-stone-200 opacity-60',
+                  key === 'reed'
+                    ? val > 0 ? 'bg-white border-2 border-stone-300 shadow-sm' : 'bg-stone-50 border border-stone-200 opacity-60'
+                    : val > 0 ? 'bg-amber-200/60 border border-amber-400' : 'bg-stone-100/60 border border-stone-200 opacity-60',
                 ].join(' ')}
               >
                 <span aria-hidden="true" className="text-base leading-none">{icon}</span>

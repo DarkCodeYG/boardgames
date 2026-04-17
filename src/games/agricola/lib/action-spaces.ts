@@ -87,8 +87,8 @@ const permanentSpaces: ActionSpace[] = [
     nameEn: 'Lessons',
     type: 'permanent',
     workerSlots: 1,
-    // Phase 2에서 카드 플레이 연동 — Phase 1: 음식1 비용(첫 직업 무료는 Phase 2)
-    effect: (state: GameState, _playerId: PlayerId) => state,
+    // 직업 카드 1장 플레이 (첫 번째 무료, 이후 음식 1)
+    effect: (state: GameState, _playerId: PlayerId) => ({ ...state, roundPhase: 'pending_play_occupation' as const }),
   },
   {
     id: 'DAY_LABORER',
@@ -113,11 +113,12 @@ const permanentSpaces: ActionSpace[] = [
     nameEn: 'Meeting Place',
     type: 'permanent',
     workerSlots: 1,
-    // 선플레이어 토큰 획득 (의무) + 이후 소시설 플레이 가능
+    // 선플레이어 토큰 획득 (의무) + 소시설 1장 무료 플레이 가능 (선택)
     effect: (state: GameState, playerId: PlayerId) => ({
       ...state,
       startingPlayerToken: playerId,
       firstPlayerIndex: state.playerOrder.indexOf(playerId),
+      roundPhase: 'pending_play_minor_imp' as const,
     }),
   },
 ];
@@ -172,8 +173,8 @@ const ext4Spaces: ActionSpace[] = [
     type: 'permanent',
     minPlayers: 4,
     workerSlots: 1,
-    // Phase 1 TODO: 직업 카드 플레이 (음식 2개, 첫 2장은 1개씩)
-    effect: (state: GameState, _playerId: PlayerId) => state,
+    // 직업 카드 1장 플레이 (음식 2개 비용, 첫 2장은 1개씩)
+    effect: (state: GameState, _playerId: PlayerId) => ({ ...state, roundPhase: 'pending_play_occupation' as const }),
   },
   {
     id: 'EXT4_TRAVEL',
@@ -196,7 +197,8 @@ const ext3Spaces: ActionSpace[] = [
     type: 'permanent',
     minPlayers: 3,
     workerSlots: 1,
-    effect: (state: GameState, _playerId: PlayerId) => state,
+    // 직업 카드 1장 플레이 (음식 1개 비용)
+    effect: (state: GameState, _playerId: PlayerId) => ({ ...state, roundPhase: 'pending_play_occupation' as const }),
   },
 ];
 
