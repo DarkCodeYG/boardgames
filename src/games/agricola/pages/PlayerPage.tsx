@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { joinRoom, subscribeRoom, updateLobbyPlayer, submitAction } from '../lib/firebase-room.js';
 import { canPlayerAct } from '../lib/action-dispatcher.js';
 import { findAnimalSources, hasCookingFacility, type AnimalSource } from '../lib/game-engine.js';
+import { hasAnimalPlacement } from '../lib/farm-engine.js';
 import type {
   RoomSnapshot, PlayerId, LobbyPlayer, AnimalType,
 } from '../lib/types.js';
@@ -39,6 +40,32 @@ export default function PlayerPage() {
   const [animalRemovalMode, setAnimalRemovalMode] = useState<boolean>(false);
   const [overflowChoice, setOverflowChoice] = useState<AnimalType | null>(null);
   const [showCookingModal, setShowCookingModal] = useState<boolean>(false);
+
+  // 동물이 resources 에 있는데 아직 배치 안 했으면 pendingAnimalPlacement 자동 설정
+  // 또한 배치 공간 없으면 overflow 모달 자동 오픈
+  useEffect(() => {
+    if (!myPid || !snapshot?.gameState) return;
+    const me = snapshot.gameState.players[myPid];
+    if (!me) return;
+    // 게임 상태가 work 여도 resources 에 동물이 있다면 배치 대기 상태
+    const animalInHand = (['sheep', 'boar', 'cattle'] as AnimalType[]).find(
+      (t) => (me.resources[t] ?? 0) > 0,
+    );
+    const isMyTurnNow = snapshot.gameState.playerOrder[snapshot.gameState.currentPlayerIndex] === myPid;
+    if (!isMyTurnNow) return;
+    if (animalInHand && !pendingAnimalPlacement && !animalRemovalMode && !overflowChoice) {
+      if (!hasAnimalPlacement(me.farm, animalInHand)) {
+        // 배치 공간 없음 → 오버플로우 모달 자동 오픈
+        setOverflowChoice(animalInHand);
+      } else {
+        setPendingAnimalPlacement(animalInHand);
+      }
+    }
+    // 반대: resources 가 비었는데 로컬 placement 남아있으면 해제
+    if (!animalInHand && pendingAnimalPlacement && !animalRemovalMode) {
+      setPendingAnimalPlacement(null);
+    }
+  }, [snapshot, myPid, pendingAnimalPlacement, animalRemovalMode, overflowChoice]);
 
   // URL 에서 room 파라미터 추출 + sessionStorage 재접속 시도
   useEffect(() => {
@@ -290,8 +317,12 @@ export default function PlayerPage() {
       submit('cook_animal', { source });
     };
 
-    // animal_select 반영: gs.roundPhase 가 pending_animal_choice 로 오면 UI 가 안내
-    // (실제 동물 선택 버튼은 Cycle 4.3 에서 — 현재는 일단 표기만)
+    // 동물 종 선택 (pending_animal_select 단계)
+    const handleAnimalTypeSelect = (animalType: AnimalType) => {
+      // 로컬에 pendingAnimalPlacement 설정 (배치 오버레이 즉시 노출용)
+      setPendingAnimalPlacement(animalType);
+      submit('animal_select', { animalType });
+    };
     return (
       <div className="min-h-screen bg-amber-50 p-3">
         <div className="max-w-md mx-auto space-y-3">
@@ -310,8 +341,85 @@ export default function PlayerPage() {
             </span>
           </div>
 
+          {/* 수확 진행 배너 — 내 차례일 때 빵 굽기 옵션 */}
+          {gs?.phase === 'harvest' && gs.harvestPlayerIndex != null && (
+            (() => {
+              const hPid = gs.playerOrder[gs.harvestPlayerIndex];
+              if (hPid !== myPid) {
+                const hName = hPid ? gs.players[hPid]?.name : '-';
+                return (
+                  <div className="px-3 py-2 bg-orange-50 border-2 border-orange-400 rounded-lg text-xs text-orange-900">
+                    🌾 수확 중 — 현재 {hName} 차례
+                  </div>
+                );
+              }
+              // 내 수확 차례
+              const baking = gs.majorImprovements.filter(
+                (m) => m.ownerId === myPid &&
+                  (m.id === 'MAJ_FIREPLACE_2' || m.id === 'MAJ_FIREPLACE_3' ||
+                   m.id === 'MAJ_COOKING_HEARTH_4' || m.id === 'MAJ_COOKING_HEARTH_5'),
+              );
+              const myFood = mePlayer?.resources.food ?? 0;
+              const myGrain = mePlayer?.resources.grain ?? 0;
+              const needFood = (mePlayer?.familySize ?? 0) * 2;
+              return (
+                <div className="px-3 py-2 bg-orange-50 border-2 border-orange-500 rounded-lg space-y-2">
+                  <p className="text-xs font-bold text-orange-900">🌾 내 수확 차례</p>
+                  <p className="text-[11px] text-orange-800">
+                    식량 {myFood} / 필요 {needFood} · 곡식 {myGrain}
+                  </p>
+                  {baking.length > 0 && myGrain > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {baking.map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => submit('bake_bread', { improvementId: m.id })}
+                          className="text-[11px] px-2 py-1 bg-orange-200 border border-orange-400 rounded hover:bg-orange-300"
+                        >
+                          🍞 빵 굽기 ({m.nameKo})
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-orange-700">
+                    빵 구우면 곡식 1 → 음식 {baking[0]?.id.includes('HEARTH') ? '3' : '2'}.
+                    호스트가 "수확 확정" 누르면 식량 공급 + 번식 자동 처리.
+                  </p>
+                </div>
+              );
+            })()
+          )}
+
+          {/* 가축 시장 — 동물 종 선택 */}
+          {isMyTurn && rp === 'pending_animal_select' && (
+            <div className="px-3 py-2 bg-sky-50 border-2 border-sky-400 rounded-lg">
+              <p className="text-xs font-semibold text-sky-900 mb-2">🐾 가축 시장 — 동물 선택</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => handleAnimalTypeSelect('sheep')}
+                  className="py-2 bg-sky-100 border border-sky-400 rounded text-xs font-medium hover:bg-sky-200"
+                >
+                  🐑 양<br /><span className="text-[10px]">+음식 1</span>
+                </button>
+                <button
+                  onClick={() => handleAnimalTypeSelect('boar')}
+                  className="py-2 bg-pink-100 border border-pink-400 rounded text-xs font-medium hover:bg-pink-200"
+                >
+                  🐷 멧돼지
+                </button>
+                <button
+                  onClick={() => handleAnimalTypeSelect('cattle')}
+                  disabled={(mePlayer?.resources.food ?? 0) < 1}
+                  className="py-2 bg-amber-100 border border-amber-400 rounded text-xs font-medium hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  🐄 소<br /><span className="text-[10px]">-음식 1</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* pending 단계 안내 배너 */}
-          {isMyTurn && rp && rp !== 'work' && (
+          {isMyTurn && rp && rp !== 'work' && rp !== 'pending_animal_select' && (
             <div className="px-3 py-2 bg-amber-50 border-2 border-amber-500 rounded-lg text-xs text-amber-800">
               <strong>단계:</strong> {rp}
               {rp === 'pending_plow' && ' — 농장에서 밭 놓을 셀 선택'}

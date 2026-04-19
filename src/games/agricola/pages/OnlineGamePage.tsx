@@ -241,7 +241,26 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
                 <p className="font-bold text-amber-800">{currentPlayer?.name ?? '-'}</p>
               </div>
               {(() => {
-                // 모든 플레이어 워커 배치 완료 여부
+                // 수확 진행 중: harvest_confirm 버튼
+                if (gs.phase === 'harvest' && gs.harvestPlayerIndex != null) {
+                  const hPid = gs.playerOrder[gs.harvestPlayerIndex];
+                  const hPlayer = hPid ? gs.players[hPid] : undefined;
+                  return (
+                    <button
+                      onClick={() => {
+                        submitAction(roomCode, {
+                          playerId: hPid ?? '',
+                          kind: 'harvest_confirm',
+                          payload: {},
+                        }).catch((e) => alert(`수확 실패: ${(e as Error).message}`));
+                      }}
+                      className="px-4 py-2 text-sm bg-orange-600 text-white rounded font-medium hover:bg-orange-700"
+                    >
+                      🌾 수확 확정 ({hPlayer?.name ?? '-'}) →
+                    </button>
+                  );
+                }
+                // 모든 플레이어 워커 배치 완료 → 라운드 종료
                 const allDone = gs.playerOrder.every((pid) => {
                   const p = gs.players[pid];
                   return p && countPlacedWorkers(gs, pid) >= p.familySize;

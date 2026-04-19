@@ -177,18 +177,38 @@ export function dispatchAction(
     }
 
     case 'harvest_confirm': {
-      const pid = action.playerId;
+      // 호스트 주도: 현재 harvestPlayerIndex 에 해당하는 플레이어의
+      // 식량 공급 + 번식 처리 후 다음 인덱스로
+      if (state.harvestPlayerIndex == null) throw new Error('수확 진행 중이 아닙니다');
+      const idx = state.harvestPlayerIndex;
+      const pid = state.playerOrder[idx];
+      if (!pid) throw new Error('수확 대상 플레이어를 찾을 수 없습니다');
       let s = feedFamilyForPlayer(state, pid);
       s = breedAnimalsForPlayer(s, pid);
+      const nextIdx = idx + 1;
+      if (nextIdx < state.playerOrder.length) {
+        return { nextState: { ...s, harvestPlayerIndex: nextIdx } };
+      }
+      // 모든 플레이어 수확 완료 → 워커 회수 + 다음 라운드 또는 게임오버
+      s = returnWorkers(s);
+      s = { ...s, currentPlayerIndex: s.firstPlayerIndex, harvestPlayerIndex: null, phase: 'playing' };
+      if (state.round >= 14) {
+        return { nextState: { ...s, phase: 'gameover' } };
+      }
+      s = startRound(s);
+      s = replenishActionSpaces(s);
       return { nextState: s };
     }
 
     case 'end_round': {
       // 모든 플레이어 워커 배치 끝 → 수확 처리 or 다음 라운드
       if (isHarvestRound(state.round)) {
-        // 수확은 호스트 UI 에서 단계별 진행 — 우선 밭 수확만
+        // 수확: 밭 수확 → 플레이어별 식량/번식 진행 시작
         const s = harvestFields(state);
-        return { nextState: s, notes: ['harvest_started'] };
+        return {
+          nextState: { ...s, phase: 'harvest', harvestPlayerIndex: 0 },
+          notes: ['harvest_started'],
+        };
       }
       // 비수확 라운드 — 워커 회수 + 다음 라운드 시작
       let s = returnWorkers(state);

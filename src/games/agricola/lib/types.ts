@@ -247,6 +247,8 @@ export interface GameState {
   stage: number;          // 1-6
   roundPhase: RoundPhase;
   harvestPhase?: HarvestPhase;
+  /** 수확 중 현재 처리 대상 플레이어 인덱스. 비수확 중엔 null */
+  harvestPlayerIndex?: number | null;
   currentPlayerIndex: number;
   firstPlayerIndex: number;
   playerOrder: PlayerId[];

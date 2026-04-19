@@ -6,6 +6,38 @@
 
 ---
 
+## Cycle 4.3 — 가축 시장 & 수확 플로우 ✅ 완료
+
+**시작/완료**: 2026-04-19
+**목표**: 동물 종 선택, 자동 배치 오버레이 트리거, 수확 단계 UI
+
+**산출물**:
+
+### 가축 시장 (동물 선택 + 자동 배치)
+- PlayerPage: `pending_animal_select` 단계에서 양/멧돼지/소 3-버튼 (식량 조건부 활성)
+- 선택 시 로컬 `pendingAnimalPlacement` 즉시 설정 + `animal_select` submit
+- useEffect 자동 감지: resources 에 동물 있고 `hasAnimalPlacement=false` → `overflowChoice` 자동 오픈
+- resources 비면 `pendingAnimalPlacement` 자동 해제
+
+### 수확 플로우
+- `types.ts` GameState 에 `harvestPlayerIndex?: number | null` 추가
+- `action-dispatcher`:
+  - `end_round` 수확 라운드 → phase='harvest', harvestPlayerIndex=0, harvestFields
+  - `harvest_confirm` → feedFamily + breedAnimals + index 증가, 끝이면 returnWorkers + startRound + replenishActionSpaces, 14라운드면 phase='gameover'
+- OnlineGamePage 헤더: phase='harvest' 이면 "🌾 수확 확정 ({플레이어}) →" 버튼 노출
+- PlayerPage 수확 배너:
+  - 내 차례 아니면 "현재 {누구} 차례" 안내
+  - 내 차례면 식량/필요/곡식 표시 + 보유한 화로/화덕별 "빵 굽기" 버튼 (곡식 있을 때)
+
+**검증**: `npm run build` ✅ gzip 291KB
+
+**남은 Cycle 4.4**:
+- 대시설(주요설비) 건설 선택 UI — `pending_major_imp` 단계
+- 직업/소시설 카드 플레이 UI — `pending_play_occupation`, `pending_play_minor_imp` (Phase 2 카드 시스템과 함께)
+- 호스트의 라운드 경과 애니메이션/사운드 (Nice-to-have)
+
+---
+
 ## Cycle 4.2 — 플레이어 상호작용 wiring ✅ 완료
 
 **시작/완료**: 2026-04-19
