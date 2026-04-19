@@ -8,6 +8,7 @@ import { createGameState } from '../lib/game-engine.js';
 
 interface HomePageProps {
   onStartGame: () => void;
+  onStartOnline?: () => void;
 }
 
 type PlayerColor = 'red' | 'blue' | 'green' | 'yellow';
@@ -19,7 +20,7 @@ const COLOR_OPTIONS: Array<{ id: PlayerColor; label: string; dot: string; bg: st
   { id: 'yellow', label: '노랑', dot: 'bg-yellow-400', bg: 'bg-yellow-100', ring: 'ring-yellow-400' },
 ];
 
-export default function HomePage({ onStartGame }: HomePageProps) {
+export default function HomePage({ onStartGame, onStartOnline }: HomePageProps) {
   const { playerCount, setPlayerCount, setGameState } = useAgricolaStore();
   const [names, setNames] = useState<string[]>(['플레이어 1', '플레이어 2', '플레이어 3', '플레이어 4']);
   const [colors, setColors] = useState<PlayerColor[]>(['red', 'blue', 'green', 'yellow']);
@@ -118,10 +119,19 @@ export default function HomePage({ onStartGame }: HomePageProps) {
           onClick={handleStart}
           className="w-full py-3 bg-amber-600 text-white rounded-xl font-medium text-lg hover:bg-amber-700 transition-colors duration-150"
         >
-          게임 시작
+          오프라인 시작 (단일 디바이스)
         </button>
 
-        <p className="text-center text-xs text-gray-400 mt-4">Phase 1 — 카드 없는 기본 게임</p>
+        {onStartOnline && (
+          <button
+            onClick={onStartOnline}
+            className="w-full mt-2 py-3 bg-white border-2 border-amber-600 text-amber-700 rounded-xl font-medium text-lg hover:bg-amber-50 transition-colors duration-150"
+          >
+            📱 온라인 시작 (아이패드 + 폰 QR)
+          </button>
+        )}
+
+        <p className="text-center text-xs text-gray-400 mt-4">Phase B — 호스트/클라이언트 구조 개발 중</p>
       </div>
     </div>
   );

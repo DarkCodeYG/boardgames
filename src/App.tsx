@@ -25,6 +25,8 @@ import DavinciGame from './games/davinci/pages/GamePage';
 import DavinciPlayer from './games/davinci/pages/PlayerPage';
 import AgricolaHome from './games/agricola/pages/HomePage';
 import AgricolaGame from './games/agricola/pages/GamePage';
+import AgricolaOnlineGame from './games/agricola/pages/OnlineGamePage';
+import AgricolaPlayer from './games/agricola/pages/PlayerPage';
 import { createGameState, startRound, replenishActionSpaces } from './games/agricola/lib/game-engine';
 import { useAgricolaStore } from './games/agricola/store/game-store';
 
@@ -38,7 +40,7 @@ type Page =
   | 'gomoku-home' | 'gomoku-game'
   | 'go-home' | 'go-game'
   | 'davinci-home' | 'davinci-game' | 'davinci-player'
-  | 'agricola-home' | 'agricola-game';
+  | 'agricola-home' | 'agricola-game' | 'agricola-online' | 'agricola-player';
 
 function App() {
   const [page, setPage] = useState<Page>('home');
@@ -58,10 +60,19 @@ function App() {
       setPage('set-player');
     } else if (game === 'davinci' && params.get('room')) {
       setPage('davinci-player');
+    } else if (game === 'agricola' && params.get('room')) {
+      // 클라이언트 진입: QR 스캔 or 방 코드 URL
+      setPage('agricola-player');
+    } else if (game === 'agricola-online') {
+      // 호스트 진입 (아이패드)
+      setPage('agricola-online');
+    } else if (game === 'agricola-local') {
+      // 오프라인 모드 (단일 디바이스, pass-and-play)
+      setPage('agricola-home');
     } else if (game === 'agricola') {
       setPage('agricola-home');
     } else if (game === 'agricola-game') {
-      // 테스트용: 1라운드 work 상태로 바로 진입
+      // 테스트용: 1라운드 work 상태로 바로 진입 (오프라인)
       let s = createGameState({ playerCount: 2, playerNames: ['플레이어 1', '플레이어 2'], deck: 'AB' });
       s = startRound(s);
       s = replenishActionSpaces(s);
@@ -125,8 +136,17 @@ function App() {
       return <DavinciHome onStartGame={() => setPage('davinci-game')} onBack={() => setPage('home')} />;
     case 'agricola-game':
       return <AgricolaGame onExit={() => setPage('home')} />;
+    case 'agricola-online':
+      return <AgricolaOnlineGame onGoHome={() => setPage('home')} />;
+    case 'agricola-player':
+      return <AgricolaPlayer />;
     case 'agricola-home':
-      return <AgricolaHome onStartGame={() => setPage('agricola-game')} />;
+      return (
+        <AgricolaHome
+          onStartGame={() => setPage('agricola-game')}
+          onStartOnline={() => setPage('agricola-online')}
+        />
+      );
     default:
       return (
         <Home onSelectGame={(id) => {

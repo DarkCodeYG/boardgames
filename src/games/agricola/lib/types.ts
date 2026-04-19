@@ -338,3 +338,74 @@ export interface CreateGameConfig {
   seed?: number;
   deck: 'AB';
 }
+
+// ── Phase B: 온라인 (호스트/클라이언트) ──────────────────────────────
+
+/** 로비 중 참가자 정보 (게임 시작 전) */
+export interface LobbyPlayer {
+  pid: PlayerId;              // Firebase push key
+  name: string;
+  color: 'red' | 'blue' | 'green' | 'yellow';
+  ready: boolean;
+  joinedAt: number;           // serverTimestamp
+  connected: boolean;         // onDisconnect 기반
+}
+
+/** 방 메타데이터 */
+export interface RoomMeta {
+  game: 'agricola';
+  createdAt: number;
+  phase: 'lobby' | 'playing' | 'ended';
+  hostSessionId: string;      // 호스트 고유 세션 식별자
+  hostConnected: boolean;
+  desiredPlayerCount: 2 | 3 | 4;
+  lang: Lang;
+}
+
+/** 손패 격리 영역 (privateHands/{pid}) */
+export interface PrivateHand {
+  occupations: Card[];
+  minorImprovements: Card[];
+}
+
+/** 클라이언트 → 호스트 액션 요청 종류 */
+export type ActionKind =
+  | 'place_worker'          // 행동 공간에 워커 배치
+  | 'pending_confirm'       // pending_* 확정 버튼
+  | 'cell_click'            // 농장 셀 클릭 (plow/sow/build/renovate 대상)
+  | 'family_member_click'   // 가족 구성원 선택 (배치할 워커)
+  | 'fence_click'           // 울타리 세그먼트 토글
+  | 'place_animal'          // 동물 배치 (pasture index 또는 'house')
+  | 'remove_animal'         // 동물 교체용 제거
+  | 'cancel_replace'        // 교체 취소 (새 동물 버림)
+  | 'overflow_replace'      // 오버플로우 → 교체 진입
+  | 'overflow_cook'         // 오버플로우 → 요리
+  | 'overflow_discard'      // 오버플로우 → 버림
+  | 'cook_animal'           // 언제든 요리
+  | 'play_card'             // 직업/소시설 플레이
+  | 'bake_bread'            // 빵 굽기 (수확 중)
+  | 'build_major'           // 대시설 건설 선택
+  | 'animal_select'         // 가축 시장 종 선택
+  | 'end_round'             // 라운드 종료 (호스트 전용)
+  | 'harvest_confirm';      // 수확 1인 확정 (호스트 전용)
+
+/** 액션 큐 아이템 */
+export interface ActionQueueItem {
+  id?: string;              // push key (RTDB 에서 자동)
+  playerId: PlayerId;
+  kind: ActionKind;
+  payload: Record<string, unknown>;
+  status: 'pending' | 'applied' | 'rejected';
+  reason?: string;          // rejected 시 사유
+  createdAt: number;
+  appliedAt?: number;
+}
+
+/** 방 전체 스냅샷 (subscribeRoom 이 받는 구조) */
+export interface RoomSnapshot {
+  meta: RoomMeta;
+  lobby: Record<PlayerId, LobbyPlayer>;
+  gameState: GameState | null;
+  privateHands?: Record<PlayerId, PrivateHand>;
+  actions?: Record<string, ActionQueueItem>;
+}
