@@ -21,7 +21,7 @@ interface FarmCellProps {
   pasture?: Pasture;
   isSelected?: boolean;
   hasStable?: boolean;
-  /** 가족 구성원 상태 (바둑 방식 워커 배치) */
+  /** 가족 구성원 상태 (바둑 방식 가족 말 배치) */
   familyMemberState?: FamilyMemberState;
   /** 플레이어 색상 (red/blue/green/yellow) */
   playerColor?: string;

@@ -1,6 +1,6 @@
 /**
  * 농장 보드 컴포넌트 — 3×5 그리드 + 울타리 오버레이
- * Phase 1 구현. v3: 바둑 방식 워커 배치 (가족 구성원 선택→행동칸 드롭)
+ * Phase 1 구현. v3: 바둑 방식 가족 말 배치 (가족 구성원 선택→행동칸 드롭)
  */
 
 import type { FarmBoard as FarmBoardType, AnimalType } from '../lib/types.js';
@@ -18,7 +18,7 @@ interface FarmBoardProps {
   selectedCell?: [number, number] | null;
   /** 가족 구성원 수 */
   familySize?: number;
-  /** 이미 배치된 워커 수 (deployed 상태 계산용) */
+  /** 이미 배치된 가족 말 수 (deployed 상태 계산용) */
   deployedCount?: number;
   /** 선택된 가족 구성원 셀 좌표 */
   selectedFamilyCell?: [number, number] | null;

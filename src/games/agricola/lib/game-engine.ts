@@ -1,6 +1,6 @@
 /**
  * 아그리콜라 게임 엔진 — 핵심 게임 흐름
- * 워커 배치, 라운드 진행, 수확, 자원 보충
+ * 가족 말 배치, 라운드 진행, 수확, 자원 보충
  * Phase 1 구현 대상.
  *
  * 규칙: 순수 함수만. GameState → GameState.
@@ -135,12 +135,26 @@ export function startRound(state: GameState): GameState {
   const stageCards = state.pendingRoundCards[nextStage - 1] ?? [];
   const [newCard, ...remaining] = stageCards;
 
-  // Phase 1 TODO: 전체 라운드 시작 로직
+  // 우물 효과: wellFoodRemaining > 0 플레이어에게 음식 1, 카운터 감소
+  const players = Object.fromEntries(
+    Object.entries(state.players).map(([pid, p]) => {
+      if ((p.wellFoodRemaining ?? 0) > 0) {
+        return [pid, {
+          ...p,
+          resources: { ...p.resources, food: p.resources.food + 1 },
+          wellFoodRemaining: (p.wellFoodRemaining ?? 0) - 1,
+        }];
+      }
+      return [pid, p];
+    }),
+  );
+
   return {
     ...state,
     round: nextRound,
     stage: nextStage,
     roundPhase: 'replenish',
+    players,
     pendingRoundCards: state.pendingRoundCards.map((cards, i) =>
       i === nextStage - 1 ? remaining : cards
     ),
@@ -163,7 +177,7 @@ export function replenishActionSpaces(state: GameState): GameState {
   const actionSpaces = { ...state.actionSpaces };
 
   for (const [id, spaceState] of Object.entries(actionSpaces)) {
-    if (spaceState.workerId !== null) continue; // 워커 있으면 보충 없음
+    if (spaceState.workerId !== null) continue; // 가족 말 있으면 보충 없음
     const { accumulates } = spaceState.space;
     if (!accumulates || accumulates.length === 0) continue;
 
@@ -174,11 +188,24 @@ export function replenishActionSpaces(state: GameState): GameState {
     actionSpaces[id] = { ...spaceState, accumulatedResources: newResources };
   }
 
-  return { ...state, actionSpaces, roundPhase: 'work' };
+  // 공개된 라운드 카드도 매 라운드 누적 보충
+  // (양/돼지/소/돌 시장 등 누적형 라운드 카드)
+  const revealedRoundCards = state.revealedRoundCards.map((rc) => {
+    if (rc.workerId !== null) return rc; // 가족 말 있으면 보충 없음
+    const { accumulates } = rc.space;
+    if (!accumulates || accumulates.length === 0) return rc;
+    const newResources = { ...rc.accumulatedResources };
+    for (const acc of accumulates) {
+      newResources[acc.resource] = (newResources[acc.resource] ?? 0) + acc.amount;
+    }
+    return { ...rc, accumulatedResources: newResources };
+  });
+
+  return { ...state, actionSpaces, revealedRoundCards, roundPhase: 'work' };
 }
 
-/** 워커 배치 */
-/** 특정 플레이어가 이번 라운드에 배치한 워커 수 */
+/** 가족 말 배치 */
+/** 특정 플레이어가 이번 라운드에 배치한 가족 말 수 */
 export function countPlacedWorkers(state: GameState, pid: PlayerId): number {
   return (
     Object.values(state.actionSpaces).filter((s) => s.workerId === pid).length +
@@ -186,7 +213,7 @@ export function countPlacedWorkers(state: GameState, pid: PlayerId): number {
   );
 }
 
-/** 워커가 남은 다음 플레이어로 인덱스 이동 */
+/** 가족 말이 남은 다음 플레이어로 인덱스 이동 */
 export function advanceToNextPlayer(state: GameState): GameState {
   const n = state.playerOrder.length;
   for (let i = 1; i <= n; i++) {
@@ -219,7 +246,7 @@ export function placeWorker(
   // 행동 효과 적용
   let newState = spaceState.space.effect(state, playerId);
 
-  // 워커 배치 표시 — 영구 공간 또는 라운드 카드 모두 처리
+  // 가족 말 배치 표시 — 영구 공간 또는 라운드 카드 모두 처리
   if (actionSpaceId in newState.actionSpaces) {
     const cur = newState.actionSpaces[actionSpaceId]!;
     newState = {
@@ -245,7 +272,7 @@ export function placeWorker(
   return addLog(newState, { round: newState.round, playerId, action: 'place_worker', detail: actionSpaceId, timestamp: Date.now() });
 }
 
-/** 모든 워커 회수 */
+/** 모든 가족 말 회수 */
 export function returnWorkers(state: GameState): GameState {
   const actionSpaces = Object.fromEntries(
     Object.entries(state.actionSpaces).map(([id, s]) => [

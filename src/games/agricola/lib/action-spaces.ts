@@ -184,7 +184,7 @@ const ext4Spaces: ActionSpace[] = [
     minPlayers: 4,
     workerSlots: 1,
     accumulates: [{ resource: 'food', amount: 1 }],
-    // Phase 1 TODO: 이번 라운드 워커 추가 가능 효과
+    // Phase 1 TODO: 이번 라운드 가족 말 추가 가능 효과
     effect: (state: GameState, playerId: PlayerId) => takeAccumulated(state, playerId, 'EXT4_TRAVEL'),
   },
 ];

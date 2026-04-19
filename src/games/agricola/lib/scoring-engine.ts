@@ -17,7 +17,7 @@ import {
   SCORE_FAMILY_PER_PERSON,
   BEGGING_PENALTY,
 } from './constants.js';
-import { countFields, countEmptySpaces } from './farm-engine.js';
+import { countFields, countEmptySpaces, isPastureFullyFenced } from './farm-engine.js';
 
 // ── 카테고리별 점수 함수 ─────────────────────────────────────────
 
@@ -27,7 +27,8 @@ function scoreFields(board: FarmBoard): number {
 }
 
 function scorePastures(board: FarmBoard): number {
-  const count = board.pastures.length;
+  // 룰: 완전히 울타리로 닫힌 목장만 점수화
+  const count = board.pastures.filter((p) => isPastureFullyFenced(p.cells, board.fences)).length;
   return SCORE_TABLE_PASTURES[Math.min(count, SCORE_TABLE_PASTURES.length - 1)] ?? -1;
 }
 
@@ -65,7 +66,13 @@ function scoreEmptySpaces(board: FarmBoard): number {
 }
 
 function scoreFencedStables(board: FarmBoard): number {
-  return board.pastures.filter((p) => p.hasStable).length;
+  // 룰: 완전히 울타리로 닫힌 목장의 외양간만 VP (목장당 1점, 모든 외양간 아님)
+  // 정확히는 "울타리로 둘러싸인 외양간 개수" — 닫힌 목장 내부의 stable 셀 수 합
+  return board.pastures
+    .filter((p) => isPastureFullyFenced(p.cells, board.fences))
+    .reduce((sum, p) => sum + p.cells.filter(([r, c]) =>
+      board.stables.some(([sr, sc]) => sr === r && sc === c),
+    ).length, 0);
 }
 
 function scoreRooms(board: FarmBoard): number {

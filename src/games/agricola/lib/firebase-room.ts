@@ -173,6 +173,8 @@ export async function updateLobbyPlayer(
 
 // ── 호스트: 게임 시작 (gameState write) ────────────────────────────
 
+import { dehydrateGameState } from './state-serializer.js';
+
 export async function startGame(
   code: string,
   gameState: GameState,
@@ -180,7 +182,7 @@ export async function startGame(
 ): Promise<void> {
   await update(roomRef(code), {
     'meta/phase': 'playing',
-    gameState,
+    gameState: dehydrateGameState(gameState),
     privateHands,
   });
 }
@@ -188,7 +190,7 @@ export async function startGame(
 // ── 호스트: 게임 상태 부분 업데이트 ────────────────────────────────
 
 export async function updateGameState(code: string, nextState: GameState): Promise<void> {
-  await set(gameStateRef(code), nextState);
+  await set(gameStateRef(code), dehydrateGameState(nextState));
 }
 
 export async function updatePrivateHand(

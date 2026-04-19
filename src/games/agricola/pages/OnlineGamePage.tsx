@@ -18,6 +18,7 @@ import {
   createGameState, startRound, replenishActionSpaces, countPlacedWorkers,
 } from '../lib/game-engine.js';
 import { dispatchAction } from '../lib/action-dispatcher.js';
+import { hydrateGameState } from '../lib/state-serializer.js';
 import type { RoomSnapshot, GameState, PrivateHand, PlayerId } from '../lib/types.js';
 import FarmBoard from '../components/FarmBoard.js';
 import ActionBoard from '../components/ActionBoard.js';
@@ -110,7 +111,9 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
       }
 
       try {
-        const result = dispatchAction(snap.gameState, action);
+        // Firebase 에서 읽은 state 는 함수 필드 제거됨 → hydrate 후 엔진 호출
+        const hydrated = hydrateGameState(snap.gameState);
+        const result = dispatchAction(hydrated, action);
         await updateGameState(roomCode, result.nextState);
         await markActionApplied(roomCode, actionId);
       } catch (e) {
@@ -260,7 +263,7 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
                     </button>
                   );
                 }
-                // 모든 플레이어 워커 배치 완료 → 라운드 종료
+                // 모든 플레이어 가족 말 배치 완료 → 라운드 종료
                 const allDone = gs.playerOrder.every((pid) => {
                   const p = gs.players[pid];
                   return p && countPlacedWorkers(gs, pid) >= p.familySize;

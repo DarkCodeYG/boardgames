@@ -118,11 +118,22 @@ export function getMajorImprovements(): MajorImprovement[] {
         {
           trigger: 'IMMEDIATE',
           apply: (state: GameState, playerId: PlayerId) => {
-            // 건설 라운드부터 5라운드 후까지 매 라운드 시작 시 음식 1개
-            // Phase 1 TODO: 미래 라운드 공간에 음식 배치 로직
-            return addResources(state, playerId, { food: 0 }); // placeholder
+            // 건설 즉시 음식 1 + 다음 4 라운드 시작 시 음식 1씩 (총 5 음식)
+            const player = state.players[playerId];
+            if (!player) return state;
+            const withFood = addResources(state, playerId, { food: 1 });
+            return {
+              ...withFood,
+              players: {
+                ...withFood.players,
+                [playerId]: {
+                  ...withFood.players[playerId]!,
+                  wellFoodRemaining: 4,
+                },
+              },
+            };
           },
-          description: '이후 5개 라운드 공간에 음식 1씩 배치',
+          description: '즉시 음식 1 + 다음 4 라운드 시작 시마다 음식 1',
         },
       ],
       victoryPoints: 4,

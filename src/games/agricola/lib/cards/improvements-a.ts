@@ -188,7 +188,7 @@ export function getImprovementsA(): Card[] {
         {
           trigger: 'PLACE_WORKER',
           apply: (s: GameState) => s,
-          description: '워커 배치 단계에서 건설 자원 7개 이상 획득 시 → 귀환 단계에 음식 2개',
+          description: '가족 말 배치 단계에서 건설 자원 7개 이상 획득 시 → 귀환 단계에 음식 2개',
         },
       ],
     },

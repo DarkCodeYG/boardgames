@@ -189,7 +189,7 @@ export function dispatchAction(
       if (nextIdx < state.playerOrder.length) {
         return { nextState: { ...s, harvestPlayerIndex: nextIdx } };
       }
-      // 모든 플레이어 수확 완료 → 워커 회수 + 다음 라운드 또는 게임오버
+      // 모든 플레이어 수확 완료 → 가족 말 회수 + 다음 라운드 또는 게임오버
       s = returnWorkers(s);
       s = { ...s, currentPlayerIndex: s.firstPlayerIndex, harvestPlayerIndex: null, phase: 'playing' };
       if (state.round >= 14) {
@@ -201,7 +201,7 @@ export function dispatchAction(
     }
 
     case 'end_round': {
-      // 모든 플레이어 워커 배치 끝 → 수확 처리 or 다음 라운드
+      // 모든 플레이어 가족 말 배치 끝 → 수확 처리 or 다음 라운드
       if (isHarvestRound(state.round)) {
         // 수확: 밭 수확 → 플레이어별 식량/번식 진행 시작
         const s = harvestFields(state);
@@ -210,7 +210,7 @@ export function dispatchAction(
           notes: ['harvest_started'],
         };
       }
-      // 비수확 라운드 — 워커 회수 + 다음 라운드 시작
+      // 비수확 라운드 — 가족 말 회수 + 다음 라운드 시작
       let s = returnWorkers(state);
       s = { ...s, currentPlayerIndex: s.firstPlayerIndex };
       if (state.round >= 14) {

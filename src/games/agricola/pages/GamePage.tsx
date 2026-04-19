@@ -131,7 +131,7 @@ export default function GamePage({ onExit }: GamePageProps) {
   // 농장판 접기 상태: 접힌 플레이어 ID 집합 (기본 전체 표시)
   const [collapsedFarms, setCollapsedFarms] = useState<Set<string>>(new Set());
 
-  // 바둑 방식 워커 배치: 선택된 가족 구성원 셀 좌표
+  // 바둑 방식 가족 말 배치: 선택된 가족 구성원 셀 좌표
   const [selectedFamilyCell, setSelectedFamilyCell] = useState<[number, number] | null>(null);
 
   // 플로팅 디스크 커서 위치
@@ -387,7 +387,7 @@ export default function GamePage({ onExit }: GamePageProps) {
     if (nextIdx < gs.playerOrder.length) {
       setHarvestPlayerIdx(nextIdx);
     } else {
-      // 모든 플레이어 수확 완료 → 워커 회수 + 다음 라운드
+      // 모든 플레이어 수확 완료 → 가족 말 회수 + 다음 라운드
       sfxModalClose();
       setHarvestPlayerIdx(null);
       finishRoundAfterHarvest(s, gs.round);
@@ -638,7 +638,7 @@ export default function GamePage({ onExit }: GamePageProps) {
     }
   }
 
-  // ── 워커 pip 렌더 ──────────────────────────────────────────────
+  // ── 가족 말 pip 렌더 ──────────────────────────────────────────────
   function WorkerPips({ pid }: { pid: string }) {
     const p = gs.players[pid];
     if (!p) return null;

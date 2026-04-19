@@ -29,7 +29,7 @@ export type CardType = 'occupation' | 'minor_improvement';
 
 export type TriggerType =
   | 'IMMEDIATE'       // 카드 플레이 즉시
-  | 'PLACE_WORKER'    // 워커 배치 후
+  | 'PLACE_WORKER'    // 가족 말 배치 후
   | 'HARVEST_FIELD'   // 밭 수확 단계
   | 'HARVEST_FEED'    // 식량 공급 단계
   | 'HARVEST_BREED'   // 번식 단계
@@ -51,8 +51,8 @@ export type GamePhase = 'lobby' | 'setup' | 'playing' | 'harvest' | 'gameover';
 export type RoundPhase =
   | 'start_round'    // 라운드 카드 공개
   | 'replenish'      // 자원 보충
-  | 'work'           // 워커 배치 (플레이어 턴)
-  | 'return_home'    // 워커 회수
+  | 'work'           // 가족 말 배치 (플레이어 턴)
+  | 'return_home'    // 가족 말 회수
   | 'pending_plow'       // 밭 갈기 선택 대기
   | 'pending_sow'        // 씨 뿌리기 선택 대기
   | 'pending_plow_sow'   // 밭 갈기 + 씨 뿌리기 대기 (RC_CULTIVATION)
@@ -220,6 +220,8 @@ export interface PlayerState {
   hasGrown: boolean;       // 이 라운드에 가족 늘리기 행동 여부
   /** 총 플레이한 직업 카드 수 (교습 비용 계산용) */
   occupationsPlayed: number;
+  /** 우물 건설 후 다음 라운드 시작 시 받을 음식 잔여 횟수 (최대 4) */
+  wellFoodRemaining?: number;
 }
 
 export interface WorkerState {
@@ -374,10 +376,10 @@ export interface PrivateHand {
 
 /** 클라이언트 → 호스트 액션 요청 종류 */
 export type ActionKind =
-  | 'place_worker'          // 행동 공간에 워커 배치
+  | 'place_worker'          // 행동 공간에 가족 말 배치
   | 'pending_confirm'       // pending_* 확정 버튼
   | 'cell_click'            // 농장 셀 클릭 (plow/sow/build/renovate 대상)
-  | 'family_member_click'   // 가족 구성원 선택 (배치할 워커)
+  | 'family_member_click'   // 가족 구성원 선택 (배치할 가족 말)
   | 'fence_click'           // 울타리 세그먼트 토글
   | 'place_animal'          // 동물 배치 (pasture index 또는 'house')
   | 'remove_animal'         // 동물 교체용 제거

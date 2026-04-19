@@ -1,5 +1,5 @@
 /**
- * ActionBoard — 행동 공간 목록 + 워커 배치 UI
+ * ActionBoard — 행동 공간 목록 + 가족 말 배치 UI
  * Phase 1 구현. v2: 행동 설명 + 신규 라운드카드 강조 + 비용 힌트 추가
  */
 
@@ -102,7 +102,7 @@ function ActionSpaceRow({
 }) {
   const isOccupied = workerId !== null;
   const isMine = workerId === currentPlayerId;
-  // 워커 배치 가능: 빈 칸 + work 단계 + 가족 구성원 선택됨
+  // 가족 말 배치 가능: 빈 칸 + work 단계 + 가족 구성원 선택됨
   const canPlace = !isOccupied && state.roundPhase === 'work' && !!workerReady;
 
   const accEntries = Object.entries(accumulated).filter(([, v]) => (v as number) > 0);
@@ -164,7 +164,7 @@ function ActionSpaceRow({
           ))}
         </span>
 
-        {/* 배치된 워커 표시 — 크게 눈에 띄게 */}
+        {/* 배치된 가족 말 표시 — 크게 눈에 띄게 */}
         {workerId && (
           <div className="flex items-center gap-1">
             <WorkerDot playerId={workerId} state={state} />
