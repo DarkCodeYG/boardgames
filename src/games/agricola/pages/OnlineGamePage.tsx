@@ -7,6 +7,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { ref, update } from 'firebase/database';
+import { db } from '../../../lib/firebase.js';
 import {
   createRoom, subscribeRoom, subscribeActions, deleteRoom,
   startGame as commitStartGame, submitAction,
@@ -77,8 +79,15 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
   // 구독 — 방 스냅샷
   useEffect(() => {
     if (!roomCode) return;
-    const unsub = subscribeRoom(roomCode, (snap) => setSnapshot(snap));
+    const unsub = subscribeRoom(roomCode, (snap) => {
+      setSnapshot(snap);
+      // meta.desiredPlayerCount 변경 시 로컬 state 동기화 (다른 탭/새로고침 대비)
+      if (snap?.meta?.desiredPlayerCount && snap.meta.desiredPlayerCount !== playerCount) {
+        setPlayerCount(snap.meta.desiredPlayerCount);
+      }
+    });
     return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode]);
 
   // snapshot 최신값 ref (클로저 캡처 문제 해결)
@@ -117,8 +126,9 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
     if (!roomCode) return;
     const lobby = snapshot?.lobby ?? {};
     const lobbyPlayers = Object.values(lobby);
-    if (lobbyPlayers.length !== playerCount) {
-      alert(`인원이 맞지 않습니다 (${lobbyPlayers.length}/${playerCount})`);
+    const target = snapshot?.meta?.desiredPlayerCount ?? playerCount;
+    if (lobbyPlayers.length !== target) {
+      alert(`인원이 맞지 않습니다 (${lobbyPlayers.length}/${target})`);
       return;
     }
     setStarting(true);
@@ -359,8 +369,16 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
                 <div className="text-xs text-gray-500">방 코드</div>
                 <div className="text-3xl font-mono font-bold tracking-widest text-amber-800">{roomCode}</div>
               </div>
+              <a
+                href={joinUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full inline-block text-center bg-amber-50 hover:bg-amber-100 text-amber-800 font-medium text-xs py-2 px-3 rounded-lg transition-colors break-all"
+              >
+                🔗 {joinUrl.replace(/^https?:\/\//, '')}
+              </a>
               <p className="text-xs text-gray-500 text-center mt-1">
-                각자 폰 카메라로 QR 스캔 또는 위 코드 입력
+                각자 폰 카메라로 QR 스캔 · 방 코드 입력 · 또는 위 링크 클릭
               </p>
             </div>
           </div>
@@ -372,21 +390,38 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">목표 인원</label>
               <div className="flex gap-2">
-                {([2, 3, 4] as const).map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setPlayerCount(n)}
-                    className={`flex-1 py-2 rounded-lg border-2 font-medium transition-colors ${
-                      playerCount === n
-                        ? 'border-amber-600 bg-amber-600 text-white'
-                        : 'border-gray-200 text-gray-600 hover:border-amber-300'
-                    }`}
-                    disabled={lobbyPlayers.length > 0}
-                  >
-                    {n}인
-                  </button>
-                ))}
+                {([2, 3, 4] as const).map((n) => {
+                  // 이미 참가한 인원보다 적게 줄일 수 없음
+                  const tooSmall = n < lobbyPlayers.length;
+                  const isSelected = (snapshot?.meta?.desiredPlayerCount ?? playerCount) === n;
+                  return (
+                    <button
+                      key={n}
+                      onClick={async () => {
+                        setPlayerCount(n);
+                        if (roomCode) {
+                          await update(ref(db, `rooms/${roomCode}/meta`), { desiredPlayerCount: n });
+                        }
+                      }}
+                      className={`flex-1 py-2 rounded-lg border-2 font-medium transition-colors ${
+                        isSelected
+                          ? 'border-amber-600 bg-amber-600 text-white'
+                          : tooSmall
+                            ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                            : 'border-gray-200 text-gray-600 hover:border-amber-300'
+                      }`}
+                      disabled={tooSmall}
+                    >
+                      {n}인
+                    </button>
+                  );
+                })}
               </div>
+              {lobbyPlayers.length > 0 && (
+                <p className="text-[10px] text-gray-400 mt-1">
+                  이미 참가한 플레이어가 있어 {lobbyPlayers.length}인 미만으로는 줄일 수 없습니다
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
