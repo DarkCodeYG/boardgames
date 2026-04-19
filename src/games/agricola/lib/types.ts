@@ -335,6 +335,8 @@ export interface CreateGameConfig {
   playerCount: 2 | 3 | 4;
   playerNames: string[];
   playerColors?: Array<'red' | 'blue' | 'green' | 'yellow'>;
+  /** 명시적 플레이어 ID (Phase B 온라인: Firebase pid 사용). 미지정 시 'player_{i}' */
+  playerIds?: string[];
   seed?: number;
   deck: 'AB';
 }

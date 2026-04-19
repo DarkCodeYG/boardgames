@@ -7,8 +7,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { createRoom, subscribeRoom, deleteRoom } from '../lib/firebase-room.js';
-import type { RoomSnapshot } from '../lib/types.js';
+import {
+  createRoom, subscribeRoom, subscribeActions, deleteRoom,
+  startGame as commitStartGame, submitAction,
+  updateGameState, markActionApplied, markActionRejected,
+} from '../lib/firebase-room.js';
+import {
+  createGameState, startRound, replenishActionSpaces, countPlacedWorkers,
+} from '../lib/game-engine.js';
+import { dispatchAction } from '../lib/action-dispatcher.js';
+import type { RoomSnapshot, GameState, PrivateHand, PlayerId } from '../lib/types.js';
+import FarmBoard from '../components/FarmBoard.js';
+import ActionBoard from '../components/ActionBoard.js';
 
 interface OnlineGamePageProps {
   onGoHome: () => void;
@@ -19,6 +29,7 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
   const [snapshot, setSnapshot] = useState<RoomSnapshot | null>(null);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [playerCount, setPlayerCount] = useState<2 | 3 | 4>(4);
+  const [starting, setStarting] = useState(false);
   const roomCodeRef = useRef<string | null>(null);
 
   // 호스트 세션 ID 고정 (새로고침 대비)
@@ -63,12 +74,94 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 한 번만
 
-  // 구독
+  // 구독 — 방 스냅샷
   useEffect(() => {
     if (!roomCode) return;
     const unsub = subscribeRoom(roomCode, (snap) => setSnapshot(snap));
     return () => unsub();
   }, [roomCode]);
+
+  // snapshot 최신값 ref (클로저 캡처 문제 해결)
+  const snapshotRef = useRef<RoomSnapshot | null>(null);
+  useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);
+
+  // 구독 — actions 큐 (호스트 디스패처)
+  useEffect(() => {
+    if (!roomCode) return;
+    const processingActions = new Set<string>();
+    const unsub = subscribeActions(roomCode, async (actionId, action) => {
+      // 이미 처리 중/완료 스킵
+      if (processingActions.has(actionId)) return;
+      processingActions.add(actionId);
+
+      const snap = snapshotRef.current;
+      if (!snap?.gameState) {
+        await markActionRejected(roomCode, actionId, '게임이 시작되지 않았습니다');
+        return;
+      }
+
+      try {
+        const result = dispatchAction(snap.gameState, action);
+        await updateGameState(roomCode, result.nextState);
+        await markActionApplied(roomCode, actionId);
+      } catch (e) {
+        await markActionRejected(roomCode, actionId, (e as Error).message);
+      }
+    });
+    return () => unsub();
+  }, [roomCode]);
+
+  // 게임 시작: 로비에서 플레이어 정보 수집 → createGameState → RTDB 커밋
+  async function handleStartGame() {
+    if (starting) return;
+    if (!roomCode) return;
+    const lobby = snapshot?.lobby ?? {};
+    const lobbyPlayers = Object.values(lobby);
+    if (lobbyPlayers.length !== playerCount) {
+      alert(`인원이 맞지 않습니다 (${lobbyPlayers.length}/${playerCount})`);
+      return;
+    }
+    setStarting(true);
+    try {
+      // 참가 순서대로 정렬 (joinedAt 오름차순)
+      lobbyPlayers.sort((a, b) => a.joinedAt - b.joinedAt);
+      const playerIds = lobbyPlayers.map((p) => p.pid);
+      const playerNames = lobbyPlayers.map((p) => p.name);
+      const playerColors = lobbyPlayers.map((p) => p.color);
+
+      let state = createGameState({
+        playerCount,
+        playerNames,
+        playerColors,
+        playerIds,
+        deck: 'AB',
+      });
+      state = startRound(state);
+      state = replenishActionSpaces(state);
+      state = { ...state, phase: 'playing' };
+
+      // 손패 격리 — privateHands/{pid} 로 분리 (현재 Phase 1: 빈 배열)
+      const privateHands: Record<PlayerId, PrivateHand> = {};
+      const publicState: GameState = {
+        ...state,
+        players: Object.fromEntries(
+          Object.entries(state.players).map(([pid, p]) => {
+            privateHands[pid] = {
+              occupations: p.hand.occupations,
+              minorImprovements: p.hand.minorImprovements,
+            };
+            return [pid, { ...p, hand: { occupations: [], minorImprovements: [] } }];
+          }),
+        ),
+      };
+
+      await commitStartGame(roomCode, publicState, privateHands);
+    } catch (e) {
+      alert(`게임 시작 실패: ${(e as Error).message}`);
+    } finally {
+      setStarting(false);
+    }
+  }
 
   // 언마운트 / 페이지 떠남 시 방 삭제
   useEffect(() => {
@@ -114,12 +207,138 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
   const joinUrl = `${window.location.origin}${window.location.pathname}?game=agricola&room=${roomCode}&lang=ko`;
   const lobby = snapshot?.lobby ?? {};
   const lobbyPlayers = Object.values(lobby);
+  const metaPhase = snapshot?.meta?.phase ?? 'lobby';
+
+  // 게임 진행 중 — 호스트는 전체 상태 모니터링 (읽기 전용)
+  if (metaPhase === 'playing' && snapshot?.gameState) {
+    const gs = snapshot.gameState;
+    const currentPid = gs.playerOrder[gs.currentPlayerIndex] ?? '';
+    const currentPlayer = gs.players[currentPid];
+    return (
+      <div className="min-h-screen bg-amber-50 p-4">
+        <div className="max-w-7xl mx-auto">
+          {/* 상단 헤더 */}
+          <div className="flex items-center justify-between mb-4 px-2">
+            <div>
+              <h1 className="text-2xl font-bold text-amber-800">🌾 아그리콜라 — 호스트</h1>
+              <p className="text-xs text-gray-500">
+                라운드 {gs.round}/14 · 스테이지 {gs.stage} · 방 <span className="font-mono">{roomCode}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="px-3 py-1.5 bg-white border-2 border-amber-400 rounded-lg">
+                <p className="text-xs text-gray-500">현재 차례</p>
+                <p className="font-bold text-amber-800">{currentPlayer?.name ?? '-'}</p>
+              </div>
+              {(() => {
+                // 모든 플레이어 워커 배치 완료 여부
+                const allDone = gs.playerOrder.every((pid) => {
+                  const p = gs.players[pid];
+                  return p && countPlacedWorkers(gs, pid) >= p.familySize;
+                });
+                if (!allDone) return null;
+                return (
+                  <button
+                    onClick={() => {
+                      submitAction(roomCode, {
+                        playerId: currentPid || gs.playerOrder[0] || '',
+                        kind: 'end_round',
+                        payload: {},
+                      }).catch((e) => alert(`라운드 종료 실패: ${(e as Error).message}`));
+                    }}
+                    className="px-4 py-2 text-sm bg-amber-600 text-white rounded font-medium hover:bg-amber-700"
+                  >
+                    라운드 종료 →
+                  </button>
+                );
+              })()}
+              <button
+                onClick={async () => {
+                  if (confirm('게임을 종료하시겠습니까? 방이 삭제됩니다.')) {
+                    if (roomCodeRef.current) await deleteRoom(roomCodeRef.current);
+                    onGoHome();
+                  }
+                }}
+                className="px-3 py-1.5 text-sm bg-red-50 border border-red-300 text-red-700 rounded hover:bg-red-100"
+              >
+                종료
+              </button>
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-[1fr_minmax(0,400px)] gap-4">
+            {/* 왼쪽: 행동 공간 */}
+            <div className="bg-white rounded-xl shadow p-3">
+              <h2 className="text-sm font-bold text-gray-700 mb-2">행동 공간</h2>
+              <ActionBoard state={gs} currentPlayerId={currentPid} />
+            </div>
+
+            {/* 오른쪽: 모든 플레이어 농장판 */}
+            <div className="space-y-3">
+              {gs.playerOrder.map((pid) => {
+                const p = gs.players[pid];
+                if (!p) return null;
+                const isActive = pid === currentPid;
+                return (
+                  <div
+                    key={pid}
+                    className={`rounded-xl border-2 overflow-hidden ${
+                      isActive ? 'border-amber-500 ring-2 ring-amber-300' : 'border-gray-200'
+                    }`}
+                  >
+                    <div className={`px-3 py-1.5 flex items-center gap-2 ${
+                      p.color === 'red' ? 'bg-red-100 text-red-900' :
+                      p.color === 'blue' ? 'bg-blue-100 text-blue-900' :
+                      p.color === 'green' ? 'bg-green-100 text-green-900' :
+                      'bg-yellow-100 text-yellow-900'
+                    }`}>
+                      <span className="font-bold text-sm">
+                        {isActive && '▶ '}{p.name}
+                        {gs.startingPlayerToken === pid && <span className="ml-1 text-yellow-600">⭐</span>}
+                      </span>
+                      <span className="ml-auto text-xs">가족 {p.familySize} · 🍖 {p.resources.food}</span>
+                    </div>
+                    <div className="p-2 bg-white">
+                      <FarmBoard
+                        board={p.farm}
+                        familySize={p.familySize}
+                        deployedCount={0}
+                        playerColor={p.color}
+                        isStartingPlayer={gs.startingPlayerToken === pid}
+                      />
+                      {/* 축약 자원 */}
+                      <div className="mt-2 grid grid-cols-5 gap-1 text-[11px]">
+                        <Cnt icon="🪵" v={p.resources.wood} />
+                        <Cnt icon="🧱" v={p.resources.clay} />
+                        <Cnt icon="🪨" v={p.resources.stone} />
+                        <Cnt icon="🌿" v={p.resources.reed} />
+                        <Cnt icon="🌾" v={p.resources.grain} />
+                        <Cnt icon="🥕" v={p.resources.vegetable} />
+                        <Cnt icon="🐑" v={p.resources.sheep} />
+                        <Cnt icon="🐷" v={p.resources.boar} />
+                        <Cnt icon="🐄" v={p.resources.cattle} />
+                        <Cnt icon="😞" v={p.beggingTokens} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
+            <strong>Cycle 4 개발 중:</strong> 현재는 표시 전용. 플레이어 폰에서 행동 제출 → 호스트 디스패처가 엔진 처리 흐름은 다음 사이클에서 완성.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-amber-50 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-amber-800">🌾 아그리콜라 — 호스트</h1>
+          <h1 className="text-3xl font-bold text-amber-800">🌾 아그리콜라 — 호스트 (로비)</h1>
           <button
             onClick={onGoHome}
             className="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
@@ -197,21 +416,32 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
 
             <button
               className="w-full mt-6 py-3 bg-amber-600 text-white rounded-xl font-medium hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-              disabled={lobbyPlayers.length < playerCount}
-              onClick={() => alert('게임 시작 — Cycle 3 에서 구현 예정')}
+              disabled={lobbyPlayers.length < playerCount || starting}
+              onClick={handleStartGame}
             >
-              {lobbyPlayers.length < playerCount
-                ? `${playerCount - lobbyPlayers.length}명 더 필요`
-                : '게임 시작'}
+              {starting
+                ? '시작 중...'
+                : lobbyPlayers.length < playerCount
+                  ? `${playerCount - lobbyPlayers.length}명 더 필요`
+                  : '게임 시작'}
             </button>
           </div>
         </div>
 
         <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
-          <strong>개발 중:</strong> 현재 로비까지만 구현. 게임 진행(온라인)은 Cycle 3 에서 추가 예정.
-          오프라인 모드는 <code>?game=agricola-local</code> 로 접속.
+          <strong>개발 중:</strong> Phase B Cycle 3 — 게임 진행 UI 기본 표시까지 구현됨.
+          액션 처리는 Cycle 4 에서 완성.
         </div>
       </div>
     </div>
+  );
+}
+
+function Cnt({ icon, v }: { icon: string; v: number }) {
+  return (
+    <span className={`flex items-center gap-0.5 py-0.5 px-1 rounded ${v > 0 ? 'bg-amber-100' : 'bg-gray-100 opacity-50'}`}>
+      <span aria-hidden="true">{icon}</span>
+      <span className="font-bold">{v}</span>
+    </span>
   );
 }

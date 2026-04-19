@@ -28,7 +28,10 @@ import { getBaseDeckCards } from './cards/index.js';
 
 export function createGameState(config: CreateGameConfig): GameState {
   // Phase 1 TODO: 셔플, 패 배분, 초기 보드 설정
-  const playerIds = config.playerNames.map((_, i) => `player_${i}`);
+  const playerIds =
+    config.playerIds && config.playerIds.length === config.playerNames.length
+      ? config.playerIds
+      : config.playerNames.map((_, i) => `player_${i}`);
   const defaultColors: Array<'red' | 'blue' | 'green' | 'yellow'> = ['red', 'blue', 'green', 'yellow'];
   const colors = config.playerColors ?? defaultColors;
 
@@ -175,6 +178,29 @@ export function replenishActionSpaces(state: GameState): GameState {
 }
 
 /** 워커 배치 */
+/** 특정 플레이어가 이번 라운드에 배치한 워커 수 */
+export function countPlacedWorkers(state: GameState, pid: PlayerId): number {
+  return (
+    Object.values(state.actionSpaces).filter((s) => s.workerId === pid).length +
+    state.revealedRoundCards.filter((rc) => rc.workerId === pid).length
+  );
+}
+
+/** 워커가 남은 다음 플레이어로 인덱스 이동 */
+export function advanceToNextPlayer(state: GameState): GameState {
+  const n = state.playerOrder.length;
+  for (let i = 1; i <= n; i++) {
+    const nextIdx = (state.currentPlayerIndex + i) % n;
+    const pid = state.playerOrder[nextIdx] ?? '';
+    const placed = countPlacedWorkers(state, pid);
+    const player = state.players[pid];
+    if (player && placed < player.familySize) {
+      return { ...state, currentPlayerIndex: nextIdx };
+    }
+  }
+  return state;
+}
+
 export function placeWorker(
   state: GameState,
   playerId: PlayerId,

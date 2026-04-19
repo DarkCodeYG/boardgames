@@ -6,6 +6,85 @@
 
 ---
 
+## Cycle 4 — 액션 프로토콜 (기본) ✅ 1차 완료
+
+**시작/완료**: 2026-04-19
+**목표**: 클라이언트 → actions/* 큐 → 호스트 디스패처 → 엔진 → gameState 업데이트의 왕복 루프 성립
+
+**산출물**:
+- [x] `game-engine.ts` — `countPlacedWorkers`, `advanceToNextPlayer` export (GamePage 로컬에서 분리)
+- [x] `lib/action-dispatcher.ts` (신규) — 14 종 ActionKind 중 place_worker, cell_click(5 phase), pending_confirm(가족/개량/울타리), animal_select, place_animal, remove_animal, overflow_(replace|cook|discard), cancel_replace, cook_animal, bake_bread, harvest_confirm, end_round 모두 dispatch
+- [x] `OnlineGamePage.tsx` — `subscribeActions` + `dispatchAction` + `markActionApplied|Rejected` 연결. `snapshotRef` 로 클로저 최신값 안전
+- [x] `OnlineGamePage.tsx` — 모든 플레이어 워커 배치 완료 시 "라운드 종료" 버튼 노출 → end_round 액션 submit
+- [x] `PlayerPage.tsx` — ActionBoard onActionSelect → place_worker submit. `canPlayerAct` 가드
+
+**검증**:
+- [x] `npm run build` — 성공 (gzip 288KB)
+- [ ] 실제 브라우저 다중 탭 테스트 — 다음 세션 수동 검증 권장
+
+**남은 wiring (Cycle 4.2)**:
+- FarmBoard 셀 클릭(밭갈이/씨/방/외양간) → cell_click submit
+- 가족 구성원 선택(onFamilyMemberClick) — 로컬 상태 or actions/select_family?
+- 울타리 모드(fence_click + pendingFenceSegments) — 로컬 상태 + pending_confirm 제출
+- 동물 배치(onAnimalPlace) → place_animal submit
+- 동물 교체(onAnimalRemove) → remove_animal submit
+- AnimalOverflowModal 3-선택지 → overflow_* submit
+- CookAnimalModal → cook_animal submit
+
+**설계 메모**:
+- 중복 처리 방지: `processingActions: Set<string>` 로컬 캐시
+- 호스트가 단일 디스패처 — 액션은 순서대로 push key 로 정렬되므로 race 없음
+- `snapshotRef` 로 subscribeActions 콜백 내부 최신 state 참조 (클로저 함정 회피)
+
+**다음**: Cycle 4.2 — 남은 상호작용 wiring 완성. 또는 Cycle 5 (프라이버시/토글) 먼저 처리 후 Cycle 4.2
+
+---
+
+## Cycle 3 — 게임 UI 이식 (표시 전용) ✅ 완료
+
+**시작/완료**: 2026-04-19
+**목표**: 호스트/플레이어 양쪽에 실제 게임 컴포넌트(FarmBoard, ActionBoard, ResourcePanel) 배치. 액션 처리는 Cycle 4
+
+**산출물**:
+- [x] `OnlineGamePage.tsx` 게임 진행 화면 — 좌측 ActionBoard(읽기 전용) + 우측 모든 플레이어 농장판 스택 + 축약 자원 표시
+- [x] `PlayerPage.tsx` 게임 진행 화면 — 헤더(내 차례 배지) + 내 FarmBoard + ResourcePanel + 🔒 내 손패 (빈 상태 표시) + ActionBoard 표시
+- [x] 컴포넌트 재활용 (FarmBoard/ActionBoard/ResourcePanel) — onClick 미전달로 자연스럽게 read-only
+
+**검증**:
+- [x] `npm run build` — 성공 (gzip 287KB)
+
+**UX 포인트**:
+- 호스트: 라운드/스테이지/현재 플레이어 한눈 확인, 모든 농장판 병렬 감시
+- 플레이어: 자기 농장판을 폰 화면 가운데, 손패는 🔒 자물쇠 아이콘으로 프라이버시 명시, 내 차례일 때 amber 배지 펄스 애니메이션
+
+**다음**: Cycle 4 — 플레이어 상호작용이 실제 actions/* 큐로 제출되고 호스트가 엔진으로 처리. ActionBoard의 onActionSelect, FarmBoard의 onCellClick/onFamilyMemberClick/onFenceClick 모두 submitAction 경로로 wiring.
+
+---
+
+## Cycle 2 — 로비 완성 + 게임 시작 ✅ 완료
+
+**시작/완료**: 2026-04-19
+**목표**: 호스트 "게임 시작" 버튼 → gameState RTDB 커밋 + privateHands 분리 + phase 전이
+
+**산출물**:
+- [x] `types.ts` `CreateGameConfig.playerIds` 옵션 추가 — 명시적 ID 전달(Firebase pid 사용)
+- [x] `game-engine.ts` `createGameState` — `playerIds` 옵션 수용
+- [x] `OnlineGamePage.tsx` `handleStartGame` — 로비 정렬(joinedAt) → createGameState+startRound+replenishActionSpaces → privateHands 분리 → commitStartGame
+- [x] `OnlineGamePage.tsx` playing phase 화면 — 라운드/스테이지/현재 플레이어/간이 자원 표시 (Cycle 3 전 placeholder)
+- [x] `PlayerPage.tsx` playing phase 화면 — 자기 자원 그리드 + 내 손패 섹션 (빈 상태) + 내 차례 배지
+
+**검증**:
+- [x] `npx tsc --noEmit` — 오류 0
+- [x] `npm run build` — 성공
+
+**설계 메모**:
+- 손패 격리: gameState 내 `players[pid].hand` 는 빈 배열로 리셋, 실제 카드는 `privateHands/{pid}` 로 이동 (Phase 1 은 카드가 비어있어 UX 변화 없음)
+- 플레이어 순서는 `joinedAt` 오름차순 — 호스트가 결정하는 방식 권장(Phase B.2)
+
+**다음**: Cycle 3 — 실제 게임 UI 이식. 호스트는 기존 GamePage 의 ActionBoard/전체 농장판/라운드카드 UI 를 구독 기반으로 리팩토링. 플레이어 폰은 자기 FarmBoard + 자기 손패 + 차례 시 행동 버튼.
+
+---
+
 ## Cycle 1 — 기초 인프라 ✅ 완료
 
 **시작/완료**: 2026-04-19

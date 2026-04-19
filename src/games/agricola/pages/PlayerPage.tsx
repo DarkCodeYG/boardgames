@@ -6,8 +6,12 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { joinRoom, subscribeRoom, updateLobbyPlayer } from '../lib/firebase-room.js';
+import { joinRoom, subscribeRoom, updateLobbyPlayer, submitAction } from '../lib/firebase-room.js';
+import { canPlayerAct } from '../lib/action-dispatcher.js';
 import type { RoomSnapshot, PlayerId, LobbyPlayer } from '../lib/types.js';
+import FarmBoard from '../components/FarmBoard.js';
+import ActionBoard from '../components/ActionBoard.js';
+import ResourcePanel from '../components/ResourcePanel.js';
 
 type Phase = 'loading' | 'joining' | 'in_lobby' | 'playing' | 'ended' | 'error';
 
@@ -166,15 +170,101 @@ export default function PlayerPage() {
   );
 
   if (phase === 'playing') {
+    const gs = snapshot?.gameState;
+    const mePlayer = myPid ? gs?.players?.[myPid] : undefined;
+    const myHand = myPid ? snapshot?.privateHands?.[myPid] : undefined;
+    const isMyTurn = !!(gs && gs.playerOrder[gs.currentPlayerIndex] === myPid);
     return (
-      <Center>
-        <div className="text-center">
-          <p className="text-amber-700 font-bold text-lg mb-2">게임 진행 중</p>
-          <p className="text-gray-600 text-sm">
-            Cycle 3 에서 플레이어 게임 화면이 구현됩니다.
-          </p>
+      <div className="min-h-screen bg-amber-50 p-3">
+        <div className="max-w-md mx-auto space-y-3">
+          {/* 헤더 */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-bold text-amber-800">{mePlayer?.name ?? '-'}</h1>
+              <p className="text-[11px] text-gray-500">
+                R{gs?.round ?? 0}·S{gs?.stage ?? 0} · 방 {roomCode}
+              </p>
+            </div>
+            <span className={`px-2.5 py-1 text-xs rounded-full font-bold ${
+              isMyTurn ? 'bg-amber-500 text-white animate-pulse' : 'bg-gray-200 text-gray-600'
+            }`}>
+              {isMyTurn ? '🎯 내 차례' : '대기 중'}
+            </span>
+          </div>
+
+          {/* 내 농장판 */}
+          {mePlayer && (
+            <div className="bg-white rounded-2xl shadow-lg p-2 flex justify-center">
+              <FarmBoard
+                board={mePlayer.farm}
+                familySize={mePlayer.familySize}
+                deployedCount={0}
+                playerColor={mePlayer.color}
+                isStartingPlayer={gs?.startingPlayerToken === myPid}
+              />
+            </div>
+          )}
+
+          {/* 자원 패널 */}
+          {mePlayer && (
+            <ResourcePanel player={mePlayer} />
+          )}
+
+          {/* 내 손패 */}
+          <div className="bg-white rounded-2xl shadow-lg p-3">
+            <h2 className="text-xs font-bold text-gray-700 mb-2">
+              🔒 내 손패 ({(myHand?.occupations.length ?? 0) + (myHand?.minorImprovements.length ?? 0)}장)
+            </h2>
+            {(!myHand || (myHand.occupations.length === 0 && myHand.minorImprovements.length === 0)) ? (
+              <p className="text-xs text-gray-400 py-2 text-center">
+                카드 없음 (Phase 2 에서 카드 배분 예정)
+              </p>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {myHand.occupations.map((c) => (
+                  <div key={c.id} className="p-1.5 bg-blue-50 border border-blue-200 rounded">
+                    <span className="text-[10px] text-blue-700 font-mono mr-1">{c.id}</span>
+                    {c.nameKo}
+                  </div>
+                ))}
+                {myHand.minorImprovements.map((c) => (
+                  <div key={c.id} className="p-1.5 bg-green-50 border border-green-200 rounded">
+                    <span className="text-[10px] text-green-700 font-mono mr-1">{c.id}</span>
+                    {c.nameKo}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 행동 공간 */}
+          {gs && myPid && (
+            <div className="bg-white rounded-2xl shadow-lg p-2">
+              <h2 className="text-xs font-bold text-gray-700 mb-2 px-1">행동 공간</h2>
+              <ActionBoard
+                state={gs}
+                currentPlayerId={myPid}
+                workerReady={isMyTurn && canPlayerAct(gs, myPid)}
+                onActionSelect={
+                  isMyTurn && canPlayerAct(gs, myPid)
+                    ? (actionSpaceId) => {
+                        submitAction(roomCode, {
+                          playerId: myPid,
+                          kind: 'place_worker',
+                          payload: { actionSpaceId },
+                        }).catch((e) => alert(`제출 실패: ${(e as Error).message}`));
+                      }
+                    : undefined
+                }
+              />
+            </div>
+          )}
+
+          <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-lg text-[11px] text-yellow-800">
+            <strong>Cycle 4 개발 중:</strong> 워커 배치, 가족 선택, 행동 제출은 다음 사이클에서 구현.
+          </div>
         </div>
-      </Center>
+      </div>
     );
   }
 
@@ -261,3 +351,4 @@ function Center({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
