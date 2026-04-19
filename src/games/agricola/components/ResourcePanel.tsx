@@ -1,5 +1,18 @@
 /** ResourcePanel — 자원 패널 (한국어 레이블 + 아이콘 + 구걸 토큰) */
-import type { PlayerState } from '../lib/types.js';
+import type { PlayerState, AnimalType } from '../lib/types.js';
+
+const ANIMAL_TYPES: AnimalType[] = ['sheep', 'boar', 'cattle'];
+
+function totalAnimalCount(player: PlayerState, type: AnimalType): number {
+  const inResources = player.resources[type] ?? 0;
+  const inPastures = player.farm.pastures.reduce(
+    (sum, p) => sum + (p.animals?.type === type ? p.animals.count : 0), 0,
+  );
+  const inHouse = player.farm.animalsInHouse.reduce(
+    (sum, a) => sum + (a.type === type ? a.count : 0), 0,
+  );
+  return inResources + inPastures + inHouse;
+}
 
 interface ResourcePanelProps {
   player: PlayerState;
@@ -29,6 +42,9 @@ const RESOURCE_ROWS: { key: string; icon: string; label: string; color: string }
 
 export default function ResourcePanel({ player }: ResourcePanelProps) {
   const { resources, beggingTokens, familySize } = player;
+  const animalTotals = Object.fromEntries(
+    ANIMAL_TYPES.map((t) => [t, totalAnimalCount(player, t)]),
+  ) as Record<AnimalType, number>;
 
   return (
     <div className="bg-amber-50 rounded-lg border-2 border-amber-300 p-2 text-xs shadow-sm">
@@ -48,7 +64,10 @@ export default function ResourcePanel({ player }: ResourcePanelProps) {
       {RESOURCE_ROWS.map((row, rowIdx) => (
         <div key={rowIdx} className="flex gap-1 mb-1">
           {row.map(({ key, icon, label, color }) => {
-            const val = (resources as Record<string, number>)[key] ?? 0;
+            const isAnimal = ANIMAL_TYPES.includes(key as AnimalType);
+            const val = isAnimal
+              ? (animalTotals[key as AnimalType] ?? 0)
+              : (resources as Record<string, number>)[key] ?? 0;
             return (
               <div
                 key={key}

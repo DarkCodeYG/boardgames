@@ -264,6 +264,33 @@ export function placeAnimalInFarm(
   return { ...board, pastures: newPastures };
 }
 
+/** 농장에서 동물 제거 (교체 배치용). 목장: 스택 전체 비움, 집: 1마리 제거. */
+export function removeAnimalFromFarm(
+  board: FarmBoard,
+  location: { type: 'pasture'; index: number } | { type: 'house' },
+): FarmBoard {
+  if (location.type === 'house') {
+    return { ...board, animalsInHouse: [] };
+  }
+  const pasture = board.pastures[location.index];
+  if (!pasture || !pasture.animals) return board;
+  const newPastures = board.pastures.map((p, i) =>
+    i === location.index ? { ...p, animals: null } : p,
+  );
+  return { ...board, pastures: newPastures };
+}
+
+/** 해당 동물을 배치할 공간이 존재하는지 확인 */
+export function hasAnimalPlacement(board: FarmBoard, animalType: AnimalType): boolean {
+  const houseTotal = board.animalsInHouse.reduce((s, a) => s + a.count, 0);
+  if (houseTotal < 1) return true;
+  return board.pastures.some((p) => {
+    const wrongType = p.animals !== null && p.animals.type !== animalType;
+    const full = (p.animals?.count ?? 0) >= p.capacity;
+    return !wrongType && !full;
+  });
+}
+
 /** 방 수 계산 */
 export function countRooms(board: FarmBoard): number {
   return board.grid.flat().filter(

@@ -18,10 +18,10 @@ import {
   SOLO_FOOD_PER_PERSON,
   INITIAL_FAMILY_SIZE,
 } from './constants.js';
-import { createInitialFarmBoard, recalculatePastures, placeAnimalInFarm, isPastureFullyFenced } from './farm-engine.js';
+import { createInitialFarmBoard, recalculatePastures, placeAnimalInFarm, removeAnimalFromFarm, isPastureFullyFenced } from './farm-engine.js';
 import { getPermanentActionSpaces } from './action-spaces.js';
 import { getRoundCardsByStage } from './round-cards.js';
-import { getMajorImprovements } from './cards/major-improvements.js';
+import { getMajorImprovements, ANIMAL_TO_FOOD_RATES } from './cards/major-improvements.js';
 import { getBaseDeckCards } from './cards/index.js';
 
 // ── 게임 초기화 ───────────────────────────────────────────────────
@@ -483,7 +483,7 @@ function addLog(
 
 // ── 인터랙티브 행동 함수 ─────────────────────────────────────────
 
-/** 밭 갈기: 빈 셀 → 밭 */
+/** 밭 갈기: 빈 셀 → 밭. 첫 밭은 어디든, 이후 밭은 기존 밭에 직교 인접(대각선 ❌) */
 export function plowField(
   state: GameState,
   playerId: PlayerId,
@@ -493,6 +493,16 @@ export function plowField(
   const player = state.players[playerId];
   if (!player) throw new Error(`Player ${playerId} not found`);
   if (player.farm.grid[row]?.[col] !== 'empty') throw new Error(`Cannot plow (${row},${col})`);
+
+  // 기존 밭이 있으면 직교 인접 위치여야 함
+  const hasExistingField = player.farm.grid.some((r) => r.includes('field'));
+  if (hasExistingField) {
+    const dirs: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    const adjacentToField = dirs.some(([dr, dc]) => player.farm.grid[row + dr]?.[col + dc] === 'field');
+    if (!adjacentToField) {
+      throw new Error('새 밭은 기존 밭에 상하좌우로 인접해야 합니다');
+    }
+  }
 
   const grid = player.farm.grid.map((r, ri) =>
     r.map((c, ci): CellType => (ri === row && ci === col ? 'field' : c))
@@ -596,6 +606,60 @@ export function renovateHouse(
 }
 
 /** 울타리 건설: 지정 울타리 세그먼트 추가 (나무 비용 1개/세그먼트) */
+/** 울타리 세그먼트의 두 엔드포인트 (그리드 코너 좌표) */
+function fenceEndpoints(seg: { type: 'h' | 'v'; row: number; col: number }): [number, number][] {
+  return seg.type === 'h'
+    ? [[seg.row, seg.col], [seg.row, seg.col + 1]]
+    : [[seg.row, seg.col], [seg.row + 1, seg.col]];
+}
+
+/**
+ * 기존 울타리 + 새 세그먼트 전체가 엔드포인트 기반 연결 그래프를 이루는지 검증.
+ * - 기존 울타리가 없으면: 새 세그먼트들끼리만 연결돼 있으면 OK
+ * - 기존 있으면: 기존 포함한 전체 그래프가 단일 컴포넌트여야 함
+ */
+function isFenceNetworkConnected(
+  existing: { horizontal: boolean[][]; vertical: boolean[][] },
+  newSegments: Array<{ type: 'h' | 'v'; row: number; col: number }>,
+): boolean {
+  if (newSegments.length === 0) return true;
+
+  // 모든 울타리(기존+신규) 세그먼트 수집
+  const all: Array<{ type: 'h' | 'v'; row: number; col: number }> = [];
+  existing.horizontal.forEach((rowArr, r) =>
+    rowArr.forEach((built, c) => { if (built) all.push({ type: 'h', row: r, col: c }); }),
+  );
+  existing.vertical.forEach((rowArr, r) =>
+    rowArr.forEach((built, c) => { if (built) all.push({ type: 'v', row: r, col: c }); }),
+  );
+  for (const seg of newSegments) all.push(seg);
+
+  // 엔드포인트별 → 해당 포인트를 공유하는 세그먼트 인덱스 목록
+  const pointToSegs = new Map<string, number[]>();
+  all.forEach((seg, idx) => {
+    for (const [r, c] of fenceEndpoints(seg)) {
+      const key = `${r},${c}`;
+      if (!pointToSegs.has(key)) pointToSegs.set(key, []);
+      pointToSegs.get(key)!.push(idx);
+    }
+  });
+
+  // BFS from segment 0
+  const visited = new Set<number>([0]);
+  const queue: number[] = [0];
+  while (queue.length > 0) {
+    const idx = queue.shift()!;
+    for (const [r, c] of fenceEndpoints(all[idx]!)) {
+      const neighbors = pointToSegs.get(`${r},${c}`) ?? [];
+      for (const n of neighbors) {
+        if (!visited.has(n)) { visited.add(n); queue.push(n); }
+      }
+    }
+  }
+
+  return visited.size === all.length;
+}
+
 export function buildFences(
   state: GameState,
   playerId: PlayerId,
@@ -621,6 +685,14 @@ export function buildFences(
     } else {
       fences.vertical[seg.row]![seg.col] = true;
     }
+  }
+
+  // 연결성 검증: 기존+새 울타리 전체가 엔드포인트 기반 연결 그래프를 이뤄야 함
+  // (첫 울타리는 자유 배치, 이후에는 기존과 연결돼야 함)
+  if (!isFenceNetworkConnected(player.farm.fences, segments)) {
+    throw new Error(
+      '새 울타리는 기존 울타리와 엔드포인트를 공유하는 연결된 네트워크를 이뤄야 합니다.',
+    );
   }
 
   // 닫힌 구역 형성 검증: isPastureFullyFenced로 모든 면을 명시 울타리로 둘러싸야 함
@@ -663,6 +735,94 @@ export function placeAnimalForPlayer(
   const updatedFarm = placeAnimalInFarm(player.farm, animalType, destination);
   // resources는 "미배치" 임시 카운터로 사용하므로 배치 완료 시 차감
   const newState = updatePlayerFarm(state, playerId, updatedFarm);
+  return addResources(newState, playerId, { [animalType]: -1 });
+}
+
+/** 취사 설비(화로/화덕) 소유 여부 */
+export function hasCookingFacility(state: GameState, playerId: PlayerId): boolean {
+  const COOKING_IDS = ['MAJ_FIREPLACE_2', 'MAJ_FIREPLACE_3', 'MAJ_COOKING_HEARTH_4', 'MAJ_COOKING_HEARTH_5'];
+  return state.majorImprovements.some((m) => m.ownerId === playerId && COOKING_IDS.includes(m.id));
+}
+
+/** 동물이 위치한 소스 목록 조회 (요리/제거 UI용) */
+export type AnimalSource =
+  | { kind: 'resources'; animalType: AnimalType; count: number }
+  | { kind: 'pasture'; index: number; animalType: AnimalType; count: number }
+  | { kind: 'house'; animalType: AnimalType; count: number };
+
+export function findAnimalSources(state: GameState, playerId: PlayerId): AnimalSource[] {
+  const player = state.players[playerId];
+  if (!player) return [];
+  const sources: AnimalSource[] = [];
+  (['sheep', 'boar', 'cattle'] as AnimalType[]).forEach((type) => {
+    const r = player.resources[type] ?? 0;
+    if (r > 0) sources.push({ kind: 'resources', animalType: type, count: r });
+  });
+  player.farm.pastures.forEach((p, index) => {
+    if (p.animals && p.animals.count > 0) {
+      sources.push({ kind: 'pasture', index, animalType: p.animals.type, count: p.animals.count });
+    }
+  });
+  player.farm.animalsInHouse.forEach((a) => {
+    if (a.count > 0) sources.push({ kind: 'house', animalType: a.type, count: a.count });
+  });
+  return sources;
+}
+
+/** 취사: 지정 소스에서 동물 1마리 제거 + 비율대로 음식 추가 */
+export function cookAnimal(
+  state: GameState,
+  playerId: PlayerId,
+  source: AnimalSource,
+): GameState {
+  if (!hasCookingFacility(state, playerId)) {
+    throw new Error('요리 설비가 없습니다 (화로 또는 화덕 필요)');
+  }
+  const player = state.players[playerId];
+  if (!player) throw new Error(`Player ${playerId} not found`);
+
+  const rate = ANIMAL_TO_FOOD_RATES[source.animalType] ?? 0;
+  if (rate <= 0) throw new Error('변환 비율이 설정되지 않은 동물 종입니다');
+
+  let newState = state;
+  if (source.kind === 'resources') {
+    newState = addResources(newState, playerId, { [source.animalType]: -1 });
+  } else if (source.kind === 'pasture') {
+    const pasture = player.farm.pastures[source.index];
+    if (!pasture || !pasture.animals) throw new Error('해당 목장에 동물이 없습니다');
+    const newCount = pasture.animals.count - 1;
+    const newPastures = player.farm.pastures.map((p, i) =>
+      i === source.index
+        ? { ...p, animals: newCount > 0 ? { type: p.animals!.type, count: newCount } : null }
+        : p,
+    );
+    newState = updatePlayerFarm(newState, playerId, { pastures: newPastures });
+  } else {
+    // house
+    const house = player.farm.animalsInHouse.find((a) => a.type === source.animalType);
+    if (!house || house.count <= 0) throw new Error('집에 해당 동물이 없습니다');
+    const newHouse = player.farm.animalsInHouse
+      .map((a) => (a.type === source.animalType ? { ...a, count: a.count - 1 } : a))
+      .filter((a) => a.count > 0);
+    newState = updatePlayerFarm(newState, playerId, { animalsInHouse: newHouse });
+  }
+  return addResources(newState, playerId, { food: rate });
+}
+
+/** 교체 배치: 지정 위치의 기존 동물 제거 후 새 동물 배치 (한 번에 처리) */
+export function replaceAnimalAtLocation(
+  state: GameState,
+  playerId: PlayerId,
+  animalType: AnimalType,
+  location: { type: 'pasture'; index: number } | { type: 'house' },
+): GameState {
+  const player = state.players[playerId];
+  if (!player) throw new Error(`Player ${playerId} not found`);
+
+  const cleared = removeAnimalFromFarm(player.farm, location);
+  const destination = location.type === 'pasture' ? location.index : 'house';
+  const placed = placeAnimalInFarm(cleared, animalType, destination);
+  const newState = updatePlayerFarm(state, playerId, placed);
   return addResources(newState, playerId, { [animalType]: -1 });
 }
 

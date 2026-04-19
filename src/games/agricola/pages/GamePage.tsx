@@ -12,6 +12,8 @@ import CardHand from '../components/CardHand.js';
 import CardDetail from '../components/CardDetail.js';
 import HarvestModal from '../components/HarvestModal.js';
 import ScoreBoard from '../components/ScoreBoard.js';
+import CookAnimalModal from '../components/CookAnimalModal.js';
+import AnimalOverflowModal from '../components/AnimalOverflowModal.js';
 import {
   isHarvestRound,
   placeWorker,
@@ -30,9 +32,17 @@ import {
   buildRoom,
   buildStable,
   getAnimalFromMarket,
+  addResources,
   buildMajorImprovement,
   placeAnimalForPlayer,
+  replaceAnimalAtLocation,
+  hasCookingFacility,
+  findAnimalSources,
+  cookAnimal,
+  type AnimalSource,
 } from '../lib/game-engine.js';
+import { ANIMAL_TO_FOOD_RATES } from '../lib/cards/major-improvements.js';
+import { hasAnimalPlacement } from '../lib/farm-engine.js';
 import { playCard, canPlayCard, getOccupationPlayCost } from '../lib/card-engine.js';
 import type { AnimalType, Card } from '../lib/types.js';
 import type { GameState } from '../lib/types.js';
@@ -141,6 +151,12 @@ export default function GamePage({ onExit }: GamePageProps) {
 
   // 가축 배치: 시장에서 가져온 동물 종 (null=배치 완료)
   const [pendingAnimalPlacement, setPendingAnimalPlacement] = useState<AnimalType | null>(null);
+  // 가축 교체 모드: 기존 동물 제거하여 새 동물 배치
+  const [animalRemovalMode, setAnimalRemovalMode] = useState<boolean>(false);
+  // 배치 공간 부족 시 선택 모달 (교체/요리/버림)
+  const [overflowChoice, setOverflowChoice] = useState<AnimalType | null>(null);
+  // 요리 모달 (열려있는 플레이어 ID)
+  const [cookingPlayerId, setCookingPlayerId] = useState<string | null>(null);
 
   // 라운드 종료 카운트다운 (초, null=비활성)
   const [countdownSec, setCountdownSec] = useState<number | null>(null);
@@ -256,6 +272,11 @@ export default function GamePage({ onExit }: GamePageProps) {
     setHistory((h) => h.slice(0, -1));
     setGameState(prev);
     setSelectedFamilyCell(null);
+    setPendingAnimalPlacement(null);
+    setAnimalRemovalMode(false);
+    setOverflowChoice(null);
+    setCookingPlayerId(null);
+    setPendingFenceSegments([]);
   }
 
   // ── 핸들러 ──────────────────────────────────────────────────────
@@ -325,6 +346,10 @@ export default function GamePage({ onExit }: GamePageProps) {
     setCountdownSec(null); // 카운트다운 취소
     setHistory([]); // 라운드 경계 — 다음 라운드 카드 보고 언두 방지
     setPendingFenceSegments([]); // 미확정 울타리 초기화
+    setCookingPlayerId(null);
+    setOverflowChoice(null);
+    setPendingAnimalPlacement(null);
+    setAnimalRemovalMode(false);
     if (isHarvestRound(gs.round)) {
       sfxModalOpen();
       // 밭 수확 먼저 전체 적용 후 1인씩 식량 처리
@@ -414,6 +439,19 @@ export default function GamePage({ onExit }: GamePageProps) {
   // 가축 시장 동물 선택 → resources에 임시 보관 후 배치 모드 진입
   function handleAnimalSelect(animalType: AnimalType) {
     try {
+      const player = gs.players[currentPlayerId];
+      if (!player) return;
+
+      // 배치 공간 없음 → resources에 임시 보관 후 선택 모달 띄움
+      if (!hasAnimalPlacement(player.farm, animalType)) {
+        const s = getAnimalFromMarket(gs, currentPlayerId, animalType);
+        sfxCorrect();
+        saveAndSet({ ...s, roundPhase: 'work' });
+        setPendingAnimalPlacement(animalType);
+        setOverflowChoice(animalType);
+        return;
+      }
+
       const s = getAnimalFromMarket(gs, currentPlayerId, animalType);
       sfxCorrect();
       // 행동 완료 처리(advanceToNextPlayer)는 배치 후에 실행
@@ -430,6 +468,74 @@ export default function GamePage({ onExit }: GamePageProps) {
       sfxStonePlace();
       setPendingAnimalPlacement(null);
       saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+    } catch (e) { sfxWrong(); alert((e as Error).message); }
+  }
+
+  // 교체 모드: 기존 동물 제거 + 같은 자리에 새 동물 배치 (원클릭)
+  function handleAnimalRemove(location: { type: 'pasture'; index: number } | { type: 'house' }) {
+    if (!pendingAnimalPlacement) return;
+    try {
+      const s = replaceAnimalAtLocation(gs, currentPlayerId, pendingAnimalPlacement, location);
+      sfxStonePlace();
+      setPendingAnimalPlacement(null);
+      setAnimalRemovalMode(false);
+      saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+    } catch (e) { sfxWrong(); alert((e as Error).message); }
+  }
+
+  // 교체 취소: 새 동물을 버리고 턴 진행 (resources에 임시 보관된 동물 차감)
+  function handleCancelReplace() {
+    if (!pendingAnimalPlacement) return;
+    const type = pendingAnimalPlacement;
+    const s = addResources(gs, currentPlayerId, { [type]: -1 });
+    sfxWrong();
+    setPendingAnimalPlacement(null);
+    setAnimalRemovalMode(false);
+    saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+  }
+
+  // 공간 부족 모달 → 교체 선택
+  function handleOverflowReplace() {
+    setOverflowChoice(null);
+    setAnimalRemovalMode(true);
+  }
+
+  // 공간 부족 모달 → 요리 선택 (임시 보관 동물을 음식으로)
+  function handleOverflowCook() {
+    if (!pendingAnimalPlacement) return;
+    const type = pendingAnimalPlacement;
+    try {
+      const source: AnimalSource = { kind: 'resources', animalType: type, count: 1 };
+      const s = cookAnimal(gs, currentPlayerId, source);
+      sfxCorrect();
+      setPendingAnimalPlacement(null);
+      setOverflowChoice(null);
+      saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+    } catch (e) { sfxWrong(); alert((e as Error).message); }
+  }
+
+  // 공간 부족 모달 → 버림
+  function handleOverflowDiscard() {
+    if (!pendingAnimalPlacement) return;
+    const type = pendingAnimalPlacement;
+    const s = addResources(gs, currentPlayerId, { [type]: -1 });
+    sfxWrong();
+    setPendingAnimalPlacement(null);
+    setOverflowChoice(null);
+    saveAndSet(advanceToNextPlayer({ ...s, roundPhase: 'work' }));
+  }
+
+  // 언제든 요리 (ResourcePanel 옆 🔥 버튼)
+  function handleCookAnimal(source: AnimalSource) {
+    if (!cookingPlayerId || !gs.players[cookingPlayerId]) {
+      setCookingPlayerId(null);
+      return;
+    }
+    try {
+      const s = cookAnimal(gs, cookingPlayerId, source);
+      sfxCorrect();
+      saveAndSet(s);
+      // 모달은 열린 채로 유지 (여러 번 변환 가능)
     } catch (e) { sfxWrong(); alert((e as Error).message); }
   }
 
@@ -628,7 +734,7 @@ export default function GamePage({ onExit }: GamePageProps) {
       )}
 
       {/* 가축 배치 대기 배너 — 시장에서 가져온 동물을 목장/집에 배치해야 함 */}
-      {pendingAnimalPlacement && (
+      {pendingAnimalPlacement && !animalRemovalMode && (
         <div className="mb-3 px-4 py-2 bg-green-50 border-2 border-green-500 rounded-lg">
           <p className="text-sm font-semibold text-green-800">
             {pendingAnimalPlacement === 'sheep' ? '🐑 양' : pendingAnimalPlacement === 'boar' ? '🐷 멧돼지' : '🐄 소'}
@@ -637,6 +743,33 @@ export default function GamePage({ onExit }: GamePageProps) {
           <p className="text-xs text-green-600 mt-0.5">
             녹색 버튼 = 빈 목장 또는 같은 동물 목장 / 파란색 버튼 = 집 안 (최대 1마리)
           </p>
+        </div>
+      )}
+
+      {/* 가축 교체 모드 배너 — 기존 동물 중 버릴 대상 선택 */}
+      {pendingAnimalPlacement && animalRemovalMode && (
+        <div className="mb-3 px-4 py-2 bg-red-50 border-2 border-red-500 rounded-lg flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-red-800">
+            교체 모드 · 버릴 동물이 있는 위치의 ❌ 버튼을 누르면 그 자리에 새{' '}
+            {pendingAnimalPlacement === 'sheep' ? '🐑 양' : pendingAnimalPlacement === 'boar' ? '🐷 멧돼지' : '🐄 소'}
+            {' '}이(가) 배치됩니다
+          </p>
+          <div className="flex gap-2 shrink-0">
+            {hasCookingFacility(gs, currentPlayerId) && (
+              <button
+                onClick={handleOverflowCook}
+                className="px-3 py-1.5 text-xs font-medium bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors duration-150"
+              >
+                🔥 요리 (+{ANIMAL_TO_FOOD_RATES[pendingAnimalPlacement] ?? 0})
+              </button>
+            )}
+            <button
+              onClick={handleCancelReplace}
+              className="px-3 py-1.5 text-xs font-medium bg-white border border-red-400 text-red-700 rounded hover:bg-red-100 transition-colors duration-150"
+            >
+              교체 취소 (새 동물 버림)
+            </button>
+          </div>
         </div>
       )}
 
@@ -958,7 +1091,7 @@ export default function GamePage({ onExit }: GamePageProps) {
                       <FarmBoard
                         board={p.farm}
                         familySize={p.familySize}
-                        deployedCount={isActive ? countPlaced(gs, pid) : p.familySize}
+                        deployedCount={countPlaced(gs, pid)}
                         selectedFamilyCell={isActive ? selectedFamilyCell : null}
                         onCellClick={isActive ? handleCellClick : undefined}
                         onFamilyMemberClick={isActive ? handleFamilyMemberClick : undefined}
@@ -970,11 +1103,22 @@ export default function GamePage({ onExit }: GamePageProps) {
                         pendingFenceSegments={isActive ? pendingFenceSegments : []}
                         playerColor={p.color}
                         isStartingPlayer={gs.startingPlayerToken === pid}
-                        animalPlacementType={isActive ? pendingAnimalPlacement : null}
+                        animalPlacementType={isActive && !animalRemovalMode ? pendingAnimalPlacement : null}
                         onAnimalPlace={isActive ? handlePlaceAnimal : undefined}
+                        animalRemovalMode={isActive && animalRemovalMode}
+                        onAnimalRemove={isActive ? handleAnimalRemove : undefined}
                       />
-                      <div className="mt-3">
+                      <div className="mt-3 relative">
                         <ResourcePanel player={p} />
+                        {isActive && hasCookingFacility(gs, pid) && findAnimalSources(gs, pid).length > 0 && (
+                          <button
+                            onClick={() => setCookingPlayerId(pid)}
+                            className="absolute top-1 right-1 px-2 py-1 text-xs font-bold bg-amber-600 text-white rounded shadow hover:bg-amber-700 transition-colors duration-150"
+                            title="동물을 음식으로 변환"
+                          >
+                            🔥 요리
+                          </button>
+                        )}
                       </div>
 
                       {/* 손패 — 현재 플레이어만 */}
@@ -1054,6 +1198,27 @@ export default function GamePage({ onExit }: GamePageProps) {
               : undefined
           }
           onClose={() => { sfxClick(); setDetailCard(null); }}
+        />
+      )}
+
+      {/* 배치 공간 부족 선택 모달 */}
+      {overflowChoice && (
+        <AnimalOverflowModal
+          animalType={overflowChoice}
+          foodRate={ANIMAL_TO_FOOD_RATES[overflowChoice] ?? 0}
+          canCook={hasCookingFacility(gs, currentPlayerId)}
+          onReplace={handleOverflowReplace}
+          onCook={handleOverflowCook}
+          onDiscard={handleOverflowDiscard}
+        />
+      )}
+
+      {/* 언제든 동물 요리 모달 */}
+      {cookingPlayerId && (
+        <CookAnimalModal
+          sources={findAnimalSources(gs, cookingPlayerId)}
+          onCook={handleCookAnimal}
+          onClose={() => { sfxClick(); setCookingPlayerId(null); }}
         />
       )}
     </div>

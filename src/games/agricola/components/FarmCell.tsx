@@ -1,5 +1,5 @@
 /** FarmCell — 3×5 농장 그리드의 개별 셀 */
-import type { CellType, SownField, Pasture } from '../lib/types.js';
+import type { CellType, SownField, Pasture, AnimalStack } from '../lib/types.js';
 
 /** 방 셀의 가족 구성원 표시 상태 */
 export type FamilyMemberState = 'none' | 'available' | 'deployed' | 'selected';
@@ -25,6 +25,8 @@ interface FarmCellProps {
   familyMemberState?: FamilyMemberState;
   /** 플레이어 색상 (red/blue/green/yellow) */
   playerColor?: string;
+  /** 집 안 동물 (첫 번째 방 셀에만 전달) */
+  houseAnimals?: AnimalStack[];
   onClick?: () => void;
 }
 
@@ -33,9 +35,11 @@ const CELL_CONFIG: Record<CellType, { bg: string; icon: string; label: string }>
   room_wood:  { bg: 'bg-amber-900',                      icon: '🏠', label: '나무방' },
   room_clay:  { bg: 'bg-orange-800',                     icon: '🏠', label: '흙방' },
   room_stone: { bg: 'bg-slate-500',                      icon: '🏠', label: '돌방' },
-  field:      { bg: 'bg-yellow-600/60',                  icon: '🌾', label: '밭' },
+  field:      { bg: 'bg-amber-800/70',                   icon: '',   label: '밭' },
   stable:     { bg: 'bg-green-800',                      icon: '🐄', label: '외양간' },
 };
+
+const ANIMAL_ICON: Record<string, string> = { sheep: '🐑', boar: '🐷', cattle: '🐄' };
 
 export default function FarmCell({
   cellType,
@@ -45,6 +49,7 @@ export default function FarmCell({
   hasStable,
   familyMemberState = 'none',
   playerColor,
+  houseAnimals,
   onClick,
 }: FarmCellProps) {
   const tokenColors = TOKEN_COLORS[playerColor ?? ''] ?? DEFAULT_TOKEN;
@@ -103,9 +108,19 @@ export default function FarmCell({
       {/* 목장 동물 */}
       {pasture?.animals && (
         <span className="text-[10px] text-green-900">
-          {pasture.animals.type === 'sheep' ? '🐑' : pasture.animals.type === 'boar' ? '🐷' : '🐄'}
-          {pasture.animals.count}
+          {ANIMAL_ICON[pasture.animals.type]}{pasture.animals.count}
         </span>
+      )}
+
+      {/* 집 안 동물 (첫 번째 방 셀) */}
+      {houseAnimals && houseAnimals.length > 0 && (
+        <div className="absolute bottom-0 right-0 flex flex-col items-end gap-0 p-0.5">
+          {houseAnimals.map((a) => (
+            <span key={a.type} className="text-[9px] leading-tight bg-black/20 rounded px-0.5">
+              {ANIMAL_ICON[a.type]}{a.count}
+            </span>
+          ))}
+        </div>
       )}
     </div>
   );

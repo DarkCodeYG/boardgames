@@ -30,6 +30,9 @@ interface FarmBoardProps {
   animalPlacementType?: AnimalType | null;
   /** 가축 배치 목장 선택 (목장 인덱스 또는 'house') */
   onAnimalPlace?: (destination: number | 'house') => void;
+  /** 가축 제거(교체) 모드: 기존 동물 클릭으로 제거 */
+  animalRemovalMode?: boolean;
+  onAnimalRemove?: (location: { type: 'pasture'; index: number } | { type: 'house' }) => void;
   /** 선플레이어 토큰 보유 여부 — 마커 표시 */
   isStartingPlayer?: boolean;
 }
@@ -65,6 +68,8 @@ export default function FarmBoard({
   pendingFenceSegments = [],
   animalPlacementType = null,
   onAnimalPlace,
+  animalRemovalMode = false,
+  onAnimalRemove,
   isStartingPlayer = false,
 }: FarmBoardProps) {
   // 방 셀에 가족 구성원 상태 부여
@@ -134,6 +139,7 @@ export default function FarmBoard({
             const pasture = pastureForCell(r, c);
             const fmState = familyMemberMap.get(`${r}-${c}`) ?? 'none';
             const isRoom = fmState !== 'none';
+            const isFirstRoom = roomCells[0]?.[0] === r && roomCells[0]?.[1] === c;
 
             // 클릭 핸들러: 방의 available/selected → 가족 선택, 그 외 → 셀 클릭
             function handleClick() {
@@ -156,6 +162,7 @@ export default function FarmBoard({
                   hasStable={hasStable(r, c)}
                   familyMemberState={fmState}
                   playerColor={playerColor}
+                  houseAnimals={isFirstRoom && board.animalsInHouse.length > 0 ? board.animalsInHouse : undefined}
                   onClick={handleClick}
                 />
               </div>
@@ -260,6 +267,65 @@ export default function FarmBoard({
                     >
                       <span>{ANIMAL_ICON[animalPlacementType]}</span>
                       <span className="text-[9px]">집 안</span>
+                    </button>
+                  );
+                }
+              }
+            }
+            return null;
+          })()}
+        </div>
+      )}
+
+      {/* 가축 제거(교체) 모드 오버레이 */}
+      {animalRemovalMode && onAnimalRemove && (
+        <div className="absolute inset-0 pointer-events-none">
+          {/* 동물이 있는 목장 위에 ❌ 버튼 */}
+          {board.pastures.map((pasture, idx) => {
+            if (!pasture.animals) return null;
+            const firstCell = pasture.cells[0];
+            if (!firstCell) return null;
+            const [pr, pc] = firstCell;
+            return (
+              <button
+                key={`remove-${idx}`}
+                aria-label={`목장 ${idx + 1}의 동물 제거`}
+                onClick={() => onAnimalRemove({ type: 'pasture', index: idx })}
+                className="pointer-events-auto absolute flex flex-col items-center justify-center
+                  w-14 h-14 bg-red-500/70 hover:bg-red-400/80 border-2 border-red-300
+                  rounded text-xs font-bold text-white transition-all z-10"
+                style={{ top: `${pr * 3.5}rem`, left: `${pc * 3.5}rem` }}
+              >
+                <span aria-hidden="true">❌</span>
+                <span className="text-[9px]">
+                  {ANIMAL_ICON[pasture.animals.type]}×{pasture.animals.count}
+                </span>
+              </button>
+            );
+          })}
+          {/* 집 안 동물이 있으면 ❌ 버튼 */}
+          {(() => {
+            if (board.animalsInHouse.length === 0) return null;
+            const house = board.animalsInHouse[0];
+            if (!house) return null;
+            for (let r = 0; r < ROWS; r++) {
+              for (let c = 0; c < COLS; c++) {
+                const cell = board.grid[r]?.[c];
+                if (cell === 'room_wood' || cell === 'room_clay' || cell === 'room_stone') {
+                  return (
+                    <button
+                      key="remove-house"
+                      aria-label="집 안 동물 제거"
+                      onClick={() => onAnimalRemove({ type: 'house' })}
+                      className="pointer-events-auto absolute flex flex-col items-center justify-center
+                        w-14 h-14 bg-red-500/70 hover:bg-red-400/80 border-2 border-red-300
+                        rounded text-xs font-bold text-white transition-all z-10"
+                      style={{ top: `${r * 3.5}rem`, left: `${c * 3.5}rem` }}
+                    >
+                      <span aria-hidden="true">❌</span>
+                      <span className="text-[9px]">
+                        {ANIMAL_ICON[house.type]}×{house.count}
+                      </span>
                     </button>
                   );
                 }
