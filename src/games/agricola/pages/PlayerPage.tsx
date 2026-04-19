@@ -8,10 +8,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { joinRoom, subscribeRoom, updateLobbyPlayer, submitAction } from '../lib/firebase-room.js';
 import { canPlayerAct } from '../lib/action-dispatcher.js';
-import type { RoomSnapshot, PlayerId, LobbyPlayer } from '../lib/types.js';
+import { findAnimalSources, hasCookingFacility, type AnimalSource } from '../lib/game-engine.js';
+import type {
+  RoomSnapshot, PlayerId, LobbyPlayer, AnimalType,
+} from '../lib/types.js';
 import FarmBoard from '../components/FarmBoard.js';
 import ActionBoard from '../components/ActionBoard.js';
 import ResourcePanel from '../components/ResourcePanel.js';
+import AnimalOverflowModal from '../components/AnimalOverflowModal.js';
+import CookAnimalModal from '../components/CookAnimalModal.js';
+import { ANIMAL_TO_FOOD_RATES } from '../lib/cards/major-improvements.js';
 
 type Phase = 'loading' | 'joining' | 'in_lobby' | 'playing' | 'ended' | 'error';
 
@@ -25,6 +31,14 @@ export default function PlayerPage() {
   const [name, setName] = useState<string>('');
   const [snapshot, setSnapshot] = useState<RoomSnapshot | null>(null);
   const roomNullTimerRef = useRef<number | null>(null);
+
+  // ── 플레이어 로컬 상호작용 상태 ──────────────────────────────
+  const [selectedFamilyCell, setSelectedFamilyCell] = useState<[number, number] | null>(null);
+  const [pendingFenceSegments, setPendingFenceSegments] = useState<Array<{ type: 'h' | 'v'; row: number; col: number }>>([]);
+  const [pendingAnimalPlacement, setPendingAnimalPlacement] = useState<AnimalType | null>(null);
+  const [animalRemovalMode, setAnimalRemovalMode] = useState<boolean>(false);
+  const [overflowChoice, setOverflowChoice] = useState<AnimalType | null>(null);
+  const [showCookingModal, setShowCookingModal] = useState<boolean>(false);
 
   // URL 에서 room 파라미터 추출 + sessionStorage 재접속 시도
   useEffect(() => {
@@ -174,6 +188,110 @@ export default function PlayerPage() {
     const mePlayer = myPid ? gs?.players?.[myPid] : undefined;
     const myHand = myPid ? snapshot?.privateHands?.[myPid] : undefined;
     const isMyTurn = !!(gs && gs.playerOrder[gs.currentPlayerIndex] === myPid);
+    const canAct = gs && myPid ? canPlayerAct(gs, myPid) : false;
+    const rp = gs?.roundPhase;
+    const isFenceMode = canAct && (rp === 'pending_fence' || rp === 'pending_renovate_fence');
+    const pendingAnimalActive = isMyTurn && pendingAnimalPlacement && !animalRemovalMode;
+    const replaceModeActive = isMyTurn && pendingAnimalPlacement && animalRemovalMode;
+
+    // 액션 submit 헬퍼 — 실패 시 alert
+    const submit = (kind: string, payload: Record<string, unknown>) => {
+      if (!myPid) return;
+      submitAction(roomCode, { playerId: myPid, kind: kind as never, payload })
+        .catch((e) => alert(`제출 실패: ${(e as Error).message}`));
+    };
+
+    // ── 핸들러 ─────────────────────────────────────────────
+
+    // 가족 구성원 클릭 (토글)
+    const handleFamilyMemberClick = (r: number, c: number) => {
+      if (!canAct) return;
+      setSelectedFamilyCell((prev) => prev && prev[0] === r && prev[1] === c ? null : [r, c]);
+    };
+
+    // 행동 공간 클릭
+    const handleActionSelect = (actionSpaceId: string) => {
+      if (!canAct) return;
+      submit('place_worker', { actionSpaceId });
+      setSelectedFamilyCell(null);
+    };
+
+    // 농장 셀 클릭 (pending_plow/sow/build_room/build_stable)
+    const handleCellClick = (r: number, c: number) => {
+      if (!isMyTurn || !rp) return;
+      if (['pending_plow', 'pending_plow_sow', 'pending_sow', 'pending_build_room', 'pending_build_stable'].includes(rp)) {
+        submit('cell_click', { row: r, col: c });
+      }
+    };
+
+    // 울타리 세그먼트 토글 (로컬)
+    const handleFenceClick = (orientation: 'horizontal' | 'vertical', r: number, c: number) => {
+      if (!isFenceMode) return;
+      const type = orientation === 'horizontal' ? 'h' : 'v';
+      setPendingFenceSegments((prev) => {
+        const idx = prev.findIndex((s) => s.type === type && s.row === r && s.col === c);
+        return idx >= 0 ? prev.filter((_, i) => i !== idx) : [...prev, { type, row: r, col: c }];
+      });
+    };
+
+    // 울타리 확정 / 개량+울타리 완료 / 기타 pending 확정
+    const handlePendingConfirm = () => {
+      if (!rp) return;
+      if (rp === 'pending_fence') {
+        submit('pending_confirm', { segments: pendingFenceSegments });
+        setPendingFenceSegments([]);
+      } else {
+        submit('pending_confirm', {});
+      }
+    };
+
+    // 동물 배치 (목장/집)
+    const handleAnimalPlace = (destination: number | 'house') => {
+      if (!pendingAnimalPlacement) return;
+      submit('place_animal', { animalType: pendingAnimalPlacement, destination });
+      setPendingAnimalPlacement(null);
+    };
+
+    // 교체 모드: 기존 동물 제거 → 자동 재배치
+    const handleAnimalRemove = (location: { type: 'pasture'; index: number } | { type: 'house' }) => {
+      if (!pendingAnimalPlacement) return;
+      submit('remove_animal', { animalType: pendingAnimalPlacement, location });
+      setPendingAnimalPlacement(null);
+      setAnimalRemovalMode(false);
+    };
+
+    const handleCancelReplace = () => {
+      if (!pendingAnimalPlacement) return;
+      submit('cancel_replace', { animalType: pendingAnimalPlacement });
+      setPendingAnimalPlacement(null);
+      setAnimalRemovalMode(false);
+    };
+
+    // 오버플로우 모달 핸들러
+    const handleOverflowReplace = () => {
+      setOverflowChoice(null);
+      setAnimalRemovalMode(true);
+    };
+    const handleOverflowCook = () => {
+      if (!overflowChoice) return;
+      submit('overflow_cook', { animalType: overflowChoice });
+      setOverflowChoice(null);
+      setPendingAnimalPlacement(null);
+    };
+    const handleOverflowDiscard = () => {
+      if (!overflowChoice) return;
+      submit('overflow_discard', { animalType: overflowChoice });
+      setOverflowChoice(null);
+      setPendingAnimalPlacement(null);
+    };
+
+    // 언제든 요리
+    const handleCookAnimal = (source: AnimalSource) => {
+      submit('cook_animal', { source });
+    };
+
+    // animal_select 반영: gs.roundPhase 가 pending_animal_choice 로 오면 UI 가 안내
+    // (실제 동물 선택 버튼은 Cycle 4.3 에서 — 현재는 일단 표기만)
     return (
       <div className="min-h-screen bg-amber-50 p-3">
         <div className="max-w-md mx-auto space-y-3">
@@ -192,15 +310,64 @@ export default function PlayerPage() {
             </span>
           </div>
 
+          {/* pending 단계 안내 배너 */}
+          {isMyTurn && rp && rp !== 'work' && (
+            <div className="px-3 py-2 bg-amber-50 border-2 border-amber-500 rounded-lg text-xs text-amber-800">
+              <strong>단계:</strong> {rp}
+              {rp === 'pending_plow' && ' — 농장에서 밭 놓을 셀 선택'}
+              {rp === 'pending_plow_sow' && ' — 먼저 밭 갈 셀 선택'}
+              {rp === 'pending_sow' && ' — 씨 뿌릴 밭 선택'}
+              {rp === 'pending_fence' && ' — 울타리 세그먼트 선택 후 확인'}
+              {rp === 'pending_renovate' && ' — 집 개량 비용 지불'}
+              {rp === 'pending_renovate_fence' && ' — 집 개량 후 울타리 세그먼트 선택'}
+              {rp === 'pending_family_growth' && ' — 가족 늘리기 (빈 방 필요)'}
+              {rp === 'pending_family_growth_urgent' && ' — 가족 늘리기 (방 불필요)'}
+              {rp === 'pending_build_room' && ' — 방 건설할 빈 셀 선택'}
+              {rp === 'pending_build_stable' && ' — 외양간 건설할 셀 선택'}
+              {(rp === 'pending_family_growth' || rp === 'pending_family_growth_urgent' ||
+                rp === 'pending_renovate' || rp === 'pending_fence') && (
+                <button
+                  onClick={handlePendingConfirm}
+                  className="ml-2 px-3 py-1 bg-amber-600 text-white rounded font-medium hover:bg-amber-700"
+                >
+                  확인
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 교체 모드 배너 */}
+          {replaceModeActive && (
+            <div className="px-3 py-2 bg-red-50 border-2 border-red-500 rounded-lg text-xs text-red-800">
+              <strong>교체:</strong> 버릴 동물 위치의 ❌ 선택
+              <button
+                onClick={handleCancelReplace}
+                className="ml-2 px-2 py-0.5 bg-white border border-red-400 text-red-700 rounded text-[11px]"
+              >
+                취소
+              </button>
+            </div>
+          )}
+
           {/* 내 농장판 */}
-          {mePlayer && (
+          {mePlayer && myPid && (
             <div className="bg-white rounded-2xl shadow-lg p-2 flex justify-center">
               <FarmBoard
                 board={mePlayer.farm}
                 familySize={mePlayer.familySize}
-                deployedCount={0}
+                deployedCount={gs ? (Object.values(gs.actionSpaces).filter((s) => s.workerId === myPid).length + gs.revealedRoundCards.filter((rc) => rc.workerId === myPid).length) : 0}
+                selectedFamilyCell={selectedFamilyCell}
                 playerColor={mePlayer.color}
                 isStartingPlayer={gs?.startingPlayerToken === myPid}
+                onCellClick={handleCellClick}
+                onFamilyMemberClick={handleFamilyMemberClick}
+                onFenceClick={handleFenceClick}
+                fencingMode={isFenceMode}
+                pendingFenceSegments={pendingFenceSegments}
+                animalPlacementType={pendingAnimalActive ? pendingAnimalPlacement : null}
+                onAnimalPlace={pendingAnimalActive ? handleAnimalPlace : undefined}
+                animalRemovalMode={!!replaceModeActive}
+                onAnimalRemove={replaceModeActive ? handleAnimalRemove : undefined}
               />
             </div>
           )}
@@ -244,25 +411,42 @@ export default function PlayerPage() {
               <ActionBoard
                 state={gs}
                 currentPlayerId={myPid}
-                workerReady={isMyTurn && canPlayerAct(gs, myPid)}
-                onActionSelect={
-                  isMyTurn && canPlayerAct(gs, myPid)
-                    ? (actionSpaceId) => {
-                        submitAction(roomCode, {
-                          playerId: myPid,
-                          kind: 'place_worker',
-                          payload: { actionSpaceId },
-                        }).catch((e) => alert(`제출 실패: ${(e as Error).message}`));
-                      }
-                    : undefined
-                }
+                workerReady={canAct && !!selectedFamilyCell}
+                onActionSelect={canAct ? handleActionSelect : undefined}
               />
             </div>
           )}
 
-          <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-lg text-[11px] text-yellow-800">
-            <strong>Cycle 4 개발 중:</strong> 워커 배치, 가족 선택, 행동 제출은 다음 사이클에서 구현.
-          </div>
+          {/* 언제든 요리 버튼 */}
+          {gs && myPid && mePlayer && hasCookingFacility(gs, myPid) && findAnimalSources(gs, myPid).length > 0 && (
+            <button
+              onClick={() => setShowCookingModal(true)}
+              className="w-full py-2 bg-amber-600 text-white rounded-lg font-medium text-sm hover:bg-amber-700"
+            >
+              🔥 동물 요리
+            </button>
+          )}
+
+          {/* 오버플로우 모달 */}
+          {overflowChoice && (
+            <AnimalOverflowModal
+              animalType={overflowChoice}
+              foodRate={ANIMAL_TO_FOOD_RATES[overflowChoice] ?? 0}
+              canCook={gs && myPid ? hasCookingFacility(gs, myPid) : false}
+              onReplace={handleOverflowReplace}
+              onCook={handleOverflowCook}
+              onDiscard={handleOverflowDiscard}
+            />
+          )}
+
+          {/* 요리 모달 */}
+          {showCookingModal && gs && myPid && (
+            <CookAnimalModal
+              sources={findAnimalSources(gs, myPid)}
+              onCook={handleCookAnimal}
+              onClose={() => setShowCookingModal(false)}
+            />
+          )}
         </div>
       </div>
     );

@@ -6,6 +6,34 @@
 
 ---
 
+## Cycle 4.2 — 플레이어 상호작용 wiring ✅ 완료
+
+**시작/완료**: 2026-04-19
+**목표**: PlayerPage FarmBoard/Modal 전체 상호작용 → actions 큐 제출
+
+**산출물 (PlayerPage)**:
+- 로컬 상태: selectedFamilyCell, pendingFenceSegments, pendingAnimalPlacement, animalRemovalMode, overflowChoice, showCookingModal
+- FarmBoard props 완전 wiring: onCellClick/onFamilyMemberClick/onFenceClick/onAnimalPlace/onAnimalRemove
+- pending 단계 배너 + "확인" 버튼 (가족 늘리기·개량·울타리)
+- 교체 모드 배너 + "취소" 버튼
+- FarmBoard fencingMode / pendingFenceSegments / animalPlacementType / animalRemovalMode 연동
+- AnimalOverflowModal + CookAnimalModal 렌더링 + submit 핸들러
+- "🔥 동물 요리" 외부 버튼 (설비 보유 + 동물 있을 때)
+
+**지원 submitAction 종류 (11종)**:
+place_worker, cell_click(5 phase), pending_confirm(가족/개량/울타리), place_animal, remove_animal, overflow_cook/discard, cancel_replace, cook_animal
+
+**검증**: `npm run build` ✅ gzip 290KB
+
+**남은 작업 (Cycle 4.3)**:
+- `pending_animal_select` UI — 양/멧돼지/소 선택 버튼 (ActionBoard 이후 2차 선택)
+- `animal_select` 후 `pendingAnimalPlacement` 자동 트리거 (gameState 또는 클라이언트 로컬)
+- 배치 공간 없음 자동 감지 → AnimalOverflowModal 자동 오픈
+- 수확 단계 UI (빵 굽기 선택)
+- 호스트의 수확 1인씩 진행 버튼
+
+---
+
 ## Cycle 4 — 액션 프로토콜 (기본) ✅ 1차 완료
 
 **시작/완료**: 2026-04-19
