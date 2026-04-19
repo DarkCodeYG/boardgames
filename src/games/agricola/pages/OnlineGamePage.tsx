@@ -77,13 +77,18 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 한 번만
 
-  // 구독 — 방 스냅샷
+  // 구독 — 방 스냅샷 (gameState 는 hydrate 후 저장)
   useEffect(() => {
     if (!roomCode) return;
     const unsub = subscribeRoom(roomCode, (snap) => {
-      setSnapshot(snap);
-      // meta.desiredPlayerCount 변경 시 로컬 state 동기화 (다른 탭/새로고침 대비)
-      if (snap?.meta?.desiredPlayerCount && snap.meta.desiredPlayerCount !== playerCount) {
+      if (!snap) {
+        setSnapshot(null);
+        return;
+      }
+      // gameState 가 있으면 함수 재주입 + 빈 배열 복원
+      const hydrated = snap.gameState ? { ...snap, gameState: hydrateGameState(snap.gameState) } : snap;
+      setSnapshot(hydrated);
+      if (snap.meta?.desiredPlayerCount && snap.meta.desiredPlayerCount !== playerCount) {
         setPlayerCount(snap.meta.desiredPlayerCount);
       }
     });
@@ -111,9 +116,8 @@ export default function OnlineGamePage({ onGoHome }: OnlineGamePageProps) {
       }
 
       try {
-        // Firebase 에서 읽은 state 는 함수 필드 제거됨 → hydrate 후 엔진 호출
-        const hydrated = hydrateGameState(snap.gameState);
-        const result = dispatchAction(hydrated, action);
+        // snap.gameState 는 이미 구독 콜백에서 hydrate 됨
+        const result = dispatchAction(snap.gameState, action);
         await updateGameState(roomCode, result.nextState);
         await markActionApplied(roomCode, actionId);
       } catch (e) {

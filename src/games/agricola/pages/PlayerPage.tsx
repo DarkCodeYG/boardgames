@@ -10,6 +10,7 @@ import { joinRoom, subscribeRoom, updateLobbyPlayer, submitAction } from '../lib
 import { canPlayerAct } from '../lib/action-dispatcher.js';
 import { findAnimalSources, hasCookingFacility, type AnimalSource } from '../lib/game-engine.js';
 import { hasAnimalPlacement } from '../lib/farm-engine.js';
+import { hydrateGameState } from '../lib/state-serializer.js';
 import type {
   RoomSnapshot, PlayerId, LobbyPlayer, AnimalType,
 } from '../lib/types.js';
@@ -116,7 +117,9 @@ export default function PlayerPage() {
         clearTimeout(roomNullTimerRef.current);
         roomNullTimerRef.current = null;
       }
-      setSnapshot(snap);
+      // gameState 가 있으면 hydrate (Firebase 가 빈 배열 삭제한 필드 복원)
+      const hydrated = snap.gameState ? { ...snap, gameState: hydrateGameState(snap.gameState) } : snap;
+      setSnapshot(hydrated);
 
       if (snap.meta?.phase === 'playing' && phase === 'in_lobby') {
         setPhase('playing');

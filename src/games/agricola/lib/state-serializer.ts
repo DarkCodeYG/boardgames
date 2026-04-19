@@ -20,11 +20,14 @@ import type {
   RoundCardState,
   MajorImprovement,
   Card,
+  FarmBoard,
+  CellType,
 } from './types.js';
 import { getPermanentActionSpaces } from './action-spaces.js';
 import { getRoundCardsByStage } from './round-cards.js';
 import { getMajorImprovements } from './cards/major-improvements.js';
 import { getBaseDeckCards } from './cards/index.js';
+import { createInitialFarmBoard } from './farm-engine.js';
 
 // ── 레지스트리 빌드 (ID → 원본 객체) ─────────────────────────────
 
@@ -188,19 +191,50 @@ export function hydrateGameState(raw: GameState): GameState {
         {
           ...p,
           playedCards: (p.playedCards ?? []).map((c) => hydrateCard(c, cardReg)),
-          hand: p.hand ?? { occupations: [], minorImprovements: [] },
-          farm: {
-            ...p.farm,
-            sownFields: p.farm?.sownFields ?? [],
-            fences: p.farm?.fences ?? { horizontal: [], vertical: [] },
-            pastures: p.farm?.pastures ?? [],
-            stables: p.farm?.stables ?? [],
-            animalsInHouse: p.farm?.animalsInHouse ?? [],
+          hand: {
+            occupations: p.hand?.occupations ?? [],
+            minorImprovements: p.hand?.minorImprovements ?? [],
           },
+          farm: hydrateFarmBoard(p.farm),
           workers: p.workers ?? [],
         },
       ]),
     ),
     log: raw.log ?? [],
+  };
+}
+
+/** FarmBoard 복원 — Firebase 가 empty array/undefined 로 삭제한 필드 재구성 */
+function hydrateFarmBoard(raw: Partial<FarmBoard> | undefined): FarmBoard {
+  const init = createInitialFarmBoard();
+  if (!raw) return init;
+
+  // grid: 3×5 CellType 배열 복원 (Firebase 가 각 행을 object 로 저장할 수 있음)
+  const grid = (raw.grid ?? init.grid).map((row, r) => {
+    const rowArr = Array.isArray(row) ? row : Object.values(row ?? {});
+    return Array.from({ length: 5 }, (_, c) => (rowArr[c] as CellType) ?? init.grid[r]?.[c] ?? 'empty');
+  });
+
+  // fences: 4×5 horizontal, 3×6 vertical
+  const rawH = raw.fences?.horizontal;
+  const rawV = raw.fences?.vertical;
+  const horizontal = Array.from({ length: 4 }, (_, r) => {
+    const row = rawH?.[r];
+    const arr = Array.isArray(row) ? row : row ? Object.values(row) : [];
+    return Array.from({ length: 5 }, (_, c) => Boolean(arr[c]));
+  });
+  const vertical = Array.from({ length: 3 }, (_, r) => {
+    const row = rawV?.[r];
+    const arr = Array.isArray(row) ? row : row ? Object.values(row) : [];
+    return Array.from({ length: 6 }, (_, c) => Boolean(arr[c]));
+  });
+
+  return {
+    grid,
+    sownFields: raw.sownFields ?? [],
+    fences: { horizontal, vertical },
+    pastures: raw.pastures ?? [],
+    stables: raw.stables ?? [],
+    animalsInHouse: raw.animalsInHouse ?? [],
   };
 }
