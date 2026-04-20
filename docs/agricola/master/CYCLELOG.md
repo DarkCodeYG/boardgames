@@ -179,12 +179,12 @@ place_worker, cell_click(5 phase), pending_confirm(가족/개량/울타리), pla
 **목표**: Phase B 전체 계획 문서화 + 에이전트 작업 매뉴얼 정비
 
 **산출물**:
-- [x] `PHASE-B-PLAN.md` — 전체 Phase B 계획 (4개 Cycle 아키텍처/범위)
-- [x] `CYCLELOG.md` — 이 문서 (사이클 로그)
-- [x] `POLICY-QUEUE.md` — 정책/결정사항 대기열 (6개 활성 이슈 + 1개 확정)
-- [x] `WORK-MANUAL.md` — 에이전트 작업 매뉴얼 (세션 체크리스트 + 사이클 루프)
-- [🏃] `RULE-ANALYSIS.md` — 백그라운드 에이전트 a6785997 실행 중
-- [🏃] `WITNESSES-PATTERNS.md` — 백그라운드 에이전트 a58bf196 실행 중
+- [x] `tasks/PHASE-B-PLAN.md` — 전체 Phase B 계획 (4개 Cycle 아키텍처/범위)
+- [x] `master/CYCLELOG.md` — 이 문서 (사이클 로그)
+- [x] `tasks/POLICY-QUEUE.md` — 정책/결정사항 대기열 (6개 활성 이슈 + 1개 확정)
+- [x] `agents/WORK-MANUAL.md` — 에이전트 작업 매뉴얼 (세션 체크리스트 + 사이클 루프)
+- [🏃] `analysis/RULE-ANALYSIS.md` — 백그라운드 에이전트 a6785997 실행 중
+- [🏃] `analysis/WITNESSES-PATTERNS.md` — 백그라운드 에이전트 a58bf196 실행 중
 
 **결정 사항**:
 - 오프라인 모드(`?game=agricola-local`)는 기존 GamePage.tsx 유지. 기본 경로는 Phase B 온라인 모드로 전환

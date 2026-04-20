@@ -28,9 +28,9 @@ docs/agricola/
 │   └── REVIEW.md          문서-구현 정합성 검토 결과 (2026-04-17)
 │
 ├── 🌏 한국어 룰 정리 (원본 룰북에서 발췌·번역)
-│   ├── korean-rules/01-action-spaces-ko.md   행동 공간 한국어 정리
-│   ├── korean-rules/02-major-improvements-ko.md  대시설 한국어 정리
-│   └── korean-rules/03-resources-ko.md       자원·룰 핵심 정리
+│   ├── research/korean-rules/01-action-spaces-ko.md   행동 공간 한국어 정리
+│   ├── research/korean-rules/02-major-improvements-ko.md  대시설 한국어 정리
+│   └── research/korean-rules/03-resources-ko.md       자원·룰 핵심 정리
 │
 └── 📚 원본 룰북 (읽기 전용 참고자료 — 수정 금지)
     ├── en_agricolare.html_Rules_Agricola-RE_EN.pdf   ← 공식 룰북 (최우선)

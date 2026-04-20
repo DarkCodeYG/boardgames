@@ -69,7 +69,7 @@
 ### 2-1. 황금 규칙 (Golden Rules)
 
 1. **설계 문서 선행:** 코드 작성 전 반드시 해당 Phase의 설계 완료
-2. **카드 데이터베이스 원천:** `docs/agricola/02-card-database.md`가 구현의 유일한 기준
+2. **카드 데이터베이스 원천:** `docs/agricola/design/02-card-database.md`가 구현의 유일한 기준
 3. **순수 함수 우선:** game-engine.ts는 순수 함수만. 부작용은 firebase-room.ts에만
 4. **타입 안전성:** `any` 사용 절대 금지. 새 타입은 types.ts에 먼저 정의
 5. **빌드 통과 필수:** 각 기능 완료 시 `npm run build` 통과 확인 후 다음으로

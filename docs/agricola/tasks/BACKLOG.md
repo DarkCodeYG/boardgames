@@ -12,14 +12,14 @@
 - [2026-04-19] **Phase A 버그 픽스 묶음 커밋 (대기 중)** — 이전 커밋 이후 추가 작업: 가축 요리(화로/화덕 ANYTIME), 배치 공간 부족 모달(교체/요리/버림), 집 안 동물 FarmCell 표시, ResourcePanel 동물 합산(resources+목장+집), 밭 셀 시각 수정(🌾 제거 → 갈아진 흙), 밭 인접성 검증(직교, 첫 밭 제외), 울타리 연결성 검증(BFS, 엔드포인트 그래프).
 
 - [2026-04-19] **Phase B 문서 체계 구축** — 4개 신규 문서 작성:
-  - `PHASE-B-PLAN.md` — 호스트/클라이언트 QR 분리 전체 계획 (7 섹션)
-  - `CYCLELOG.md` — 사이클 단위 진행 로그
-  - `POLICY-QUEUE.md` — 결정 대기 정책 큐 (6개 활성 이슈)
-  - `WORK-MANUAL.md` — 에이전트 작업 표준 매뉴얼
+  - `tasks/PHASE-B-PLAN.md` — 호스트/클라이언트 QR 분리 전체 계획 (7 섹션)
+  - `master/CYCLELOG.md` — 사이클 단위 진행 로그
+  - `tasks/POLICY-QUEUE.md` — 결정 대기 정책 큐 (6개 활성 이슈)
+  - `agents/WORK-MANUAL.md` — 에이전트 작업 표준 매뉴얼
 
 - [2026-04-19] **병렬 연구 에이전트 2개 발사** — 백그라운드 실행:
-  - 에이전트 a6785997: 규정 전체 분석 → `RULE-ANALYSIS.md`
-  - 에이전트 a58bf196: Witnesses 아키텍처 패턴 추출 → `WITNESSES-PATTERNS.md`
+  - 에이전트 a6785997: 규정 전체 분석 → `analysis/RULE-ANALYSIS.md`
+  - 에이전트 a58bf196: Witnesses 아키텍처 패턴 추출 → `analysis/WITNESSES-PATTERNS.md`
 
 ### 결정 사항
 
@@ -105,7 +105,7 @@
 
 - [2026-04-17] **소박한 가족 늘리기 활성화** — V2/V34_MODEST_WISH: effect → pending_family_growth 설정. 핸들러에서 5라운드 조건 검사 추가
 
-- [2026-04-17] **한국어 룰 참고 파일 생성** — docs/agricola/korean-rules/01-action-spaces-ko.md, 02-major-improvements-ko.md, 03-resources-ko.md
+- [2026-04-17] **한국어 룰 참고 파일 생성** — docs/agricola/research/research/korean-rules/01-action-spaces-ko.md, 02-major-improvements-ko.md, 03-resources-ko.md
 
 - [2026-04-17] **OR 조건 행동 검증 에이전트 가동** — 9개 OR 행동 검토: Critical 4개 발견 및 수정
 
@@ -125,7 +125,7 @@
 - [2026-04-17] **대시설 한국어명 전면 수정** — major-improvements.ts: 화덕(점토2/3)→화로(흙2/3), 취사장(점토4/5)→화덕(흙4/5), 점토오븐→흙가마, 돌오븐→돌가마, 목공소→가구제작소, 도예소→그릇제작소, 바구니공방→바구니제작소
 - [2026-04-17] **우물 비용 수정** — MAJ_WELL: cost `{reed:1, stone:3}` → `{wood:1, stone:3}` (나무위키 룰 기준)
 - [2026-04-17] **buildRoom 에러 메시지** — '점토 부족' → '흙 부족' (용어 일관성)
-- [2026-04-17] **문서-구현 정합성 검토 에이전트 가동** — docs/agricola/REVIEW.md 생성. Critical 버그 6개 발견 즉시 수정
+- [2026-04-17] **문서-구현 정합성 검토 에이전트 가동** — docs/agricola/tasks/REVIEW.md 생성. Critical 버그 6개 발견 즉시 수정
 - [2026-04-17] **대시설 비용 5개 수정 (Critical)** — 흙가마: clay3+stone1→clay3+reed1, 돌가마: clay1+stone3→stone3+reed1, 가구제작소: wood2+stone2→wood2+reed1+stone1, 그릇제작소: clay2+stone2→clay2+reed1+stone1, 바구니제작소: reed2+stone2→reed2+clay1+stone1
 - [2026-04-17] **EXT4_HOLLOW 명칭 수정** — '점토 채굴장' → '흙 채굴장' (흙 용어 통일)
 - [2026-04-17] **빌드 통과** — npm run build exit 0, TypeScript 오류 0

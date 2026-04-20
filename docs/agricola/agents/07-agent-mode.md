@@ -1,7 +1,7 @@
 # 아그리콜라 에이전트 팀 워크플로우
 
 > Claude Code 에이전트들이 팀을 이루어 아그리콜라를 자율 완성하는 운영 매뉴얼  
-> **신규 세션 진입 시**: 이 문서 + `PROGRESS.md` 를 먼저 읽어 현재 상태 파악
+> **신규 세션 진입 시**: 이 문서 + `master/PROGRESS.md` 를 먼저 읽어 현재 상태 파악
 
 ---
 
@@ -54,12 +54,12 @@
 
 **읽어야 할 파일:**
 ```
-docs/agricola/PROGRESS.md           ← 현재 진행 상태
-docs/agricola/03-architecture.md    ← 타입 시스템
-docs/agricola/04-farm-board-design.md
-docs/agricola/05-action-spaces.md
-docs/agricola/06-scoring.md
-docs/agricola/02-card-database.md   ← 카드 데이터
+docs/agricola/master/PROGRESS.md           ← 현재 진행 상태
+docs/agricola/adr/03-architecture.md    ← 타입 시스템
+docs/agricola/design/04-farm-board-design.md
+docs/agricola/design/05-action-spaces.md
+docs/agricola/design/06-scoring.md
+docs/agricola/design/02-card-database.md   ← 카드 데이터
 src/games/agricola/lib/types.ts     ← 현재 타입 구현
 ```
 

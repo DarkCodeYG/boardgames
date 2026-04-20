@@ -140,6 +140,6 @@ rooms/{roomCode}/
 ## 5. 참조
 
 - `src/games/witnesses/` — 기존 Firebase 하이브리드 예시
-- `docs/agricola/03-architecture.md` — 기존 아키텍처 (단일 디바이스)
+- `docs/agricola/adr/03-architecture.md` — 기존 아키텍처 (단일 디바이스)
 - `docs/agricola/04-game-rules-ko.md` 및 `korean-rules/` — 규정
 - `docs/agricola/Agricola_Revised_Edition_-_Unofficial_Compendium_v4.1.pdf` — 카드/설비 디테일

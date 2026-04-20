@@ -8,30 +8,30 @@
 ## 활성 이슈
 
 ### P-007 🟡 [Critical] 라운드 카드 누적 자원 버그
-**출처**: `RULE-ANALYSIS.md` (에이전트 a6785997 산출)
+**출처**: `analysis/RULE-ANALYSIS.md` (에이전트 a6785997 산출)
 **배경**: `game-engine.ts:159-175` 의 `replenishActionSpaces` 가 `state.actionSpaces` 만 순회하고 `state.revealedRoundCards` 누락. 양/돼지/소/돌 시장 카드가 첫 라운드 이후 자원이 누적되지 않음.
 **영향**: 게임 밸런스 심각 왜곡. 진행은 가능하나 핵심 자원 공급이 끊김.
 **기본 판단**: Phase B Cycle 3 시작 전 버그픽스로 긴급 처리. 단일 함수 수정 → 안전.
 
 ### P-008 🟡 [Critical] 목장 닫힘 검증 누락
-**출처**: `RULE-ANALYSIS.md`
+**출처**: `analysis/RULE-ANALYSIS.md`
 **배경**: `calculatePastures` (`farm-engine.ts:97-124`) 가 열린 경계 셀까지 pasture 로 취급. `isPastureFullyFenced` 필터가 scoring/animal 배치에서 빠져있을 수 있음.
 **영향**: 점수 오산 + 열린 영역에 동물 배치 가능 (규정 위반).
 **기본 판단**: Phase B Cycle 3 전 확인 후 패치.
 
 ### P-009 🟡 [Critical] 우물(MAJ_WELL) 효과 placeholder
-**출처**: `RULE-ANALYSIS.md`
+**출처**: `analysis/RULE-ANALYSIS.md`
 **배경**: `major-improvements.ts:123` `apply: (s, p) => addResources(s, p, { food: 0 })` — VP 4 설비가 무효화.
 **정확한 룰**: 건설 라운드 포함 5개 라운드 공간에 음식 1씩 배치 (매 라운드 시작 보충 시 획득).
 **기본 판단**: Phase B 내 별도 기능 구현. 시급도 중간. 현재는 게임 완주에 치명적이진 않음.
 
 ### P-010 🟡 [Critical] hasGrown 타이밍
-**출처**: `RULE-ANALYSIS.md`
+**출처**: `analysis/RULE-ANALYSIS.md`
 **배경**: `returnWorkers` 가 `hasGrown: false` 리셋. 호출 순서 따라 신생아 1음식 계산 영향.
 **기본 판단**: 테스트 케이스 작성 → 실제 영향 확인 후 결정. Phase B Cycle 6 시뮬레이션에서 검증.
 
 ### P-011 🟡 [Critical] 카드 시스템 전체 미완성
-**출처**: `RULE-ANALYSIS.md`
+**출처**: `analysis/RULE-ANALYSIS.md`
 **배경**: 덱 셔플/7장 배분, 카드 효과 `apply` 파이프라인, LESSONS 비용 로직 모두 미구현.
 **영향**: 기본판 아그리콜라의 핵심 다양성이 없음.
 **기본 판단**: Phase B 이후 별도 Phase (C — 카드 시스템)로 분리. Phase B 는 "카드 없이 돌아가는 온라인 모드" 가 범위.

@@ -1,16 +1,16 @@
 # 아그리콜라 에이전트 작업 매뉴얼
 
 > 에이전트 모드 작업 시 따라야 할 표준 절차.
-> 기반 문서: `07-agent-mode.md` (팀 구성), `PHASE-B-PLAN.md` (현 Phase), `CYCLELOG.md` (진행 상황), `POLICY-QUEUE.md` (결정 대기)
+> 기반 문서: `agents/07-agent-mode.md` (팀 구성), `tasks/PHASE-B-PLAN.md` (현 Phase), `master/CYCLELOG.md` (진행 상황), `tasks/POLICY-QUEUE.md` (결정 대기)
 
 ---
 
 ## 1. 세션 시작 체크리스트
 
-1. `PHASE-B-PLAN.md` 읽기 — 목표·단계 파악
-2. `CYCLELOG.md` 맨 위 섹션 확인 — 현재 어느 사이클인지, 산출물 상태
-3. `POLICY-QUEUE.md` 의 🟡 항목 확인 — 차단 이슈 있는지
-4. `BACKLOG.md` 최근 3 세션 훑기 — 직전 결정·수정 이해
+1. `tasks/PHASE-B-PLAN.md` 읽기 — 목표·단계 파악
+2. `master/CYCLELOG.md` 맨 위 섹션 확인 — 현재 어느 사이클인지, 산출물 상태
+3. `tasks/POLICY-QUEUE.md` 의 🟡 항목 확인 — 차단 이슈 있는지
+4. `tasks/BACKLOG.md` 최근 3 세션 훑기 — 직전 결정·수정 이해
 5. `git status` + `git log --oneline -10` — 작업 상태 동기화
 
 ---
@@ -51,15 +51,15 @@
 
 | 문서 | 책임 | 업데이트 시점 | 권한 |
 |------|------|--------------|------|
-| `PHASE-B-PLAN.md` | Architect | Phase 변경 시 | Architect 만 |
-| `CYCLELOG.md` | Architect | 각 사이클 시작/종료 | Architect, Debug |
-| `POLICY-QUEUE.md` | Architect | 결정 필요 시 추가, 확정 시 아카이브 | Architect |
-| `BACKLOG.md` | All | 자율 결정 사항 기록 | 모든 에이전트 |
-| `PROGRESS.md` | Architect | Phase 완료 시 | Architect |
-| `RULE-ANALYSIS.md` | Researcher | 룰 갭 발견 시 | Researcher |
-| `QA.md` | QA | 버그/이슈 발견 시 | QA, Debug |
-| `REVIEW.md` | Review | 코드 리뷰 후 | Review |
-| `STATUS.md` | Architect | 일일 / 주간 상태 | Architect |
+| `tasks/PHASE-B-PLAN.md` | Architect | Phase 변경 시 | Architect 만 |
+| `master/CYCLELOG.md` | Architect | 각 사이클 시작/종료 | Architect, Debug |
+| `tasks/POLICY-QUEUE.md` | Architect | 결정 필요 시 추가, 확정 시 아카이브 | Architect |
+| `tasks/BACKLOG.md` | All | 자율 결정 사항 기록 | 모든 에이전트 |
+| `master/PROGRESS.md` | Architect | Phase 완료 시 | Architect |
+| `analysis/RULE-ANALYSIS.md` | Researcher | 룰 갭 발견 시 | Researcher |
+| `agents/QA.md` | QA | 버그/이슈 발견 시 | QA, Debug |
+| `tasks/REVIEW.md` | Review | 코드 리뷰 후 | Review |
+| `master/STATUS.md` | Architect | 일일 / 주간 상태 | Architect |
 
 ---
 
