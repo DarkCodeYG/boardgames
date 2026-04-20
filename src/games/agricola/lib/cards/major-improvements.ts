@@ -1,5 +1,5 @@
 /**
- * 대시설 (Major Improvements) 10개 — 공용 보드에 배치
+ * 주요설비 (Major Improvements) 10개 — 공용 보드에 배치
  * Phase 1 구현 대상 (기본 효과만, 카드 연동은 Phase 2)
  */
 

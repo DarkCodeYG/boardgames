@@ -43,7 +43,7 @@
 
 | ID | 이름(영) | 이름(한) | 효과 | 확인 |
 |----|---------|---------|------|------|
-| `RC_MAJOR_IMP` | Major Improvement | 대시설 | 대시설 1개 OR 소시설 1장 플레이 | ✅ |
+| `RC_MAJOR_IMP` | Major Improvement | 주요설비 | 주요설비 1개 OR 소시설 1장 플레이 | ✅ |
 | `RC_FENCING` | Fencing | 울타리 건설 | 울타리 N개 건설 (1나무/개) | ✅ |
 | `RC_GRAIN_UTIL` | Grain Utilization | 농업 활용 | 씨뿌리기 and/or 빵 굽기 | ✅ |
 | `RC_SHEEP_MKT` | Sheep Market | 양 시장 | 누적 +1 양 | ✅ |

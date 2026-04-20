@@ -270,7 +270,7 @@ export interface GameState {
   occupationDeck: Card[];
   minorImprovementDeck: Card[];
 
-  // 대시설 (공용 보드)
+  // 주요설비 (공용 보드)
   majorImprovements: MajorImprovement[];
 
   // 선플레이어 토큰
@@ -288,7 +288,7 @@ export interface GameLogEntry {
   timestamp: number;
 }
 
-// ── 대시설 ─────────────────────────────────────────────────────────
+// ── 주요설비 ────────────────────────────────────────────────────────
 
 export interface MajorImprovement {
   id: string;
@@ -314,7 +314,7 @@ export interface ScoreBreakdown {
   fencedStables: number;  // 울타리 친 외양간 VP (+1/개)
   rooms: number;          // 방 VP (점토1/방, 돌2/방)
   familyMembers: number;  // 가족 VP (3점/명)
-  cardPoints: number;     // 직업/소시설/대시설 VP 합산
+  cardPoints: number;     // 직업/소시설/주요설비 VP 합산
   begging: number;        // 구걸 토큰 (-3/개)
   total: number;
 }
@@ -390,7 +390,7 @@ export type ActionKind =
   | 'cook_animal'           // 언제든 요리
   | 'play_card'             // 직업/소시설 플레이
   | 'bake_bread'            // 빵 굽기 (수확 중)
-  | 'build_major'           // 대시설 건설 선택
+  | 'build_major'           // 주요설비 건설 선택
   | 'animal_select'         // 가축 시장 종 선택
   | 'end_round'             // 라운드 종료 (호스트 전용)
   | 'harvest_confirm';      // 수확 1인 확정 (호스트 전용)

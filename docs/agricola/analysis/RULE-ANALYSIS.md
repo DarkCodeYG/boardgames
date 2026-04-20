@@ -95,7 +95,7 @@ Critical (요약)
 
 | ID | 효과 | 구현 | 갭 |
 |----|------|------|----|
-| RC_MAJOR_IMP | 대/소시설 플레이 | ⚠️ | `pending_major_imp`만 전이. 대시설 건설 엔진(`buildMajorImprovement`)은 존재하나 소시설 엔진 미구현 (Major) |
+| RC_MAJOR_IMP | 대/소시설 플레이 | ⚠️ | `pending_major_imp`만 전이. 주요설비 건설 엔진(`buildMajorImprovement`)은 존재하나 소시설 엔진 미구현 (Major) |
 | RC_FENCING | 울타리 N개 | ✅ | OK |
 | RC_GRAIN_UTIL | 씨뿌리기 + 빵굽기 (동시 가능) | ❌ | `pending_sow`만 설정 — 빵 굽기 분기 미제공 (Major) |
 | RC_SHEEP_MKT | +1양 누적 | ✅ | OK |
@@ -272,7 +272,7 @@ if (!accumulates || accumulates.length === 0) continue;
 
 ---
 
-### 13. 대시설 (Major Improvements) 10개
+### 13. 주요설비 (Major Improvements) 10개
 
 **규정** (`research/korean-rules/02-major-improvements-ko.md`):
 
@@ -434,7 +434,7 @@ if (!accumulates || accumulates.length === 0) continue;
 
 ### G. 외양간 단독 수용 규칙 (위 7번) — FarmBoard 자체가 "독립 외양간 수용량" 필드를 안 가짐 (Major)
 
-### H. 대시설 "각 플레이어 최대 1개"는 공용보드 `ownerId: null` 체크로 충분 ✅
+### H. 주요설비 "각 플레이어 최대 1개"는 공용보드 `ownerId: null` 체크로 충분 ✅
 
 ### I. 우물 (Well) 효과: 5라운드 음식 배치 미구현 (Critical, 13번 참조)
 
@@ -477,7 +477,7 @@ if (!accumulates || accumulates.length === 0) continue;
 23. i18n 용어 정합 (흙 vs 점토) 전 소스 통일.
 24. 동물 배치 UI에서 "요리(cookAnimal)"와 "교체배치(replaceAnimalAtLocation)" 구분 확인.
 25. 주요 설비 `ANYTIME` 효과의 `apply`가 identity 함수 (`state => state`) — 실효성 없음, 문서화 또는 삭제.
-26. 대시설 점수/비용 표가 `research/korean-rules/02-major-improvements-ko.md`와 일치 — OK.
+26. 주요설비 점수/비용 표가 `research/korean-rules/02-major-improvements-ko.md`와 일치 — OK.
 27. 덱 B096 확인 필요 (B덱 23장, 공식 24장 중 1장 누락).
 28. `design/05-action-spaces.md` 문서의 "Traveling Players 정확한 효과"/"Farm Expansion 외양간 비용"/"2인 타일 누적 타이밍" 등 미확인 항목 정식 PDF로 재검증.
 

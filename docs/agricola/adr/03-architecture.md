@@ -19,7 +19,7 @@ src/games/agricola/
 │   │   ├── index.ts          # 카드 DB 진입점
 │   │   ├── occupations-e.ts  # E덱 직업 카드 48장
 │   │   ├── improvements-e.ts # E덱 소시설 카드 48장
-│   │   └── major-improvements.ts # 대시설 10개
+│   │   └── major-improvements.ts # 주요설비 10개
 │   ├── action-spaces.ts      # 행동 공간 정의
 │   ├── round-cards.ts        # 라운드 카드 14장
 │   ├── firebase-room.ts      # Firebase CRUD + 리스너 (Phase 3)
@@ -274,7 +274,7 @@ export interface GameState {
   occupationDeck: Card[];
   minorImprovementDeck: Card[];
 
-  // 대시설 (공용 - 가장 먼저 짓는 사람이 가져감)
+  // 주요설비 (공용 - 가장 먼저 짓는 사람이 가져감)
   majorImprovements: MajorImprovement[];
 
   // 이벤트 로그
@@ -290,7 +290,7 @@ export interface GameLogEntry {
 }
 ```
 
-### 2-8. 대시설 (Major Improvements)
+### 2-8. 주요설비 (Major Improvements)
 
 ```typescript
 export interface MajorImprovement {
@@ -319,7 +319,7 @@ export interface ScoreBreakdown {
   fencedStables: number;  // 울타리 친 외양간 VP
   rooms: number;          // 방 VP
   familyMembers: number;  // 가족 VP
-  cardPoints: number;     // 직업/소시설/대시설 VP
+  cardPoints: number;     // 직업/소시설/주요설비 VP
   begging: number;        // 구걸 토큰 (-3/개)
   total: number;
 }

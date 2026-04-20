@@ -64,7 +64,7 @@
 | LESSONS 직업 카드 플레이 | 비용 차감 + 카드 효과 발동 | action-spaces.ts:91,176,199 |
 | EXT4_TRAVEL 임시 일꾼 추가 | 이번 라운드 일꾼 1명 추가 | action-spaces.ts:186 |
 | MAJ_WELL 미래 라운드 음식 | 5개 라운드 공간에 음식 배치 | cards/major-improvements.ts:100 |
-| 대시설 동물→음식 변환 | 화덕(화로) 동물 즉시 요리 | cards/major-improvements.ts:63 |
+| 주요설비 동물→음식 변환 | 화덕(화로) 동물 즉시 요리 | cards/major-improvements.ts:63 |
 | card-engine.ts triggerEffects | 카드 효과 전체 구현 | lib/card-engine.ts |
 | A/B덱 직업·소시설 effects | 카드별 효과 함수 연결 | lib/cards/*.ts |
 | CardHand.tsx + CardDetail.tsx | 카드 손패 UI | (미생성) |
@@ -77,7 +77,7 @@
 
 ### 주요 설비 (RC_MAJOR_IMP) 행동칸
 - **현황:** `pending_major_imp` RoundPhase 없음. 클릭 시 state 반환만 함
-- **설계 질문:** 대시설 목록(화로/화덕/우물/흙가마/돌가마/가구제작소/그릇제작소/바구니제작소) 선택 UI가 Phase 2 대상인지 확인 필요
+- **설계 질문:** 주요설비 목록(화로/화덕/우물/흙가마/돌가마/가구제작소/그릇제작소/바구니제작소) 선택 UI가 Phase 2 대상인지 확인 필요
 - **권고:** Phase 2 시 `pending_major_imp` phase 추가 + 건설 가능 설비 목록 모달
 
 ### Traveling Players (EXT4_TRAVEL)
@@ -101,7 +101,7 @@
 ## 다음 단계 권고 (Phase 2 진입 전)
 
 ### 단기 수정 필요
-1. **RC_MAJOR_IMP 행동칸 설계**: 대시설 선택 UI (모달/사이드패널) 기획 확정
+1. **RC_MAJOR_IMP 행동칸 설계**: 주요설비 선택 UI (모달/사이드패널) 기획 확정
 2. **소박한 가족 늘리기 조건**: action-spaces.ts effect에서도 round >= 5 검증
 
 ### Phase 2 주요 목표

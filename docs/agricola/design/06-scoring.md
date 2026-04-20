@@ -22,7 +22,7 @@
 | 9 | Fenced Stables | 울타리 친 외양간 | VP 보너스 |
 | 10 | Rooms | 방 타입 | 재질별 VP |
 | 11 | Family Members | 가족 수 | 3인 이상 보너스 |
-| 12 | Cards & Improvements | 카드 VP | 직업/소시설/대시설 |
+| 12 | Cards & Improvements | 카드 VP | 직업/소시설/주요설비 |
 | - | Begging Tokens | 구걸 토큰 | -3점/개 |
 
 ---
@@ -263,7 +263,7 @@ function scoreFamilyMembers(player: PlayerState): number {
 
 ### 2-12. 카드 VP (Cards & Improvements)
 
-직업 카드, 소시설 카드, 대시설 각각의 victoryPoints 합산.
+직업 카드, 소시설 카드, 주요설비 각각의 victoryPoints 합산.
 
 ```typescript
 function scoreCards(player: PlayerState, state: GameState): number {

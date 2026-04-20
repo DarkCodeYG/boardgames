@@ -318,7 +318,7 @@ export default function GamePage({ onExit }: GamePageProps) {
     } catch (e) { console.error('placeWorker 오류:', e); }
   }
 
-  // 대시설 건설 선택
+  // 주요설비 건설 선택
   function handleMajorImpSelect(majorId: string) {
     try {
       const s = buildMajorImprovement(gs, currentPlayerId, majorId);
@@ -800,7 +800,7 @@ export default function GamePage({ onExit }: GamePageProps) {
           </button>
         </div>
       ) : gs.roundPhase === 'pending_major_imp' ? (
-        /* 대시설 선택 */
+        /* 주요설비 선택 */
         <div className="mb-3 px-4 py-3 bg-stone-100 border-2 border-stone-400 rounded-lg">
           <p className="text-sm font-semibold text-stone-800 mb-2">🏭 주요 설비 건설 — 원하는 설비를 선택하세요</p>
           <div className="grid grid-cols-2 gap-1.5">

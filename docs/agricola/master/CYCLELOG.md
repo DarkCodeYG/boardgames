@@ -32,7 +32,7 @@
 **검증**: `npm run build` ✅ gzip 291KB
 
 **남은 Cycle 4.4**:
-- 대시설(주요설비) 건설 선택 UI — `pending_major_imp` 단계
+- 주요설비(주요설비) 건설 선택 UI — `pending_major_imp` 단계
 - 직업/소시설 카드 플레이 UI — `pending_play_occupation`, `pending_play_minor_imp` (Phase 2 카드 시스템과 함께)
 - 호스트의 라운드 경과 애니메이션/사운드 (Nice-to-have)
 

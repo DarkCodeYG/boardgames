@@ -37,7 +37,7 @@ const roundCards: ActionSpace[] = [
     type: 'round_card',
     roundRevealed: undefined, // 스테이지 1 임의 순서
     workerSlots: 1,
-    // 대시설 또는 소시설 건설 선택
+    // 주요설비 또는 소시설 건설 선택
     effect: (state: GameState, _playerId: PlayerId) => ({ ...state, roundPhase: 'pending_major_imp' as const }),
   },
   {

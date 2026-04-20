@@ -160,7 +160,7 @@ export const COST_FENCE_PER_SEGMENT = { wood: 1 } as const;
 /** 총 울타리 목재 최대치 (15세대 기준 일반적 한도) */
 export const MAX_FENCE_SEGMENTS = 15;
 
-// ── 대시설 ID ───────────────────────────────────────────────────
+// ── 주요설비 ID ─────────────────────────────────────────────────
 
 export const MAJOR_IMPROVEMENT_IDS = [
   'MAJ_FIREPLACE_2',

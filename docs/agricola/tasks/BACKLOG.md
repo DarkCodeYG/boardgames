@@ -122,16 +122,16 @@
 ### 완료된 작업
 
 - [2026-04-17] **UI 일꾼 용어 통일** — ActionBoard, GamePage, i18n.ts: '워커' → '일꾼'/'가족 구성원'. aria-label, 남은 일꾼 tooltip, 모든 일꾼 배치 완료 텍스트, 유랑극단 설명, place_worker i18n key 전부 수정
-- [2026-04-17] **대시설 한국어명 전면 수정** — major-improvements.ts: 화덕(점토2/3)→화로(흙2/3), 취사장(점토4/5)→화덕(흙4/5), 점토오븐→흙가마, 돌오븐→돌가마, 목공소→가구제작소, 도예소→그릇제작소, 바구니공방→바구니제작소
+- [2026-04-17] **주요설비 한국어명 전면 수정** — major-improvements.ts: 화덕(점토2/3)→화로(흙2/3), 취사장(점토4/5)→화덕(흙4/5), 점토오븐→흙가마, 돌오븐→돌가마, 목공소→가구제작소, 도예소→그릇제작소, 바구니공방→바구니제작소
 - [2026-04-17] **우물 비용 수정** — MAJ_WELL: cost `{reed:1, stone:3}` → `{wood:1, stone:3}` (나무위키 룰 기준)
 - [2026-04-17] **buildRoom 에러 메시지** — '점토 부족' → '흙 부족' (용어 일관성)
 - [2026-04-17] **문서-구현 정합성 검토 에이전트 가동** — docs/agricola/tasks/REVIEW.md 생성. Critical 버그 6개 발견 즉시 수정
-- [2026-04-17] **대시설 비용 5개 수정 (Critical)** — 흙가마: clay3+stone1→clay3+reed1, 돌가마: clay1+stone3→stone3+reed1, 가구제작소: wood2+stone2→wood2+reed1+stone1, 그릇제작소: clay2+stone2→clay2+reed1+stone1, 바구니제작소: reed2+stone2→reed2+clay1+stone1
+- [2026-04-17] **주요설비 비용 5개 수정 (Critical)** — 흙가마: clay3+stone1→clay3+reed1, 돌가마: clay1+stone3→stone3+reed1, 가구제작소: wood2+stone2→wood2+reed1+stone1, 그릇제작소: clay2+stone2→clay2+reed1+stone1, 바구니제작소: reed2+stone2→reed2+clay1+stone1
 - [2026-04-17] **EXT4_HOLLOW 명칭 수정** — '점토 채굴장' → '흙 채굴장' (흙 용어 통일)
 - [2026-04-17] **빌드 통과** — npm run build exit 0, TypeScript 오류 0
 - [2026-04-17] **라운드 카드 스테이지 내 셔플** — createGameState: pendingRoundCards Fisher-Yates 셔플 적용 (룰 불일치 수정, 주석 '// Phase 2에서 셔플' 제거)
-- [2026-04-17] **RC_MAJOR_IMP 대시설 선택 UI** — pending_major_imp RoundPhase 추가. buildMajorImprovement() 구현 (비용검증·차감·ownerId설정). GamePage에 설비 그리드 선택 배너(비용 충족여부 표시, 건너뜀 가능)
-- [2026-04-17] **Undo(되돌리기) 기능** — GamePage history 스택(최대 10). 일꾼 배치·대시설 건설 시 saveAndSet으로 저장. 헤더 ↩ 되돌리기 버튼 (history 있을 때만 표시)
+- [2026-04-17] **RC_MAJOR_IMP 주요설비 선택 UI** — pending_major_imp RoundPhase 추가. buildMajorImprovement() 구현 (비용검증·차감·ownerId설정). GamePage에 설비 그리드 선택 배너(비용 충족여부 표시, 건너뜀 가능)
+- [2026-04-17] **Undo(되돌리기) 기능** — GamePage history 스택(최대 10). 일꾼 배치·주요설비 건설 시 saveAndSet으로 저장. 헤더 ↩ 되돌리기 버튼 (history 있을 때만 표시)
 - [2026-04-17] **디자인 P0+P1 적용** — 원판 아그리콜라 느낌 색상 시스템 전면 교체: FarmCell(방색상·나무디스크 토큰·씨앗배지), ActionBoard(amber 팔레트·보드판 컨테이너·섹션레이블), ResourcePanel(크림배경·자원배지), FarmBoard(나무 프레임), GamePage(stone-300 배경)
 
 ---
@@ -142,7 +142,7 @@
 
 - [2026-04-17] **4개 에이전트 동시 검증** — QA엔지니어/UI개발자/아키텍트/문서화 페르소나로 Phase 1 전체 검증. Critical 4건, Major 5건 발견.
 - [2026-04-17] **buildStable() 버그 수정 (Critical)** — QA에이전트 발견: 밭(field) 셀에 외양간 건설 허용 오류. `cell !== 'empty' && cell !== 'field'` → `cell !== 'empty'` (룰: 빈 칸에만 건설)
-- [2026-04-17] **대시설 VP 수정 (Critical)** — 문서에이전트 발견: 화덕(흙4/5) 1점→0점, 흙가마 2점→0점, 돌가마 3점→0점. 룰북 기준 화덕/가마류 VP 없음.
+- [2026-04-17] **주요설비 VP 수정 (Critical)** — 문서에이전트 발견: 화덕(흙4/5) 1점→0점, 흙가마 2점→0점, 돌가마 3점→0점. 룰북 기준 화덕/가마류 VP 없음.
 - [2026-04-17] **EXT4_HOLLOW 명칭 중복 해소 (Major)** — 문서에이전트 발견: '흙 채굴장'→'깊은 흙 채굴장' (CLAY_PIT과 동일명 충돌 해소)
 - [2026-04-17] **Undo 커버리지 확장 (Major)** — UI에이전트 발견: handleCellClick·handleAnimalSelect의 setGameState → saveAndSet 전환 (방/외양간/밭갈기/씨뿌리기/동물선택 모두 undo 지원)
 - [2026-04-17] **빌드 통과** — npm run build exit 0, TypeScript 오류 0
