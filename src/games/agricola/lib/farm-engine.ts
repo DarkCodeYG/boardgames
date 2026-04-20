@@ -162,6 +162,37 @@ function neighborOf(r: number, c: number, dir: 'up' | 'down' | 'left' | 'right')
   }
 }
 
+/**
+ * 주어진 FenceGrid 기준으로 특정 셀에서 flood-fill로 도달 가능한 모든 셀 반환.
+ * floodFillPasture와 달리 셀 타입 제한 없이 모든 셀을 탐색 (울타리 경계만 존중).
+ */
+export function getEnclosedCells(
+  fences: FenceGrid,
+  startR: number,
+  startC: number,
+): Array<[number, number]> {
+  const visited = new Set<string>();
+  const queue: Array<[number, number]> = [[startR, startC]];
+  const result: Array<[number, number]> = [];
+  visited.add(`${startR},${startC}`);
+
+  while (queue.length > 0) {
+    const [r, c] = queue.shift()!;
+    result.push([r, c]);
+    const dirs: Array<'up' | 'down' | 'left' | 'right'> = ['up', 'down', 'left', 'right'];
+    for (const dir of dirs) {
+      const [nr, nc] = neighborOf(r, c, dir);
+      if (nr < 0 || nr >= FARM_ROWS || nc < 0 || nc >= FARM_COLS) continue;
+      const key = `${nr},${nc}`;
+      if (visited.has(key)) continue;
+      if (!canMove(fences, r, c, dir)) continue;
+      visited.add(key);
+      queue.push([nr, nc]);
+    }
+  }
+  return result;
+}
+
 // ── 유효성 검사 ──────────────────────────────────────────────────
 
 /** 방 건설 가능 여부: 빈 셀 + 기존 방에 인접 */

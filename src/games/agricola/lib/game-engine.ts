@@ -18,7 +18,7 @@ import {
   SOLO_FOOD_PER_PERSON,
   INITIAL_FAMILY_SIZE,
 } from './constants.js';
-import { createInitialFarmBoard, recalculatePastures, placeAnimalInFarm, removeAnimalFromFarm, isPastureFullyFenced } from './farm-engine.js';
+import { createInitialFarmBoard, recalculatePastures, placeAnimalInFarm, removeAnimalFromFarm, isPastureFullyFenced, getEnclosedCells } from './farm-engine.js';
 import { getPermanentActionSpaces } from './action-spaces.js';
 import { getRoundCardsByStage } from './round-cards.js';
 import { getMajorImprovements, ANIMAL_TO_FOOD_RATES } from './cards/major-improvements.js';
@@ -547,6 +547,13 @@ export function plowField(
   if (!player) throw new Error(`Player ${playerId} not found`);
   if (player.farm.grid[row]?.[col] !== 'empty') throw new Error(`Cannot plow (${row},${col})`);
 
+  // 울타리가 쳐진 목장 안인지 확인
+  const isInsideFencedPastureForPlow = player.farm.pastures.some(p =>
+    isPastureFullyFenced(p.cells, player.farm.fences) &&
+    p.cells.some(([r, c]) => r === row && c === col)
+  );
+  if (isInsideFencedPastureForPlow) throw new Error('울타리가 쳐진 목장 안에는 밭을 만들 수 없습니다');
+
   // 기존 밭이 있으면 직교 인접 위치여야 함
   const hasExistingField = player.farm.grid.some((r) => r.includes('field'));
   if (hasExistingField) {
@@ -766,6 +773,29 @@ export function buildFences(
     );
   }
 
+  // 새로 생긴 완전 울타리 목장 각각에 대해 밭/방 포함 여부 검증
+  const oldFullyFencedCells = new Set(
+    oldFarm.pastures
+      .filter((p) => isPastureFullyFenced(p.cells, player.farm.fences))
+      .flatMap((p) => p.cells.map(([r, c]) => `${r},${c}`)),
+  );
+  for (const pasture of tempFarm.pastures) {
+    if (!isPastureFullyFenced(pasture.cells, fences)) continue;
+    // 이미 기존에도 완전히 울타리 쳐진 목장이면 스킵
+    if (pasture.cells.every(([r, c]) => oldFullyFencedCells.has(`${r},${c}`))) continue;
+    // 해당 목장의 울타리 안 모든 셀 추출 (셀 타입 무관 flood-fill)
+    const firstCell = pasture.cells[0];
+    if (!firstCell) continue;
+    const enclosedCells = getEnclosedCells(fences, firstCell[0], firstCell[1]);
+    const hasInvalidCell = enclosedCells.some(([r, c]) => {
+      const cellType = player.farm.grid[r]?.[c];
+      return cellType === 'field' || cellType === 'room_wood' || cellType === 'room_clay' || cellType === 'room_stone';
+    });
+    if (hasInvalidCell) {
+      throw new Error('울타리 안에 밭이나 방이 포함될 수 없습니다');
+    }
+  }
+
   let newState = updatePlayerFarm(state, playerId, tempFarm);
   newState = addResources(newState, playerId, { wood: -woodCost });
   return newState;
@@ -890,6 +920,13 @@ export function buildRoom(
   if (!player) throw new Error(`Player ${playerId} not found`);
   if (player.farm.grid[row]?.[col] !== 'empty') throw new Error(`Cannot build room at (${row},${col})`);
 
+  // 울타리가 쳐진 목장 안인지 확인
+  const isInsideFencedPastureForRoom = player.farm.pastures.some(p =>
+    isPastureFullyFenced(p.cells, player.farm.fences) &&
+    p.cells.some(([r, c]) => r === row && c === col)
+  );
+  if (isInsideFencedPastureForRoom) throw new Error('울타리가 쳐진 목장 안에는 방을 지을 수 없습니다');
+
   // 인접 셀 중 방이 있어야 함
   const dirs: [number, number][] = [[-1,0],[1,0],[0,-1],[0,1]];
   const hasAdjacentRoom = dirs.some(([dr, dc]) => {
@@ -974,7 +1011,7 @@ export function getAnimalFromMarket(
   return addResources(state, playerId, delta);
 }
 
-/** 대시설 건설: 비용 지불 + ownerId 설정 */
+/** 주요설비 건설: 비용 지불 + ownerId 설정 */
 export function buildMajorImprovement(
   state: GameState,
   playerId: PlayerId,
@@ -984,7 +1021,7 @@ export function buildMajorImprovement(
   if (!player) throw new Error(`Player ${playerId} not found`);
 
   const maj = state.majorImprovements.find((m) => m.id === majorImprovementId);
-  if (!maj) throw new Error(`대시설 ${majorImprovementId}을(를) 찾을 수 없습니다`);
+  if (!maj) throw new Error(`주요설비 ${majorImprovementId}을(를) 찾을 수 없습니다`);
   if (maj.ownerId !== null) throw new Error('이미 다른 플레이어가 보유한 설비입니다');
 
   // 비용 검증
