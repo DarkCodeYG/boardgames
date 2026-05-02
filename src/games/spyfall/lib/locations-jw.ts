@@ -99,7 +99,7 @@ export const LOCATIONS_JW: Location[] = [
     },
   },
   {
-    name: { ko: '가족 예배', en: 'Family Worship', zh: '家庭崇拜' },
+    name: { ko: '가족 숭배', en: 'Family Worship', zh: '家庭崇拜' },
     roles: {
       ko: ['아버지', '어머니', '자녀', '조부모', '이웃', '손님', '어린이'],
       en: ['Father', 'Mother', 'Child', 'Grandparent', 'Neighbor', 'Guest', 'Little One'],
@@ -179,7 +179,7 @@ export const LOCATIONS_JW: Location[] = [
     },
   },
   {
-    name: { ko: '왕국사역', en: 'Kingdom Ministry', zh: '王国事工' },
+    name: { ko: '왕국봉사', en: 'Kingdom Ministry', zh: '王国事工' },
     roles: {
       ko: ['봉사 그룹장', '특별 파이오니아', '봉사의 종', '새신자', '관심자', '장로', '비정규 파이오니아'],
       en: ['Service Group Overseer', 'Special Pioneer', 'Ministerial Servant', 'New One', 'Interested One', 'Elder', 'Auxiliary Pioneer'],
@@ -187,7 +187,7 @@ export const LOCATIONS_JW: Location[] = [
     },
   },
   {
-    name: { ko: '침례 장소', en: 'Baptism Site', zh: '洗礼地点' },
+    name: { ko: '침례 장소', en: 'Baptism Site', zh: '受浸地点' },
     roles: {
       ko: ['침례 후보자', '연설자', '출판인', '자원봉사자', '조정자', '안내원', '가족'],
       en: ['Baptism Candidate', 'Speaker', 'Publisher', 'Volunteer', 'Coordinator', 'Usher', 'Family Member'],

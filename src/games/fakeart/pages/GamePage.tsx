@@ -14,8 +14,14 @@ import {
 } from '../lib/firebase-room';
 import type { RoomState } from '../lib/types';
 import DrawCanvas from '../components/DrawCanvas';
+import Modal from '../../../components/Modal';
 import { sfxClick, sfxGameStart, sfxVictory, sfxDefeat, sfxTimerTick, sfxTimerUp, sfxRoleReveal, sfxPlayerJoin, sfxTurnOver } from '../../../lib/sound';
 import { PLAYER_COLORS } from '../lib/constants';
+
+type ConfirmModalState =
+  | { type: 'skip'; playerName: string }
+  | { type: 'redraw'; missingPositions: number[] }
+  | null;
 
 interface GamePageProps {
   onGoHome: () => void;
@@ -37,6 +43,14 @@ export default function GamePage({ onGoHome }: GamePageProps) {
   const isNextProcessingRef = useRef(false);
   const hostVoteTickRef = useRef<number | null>(null);
   const prevLobbyPlayerCountRef = useRef<number | null>(null);
+  const handleNextTurnRef = useRef<() => void>(() => {});
+  // 게임 단위로 그림을 그린 플레이어 인덱스(drawOrder의 값) 집합
+  const drawnPlayersRef = useRef<Set<number>>(new Set());
+  // 다시-그리기 모드에서 남은 drawOrder 위치 큐
+  const redrawQueueRef = useRef<number[]>([]);
+  // 다시-그리기 모드 활성 여부 (큐가 비면 다음 next 호출에서 voting으로 직행)
+  const inRedrawModeRef = useRef(false);
+  const [confirmModal, setConfirmModal] = useState<ConfirmModalState>(null);
 
   const lang = ((roomState?.lang ?? storeLang ?? globalLang) || 'ko') as NonNullable<typeof storeLang>;
   const txt = I18N[lang];
@@ -62,6 +76,16 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     return () => { isMountedRef.current = false; };
   }, []);
 
+  // 'roles' 단계 진입 = 새 게임 시작이므로 그림 추적 / 다시-그리기 큐 초기화
+  useEffect(() => {
+    if (roomState?.phase === 'roles') {
+      drawnPlayersRef.current = new Set();
+      redrawQueueRef.current = [];
+      inRedrawModeRef.current = false;
+      setConfirmModal(null);
+    }
+  }, [roomState?.phase]);
+
   // 로비 참가자 입장 효과음
   useEffect(() => {
     if (roomState?.phase !== 'lobby') {
@@ -85,7 +109,9 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     return unsub;
   }, [roomCode]);
 
-  // 타이머 (drawing 단계)
+  // 타이머 (drawing 단계). 0 도달 시 setInterval 콜백에서 직접 handleNextTurn 호출.
+  // (이전 effect-기반 timer===0 체크는 게임 간 stale state로 인해 새 게임 진입 시
+  //  첫 플레이어 자동 스킵 버그가 있어 제거됨.)
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     setTimer(drawTime);
@@ -93,6 +119,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
       setTimer((prev) => {
         if (prev <= 1) {
           clearInterval(timerRef.current!);
+          setTimeout(() => handleNextTurnRef.current(), 0);
           return 0;
         }
         if (prev <= 5) sfxTimerTick();
@@ -101,19 +128,13 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     }, 1000);
   }, [drawTime]);
 
-  // 타이머 0 → 자동 다음 차례
-  useEffect(() => {
-    if (timer === 0 && roomState?.phase === 'drawing') {
-      handleNextTurn();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timer, roomState?.phase]);
-
   useEffect(() => {
     if (roomState?.phase === 'drawing') {
       startTimer();
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
+      // 다른 phase에선 timer를 drawTime으로 복원해 다음 라운드 진입 시 stale-0 방지
+      setTimer(drawTime);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -208,47 +229,132 @@ export default function GamePage({ onGoHome }: GamePageProps) {
     await updateFakeartRoom(roomCode, { phase: 'drawing' });
   };
 
-  const handleNextTurn = () => {
+  // 캔버스 이미지를 Firebase에 비동기 업로드하고 isNextProcessingRef를 풀어줌
+  const saveCanvasImage = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      isNextProcessingRef.current = false;
+      return;
+    }
+    createImageBitmap(canvas, { resizeWidth: 480, resizeQuality: 'medium' })
+      .then((bitmap) => {
+        const offscreen = new OffscreenCanvas(bitmap.width, bitmap.height);
+        offscreen.getContext('2d')!.drawImage(bitmap, 0, 0);
+        return offscreen.convertToBlob({ type: 'image/jpeg', quality: 0.6 });
+      })
+      .then((blob) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (!isMountedRef.current) return;
+          updateFakeartRoom(roomCode, { canvasImage: reader.result as string }).catch(console.error);
+          isNextProcessingRef.current = false;
+        };
+        reader.readAsDataURL(blob);
+      })
+      .catch((err) => {
+        console.error(err);
+        isNextProcessingRef.current = false;
+      });
+  };
+
+  // 실제 턴 진행 로직. opts.skipMissingCheck=true면 마지막 턴 미작성 체크 건너뜀(다시-그리기 모달 확정 후).
+  const handleNextTurn = (opts?: { skipMissingCheck?: boolean }) => {
     if (!roomState || isNextProcessingRef.current) return;
-    isNextProcessingRef.current = true;
+
+    // 다시-그리기 큐가 남아있으면 큐의 다음 위치로 이동
+    if (redrawQueueRef.current.length > 0) {
+      const next = redrawQueueRef.current.shift()!;
+      isNextProcessingRef.current = true;
+      sfxTurnOver();
+      updateFakeartRoom(roomCode, { currentDrawerIndex: next }).catch(console.error);
+      saveCanvasImage();
+      return;
+    }
+
+    // 다시-그리기 모드 종료 → 큐가 비었으니 voting으로 직행
+    if (inRedrawModeRef.current) {
+      inRedrawModeRef.current = false;
+      isNextProcessingRef.current = true;
+      sfxTimerUp();
+      updateFakeartRoom(roomCode, { phase: 'voting', votingStartedAt: Date.now() }).catch(console.error);
+      saveCanvasImage();
+      return;
+    }
 
     const nextIndex = roomState.currentDrawerIndex + 1;
-    const canvas = canvasRef.current;
+    const isLast = nextIndex >= roomState.playerCount;
 
-    // await 없이 즉시 fire-and-forget → 버튼 반응 즉각
-    if (nextIndex >= roomState.playerCount) {
+    // 마지막 턴 → voting 전 미작성 플레이어 체크
+    if (isLast && !opts?.skipMissingCheck) {
+      const missingPositions: number[] = [];
+      for (let i = 0; i < roomState.playerCount; i++) {
+        if (!drawnPlayersRef.current.has(drawOrder[i])) missingPositions.push(i);
+      }
+      if (missingPositions.length > 0) {
+        // canvasImage는 실제 voting 전환 시점(handleVoteAnywayConfirm 또는 다시-그리기 종료)에서만 저장.
+        // 여기서 미리 저장하면 비동기 chain이 늦게 도착해 voting 캔버스를 stale로 덮을 수 있음.
+        setConfirmModal({ type: 'redraw', missingPositions });
+        return;
+      }
+    }
+
+    isNextProcessingRef.current = true;
+    if (isLast) {
       sfxTimerUp();
       updateFakeartRoom(roomCode, { phase: 'voting', votingStartedAt: Date.now() }).catch(console.error);
     } else {
       sfxTurnOver();
       updateFakeartRoom(roomCode, { currentDrawerIndex: nextIndex }).catch(console.error);
     }
-
-    // createImageBitmap: GPU 가속 리사이즈 (메인스레드 블로킹 없음) → convertToBlob → 업로드
-    if (canvas) {
-      createImageBitmap(canvas, { resizeWidth: 480, resizeQuality: 'medium' })
-        .then((bitmap) => {
-          const offscreen = new OffscreenCanvas(bitmap.width, bitmap.height);
-          offscreen.getContext('2d')!.drawImage(bitmap, 0, 0);
-          return offscreen.convertToBlob({ type: 'image/jpeg', quality: 0.6 });
-        })
-        .then((blob) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            if (!isMountedRef.current) return;
-            updateFakeartRoom(roomCode, { canvasImage: reader.result as string }).catch(console.error);
-            isNextProcessingRef.current = false;
-          };
-          reader.readAsDataURL(blob);
-        })
-        .catch((err) => {
-          console.error(err);
-          isNextProcessingRef.current = false;
-        });
-    } else {
-      isNextProcessingRef.current = false;
-    }
+    saveCanvasImage();
   };
+
+  // "다음" 버튼 클릭 시: 현재 플레이어가 그리지 않았다면 확인 모달
+  const handleNextButtonClick = () => {
+    if (!roomState || isNextProcessingRef.current) return;
+    sfxClick();
+    const currentPlayer = drawOrder[roomState.currentDrawerIndex];
+    if (!drawnPlayersRef.current.has(currentPlayer)) {
+      setConfirmModal({ type: 'skip', playerName: playerName(currentPlayer) });
+      return;
+    }
+    handleNextTurn();
+  };
+
+  // DrawCanvas 첫 획 → 현재 플레이어를 그렸음으로 기록
+  const handleFirstStroke = () => {
+    if (!roomState) return;
+    const currentPlayer = drawOrder[roomState.currentDrawerIndex];
+    drawnPlayersRef.current.add(currentPlayer);
+  };
+
+  // 모달 - "넘기기" (안 그렸지만 다음으로) 확정
+  const handleSkipConfirm = () => {
+    setConfirmModal(null);
+    handleNextTurn();
+  };
+
+  // 모달 - "다시 그리기" 확정: 미작성 플레이어 큐로 이동
+  const handleRedrawConfirm = (missingPositions: number[]) => {
+    setConfirmModal(null);
+    if (missingPositions.length === 0) return;
+    redrawQueueRef.current = [...missingPositions];
+    inRedrawModeRef.current = true;
+    const first = redrawQueueRef.current.shift()!;
+    sfxTurnOver();
+    updateFakeartRoom(roomCode, { currentDrawerIndex: first }).catch(console.error);
+  };
+
+  // 모달 - "그대로 투표" 확정: 마지막 턴 미작성 체크 무시하고 voting으로
+  const handleVoteAnywayConfirm = () => {
+    setConfirmModal(null);
+    handleNextTurn({ skipMissingCheck: true });
+  };
+
+  // setInterval 콜백이 항상 최신 handleNextTurn 클로저를 참조하도록 ref에 동기화
+  useEffect(() => {
+    handleNextTurnRef.current = handleNextTurn;
+  });
 
   const handlePrevTurn = async () => {
     if (!roomState) return;
@@ -461,7 +567,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
               </button>
             )}
             <button
-              onClick={handleNextTurn}
+              onClick={handleNextButtonClick}
               className="bg-stone-800 text-white font-bold px-3 py-1.5 rounded-xl text-sm
                          hover:bg-stone-700 active:scale-95 transition-all"
             >
@@ -482,6 +588,7 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             canvasRef={canvasRef}
             strokeColor={PLAYER_COLORS[currentDrawerPlayerIndex % PLAYER_COLORS.length]}
             baselineSnapshot={baselineSnapshot}
+            onFirstStroke={handleFirstStroke}
           />
         </div>
 
@@ -517,6 +624,62 @@ export default function GamePage({ onGoHome }: GamePageProps) {
             </a>
           </div>
         </div>
+
+        {confirmModal?.type === 'skip' && (
+          <Modal titleId="fakeart-skip-confirm" onClose={() => setConfirmModal(null)}>
+            <h3 id="fakeart-skip-confirm" className="text-xl font-black text-stone-800 mb-2">
+              {txt.skipNoDrawTitle}
+            </h3>
+            <p className="text-stone-600 mb-5 text-sm">
+              {txt.skipNoDrawMsg(confirmModal.playerName)}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { sfxClick(); setConfirmModal(null); }}
+                className="flex-1 bg-stone-200 text-stone-700 font-bold py-3 rounded-xl
+                           hover:bg-stone-300 active:scale-95 transition-all"
+              >
+                {txt.skipCancel}
+              </button>
+              <button
+                onClick={handleSkipConfirm}
+                className="flex-1 bg-stone-800 text-white font-bold py-3 rounded-xl
+                           hover:bg-stone-700 active:scale-95 transition-all"
+              >
+                {txt.skipConfirm}
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {confirmModal?.type === 'redraw' && (
+          <Modal titleId="fakeart-redraw-confirm" onClose={() => setConfirmModal(null)} maxWidth="max-w-sm">
+            <h3 id="fakeart-redraw-confirm" className="text-xl font-black text-stone-800 mb-2">
+              {txt.redrawTitle}
+            </h3>
+            <p className="text-stone-600 mb-5 text-sm">
+              {txt.redrawMsg(
+                confirmModal.missingPositions.map((pos) => playerName(drawOrder[pos])).join(', ')
+              )}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleVoteAnywayConfirm}
+                className="flex-1 bg-stone-200 text-stone-700 font-bold py-3 rounded-xl
+                           hover:bg-stone-300 active:scale-95 transition-all"
+              >
+                {txt.redrawNo}
+              </button>
+              <button
+                onClick={() => handleRedrawConfirm(confirmModal.missingPositions)}
+                className="flex-1 bg-amber-500 text-white font-bold py-3 rounded-xl
+                           hover:bg-amber-600 active:scale-95 transition-all"
+              >
+                {txt.redrawYes}
+              </button>
+            </div>
+          </Modal>
+        )}
       </div>
     );
   }

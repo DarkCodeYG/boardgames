@@ -8,6 +8,8 @@ interface DrawCanvasProps {
   canvasRef?: React.RefObject<HTMLCanvasElement | null>;
   strokeColor?: string;
   baselineSnapshot?: ImageData | null;
+  /** 현재 턴에서 첫 획이 발생했을 때 한 번만 호출됨 (baselineSnapshot 변경 시 리셋) */
+  onFirstStroke?: () => void;
 }
 
 export default function DrawCanvas({
@@ -17,6 +19,7 @@ export default function DrawCanvas({
   canvasRef: externalRef,
   strokeColor = '#000000',
   baselineSnapshot,
+  onFirstStroke,
 }: DrawCanvasProps) {
   const internalRef = useRef<HTMLCanvasElement>(null);
   const canvasRef = externalRef ?? internalRef;
@@ -24,13 +27,17 @@ export default function DrawCanvas({
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const [undoStack, setUndoStack] = useState<ImageData[]>([]);
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
+  // 캔버스가 한 번이라도 그려진 적 있으면 true (resize 시 픽셀 보존 판정용, 절대 false로 안 돌아감)
   const hasDrawnRef = useRef(false);
+  // 현재 턴(baselineSnapshot 단위)에서 첫 획 여부 — onFirstStroke 1회성 보장용
+  const firstStrokeFiredRef = useRef(false);
   const baselineCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // 새 플레이어 턴 시작 시: undo 스택 초기화 + baseline 캔버스 생성
   useEffect(() => {
     setUndoStack([]);
     setTool('pen');
+    firstStrokeFiredRef.current = false;
     if (!baselineSnapshot) {
       baselineCanvasRef.current = null;
       return;
@@ -104,6 +111,10 @@ export default function DrawCanvas({
 
     // 획 시작 전 현재 상태 저장 (undo용)
     hasDrawnRef.current = true;
+    if (!firstStrokeFiredRef.current) {
+      firstStrokeFiredRef.current = true;
+      onFirstStroke?.();
+    }
     const snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
     setUndoStack((prev) => [...prev, snapshot]);
 
@@ -123,7 +134,7 @@ export default function DrawCanvas({
       ctx.fillStyle = strokeColor;
       ctx.fill();
     }
-  }, [disabled, strokeColor, tool, eraseAt]);
+  }, [disabled, strokeColor, tool, eraseAt, onFirstStroke]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawingRef.current || disabled) return;
